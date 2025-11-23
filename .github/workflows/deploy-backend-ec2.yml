@@ -64,4 +64,3 @@ jobs:
           sleep 5
           sudo systemctl status shop-perfume-backend
         EOF
-# ---------------------------------
