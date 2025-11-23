@@ -118,21 +118,20 @@ export const PerfumeCard = ({ inventory }: ProductCardProps) => {
         className="product-image-wrapper"
         onClick={handleClick}
       >
-        {/* Brand Logo - Top Center */}
+        {/* Brand Logo - Top Center - Larger and Better Positioned */}
         <div className="brand-logo">
           {brandLogoUrl ? (
             <img 
               src={brandLogoUrl} 
               alt={product.brand.name}
               loading="lazy"
-              className="opacity-80 object-contain"
               onError={(e) => {
                 console.error(`❌ Failed to load brand image for "${product.brand.name}":`, brandLogoUrl);
                 const target = e.currentTarget;
                 target.style.display = 'none';
                 const parent = target.parentElement;
                 if (parent) {
-                  parent.innerHTML = `<span class="text-[10px] md:text-xs font-medium text-gray-600 uppercase tracking-widest">${product.brand.name}</span>`;
+                  parent.innerHTML = `<span>${product.brand.name}</span>`;
                 }
               }}
               onLoad={() => {
@@ -140,7 +139,7 @@ export const PerfumeCard = ({ inventory }: ProductCardProps) => {
               }}
             />
           ) : (
-            <span className="text-[10px] md:text-xs font-medium text-gray-600 uppercase tracking-widest">
+            <span>
               {product.brand.name}
             </span>
           )}

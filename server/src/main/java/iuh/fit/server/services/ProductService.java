@@ -58,5 +58,12 @@ public interface ProductService {
      */
     void delete(int productId);
 
+    /**
+     * Lấy danh sách sản phẩm bán chạy nhất dựa trên tổng quantity từ order_item
+     * @param limit Số lượng sản phẩm cần lấy (mặc định 20)
+     * @return Danh sách sản phẩm bán chạy nhất
+     */
+    List<ProductResponse> findBestSellers(int limit);
+
 }
 

@@ -307,58 +307,89 @@
     }
   }
 
-  /* Brand Logo - Responsive */
+  /* Brand Logo - Responsive - Larger and Better Positioned */
   .brand-logo {
-    @apply absolute left-1/2 -translate-x-1/2 z-10 pointer-events-none;
-    top: 0.625rem;
+    @apply absolute  z-10 pointer-events-none;
+    width: 100%;
+    right: 3rem;
+    display: flex;
+    justify-content: right;
+    align-items: center;
   }
 
   .brand-logo img {
-    height: 0.75rem;
-    max-width: 80px;
+    height: 1.5rem;
+    max-width: 140px;
+    width: auto;
+    object-fit: contain;
+    transition: opacity 0.3s ease;
+  }
+
+  .brand-logo span {
+    @apply font-medium text-gray-700 uppercase tracking-wider;
+    font-size: 0.75rem;
+    letter-spacing: 0.1em;
   }
 
   @media (min-width: 480px) {
     .brand-logo {
-      top: 0.75rem;
+      top: 1.25rem;
     }
     .brand-logo img {
-      height: 0.875rem;
-      max-width: 90px;
+      height: 1.75rem;
+      max-width: 160px;
+    }
+    .brand-logo span {
+      font-size: 0.875rem;
     }
   }
 
   @media (min-width: 768px) {
     .brand-logo {
-      top: 0.875rem;
+      top: 1.5rem;
     }
     .brand-logo img {
-      height: 1rem;
-      max-width: 100px;
+      height: 2rem;
+      max-width: 180px;
+    }
+    .brand-logo span {
+      font-size: 1rem;
     }
   }
 
   @media (min-width: 1024px) {
     .brand-logo {
-      top: 1rem;
+      top: 1.75rem;
     }
     .brand-logo img {
-      height: 1.125rem;
-      max-width: 110px;
+      height: 2.25rem;
+      max-width: 200px;
+    }
+    .brand-logo span {
+      font-size: 1.125rem;
     }
   }
 
   @media (min-width: 1280px) {
+    .brand-logo {
+      top: 2rem;
+    }
     .brand-logo img {
-      height: 1.25rem;
-      max-width: 115px;
+      height: 2.5rem;
+      max-width: 220px;
+    }
+    .brand-logo span {
+      font-size: 1.25rem;
     }
   }
 
   @media (min-width: 1536px) {
     .brand-logo img {
-      height: 1.375rem;
-      max-width: 120px;
+      height: 2.75rem;
+      max-width: 240px;
+    }
+    .brand-logo span {
+      font-size: 1.375rem;
     }
   }
 

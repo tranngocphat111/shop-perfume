@@ -1,55 +1,127 @@
 const API_BASE_URL = "http://13.251.125.90:8080/api";
 
+interface ApiError {
+  message: string;
+  status: number;
+}
+
+// Helper function to get auth headers
+const getAuthHeaders = (): Record<string, string> => {
+  const token = localStorage.getItem('auth_token');
+  if (token) {
+    return { 'Authorization': `Bearer ${token}` };
+  }
+  return {};
+};
+
 export const apiService = {
   async get<T>(endpoint: string): Promise<T> {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`);
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+    try {
+      const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+        headers: {
+          ...getAuthHeaders(),
+        },
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw {
+          message: errorData.message || `HTTP error! status: ${response.status}`,
+          status: response.status
+        } as ApiError;
+      }
+      return response.json();
+    } catch (error) {
+      if ((error as ApiError).status) {
+        throw error;
+      }
+      throw new Error('Network error. Please check your connection.');
     }
-    return response.json();
   },
 
   async post<T>(endpoint: string, data: unknown, options?: { headers?: Record<string, string> }): Promise<T> {
-    const isFormData = data instanceof FormData;
-    const headers: Record<string, string> = isFormData
-      ? {}
-      : { "Content-Type": "application/json", ...options?.headers };
+    try {
+      const isFormData = data instanceof FormData;
+      const headers: Record<string, string> = {
+        ...getAuthHeaders(),
+        ...(isFormData ? {} : { "Content-Type": "application/json" }),
+        ...options?.headers
+      };
 
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      method: "POST",
-      headers,
-      body: isFormData ? data : JSON.stringify(data),
-    });
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+        method: "POST",
+        headers,
+        body: isFormData ? data : JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw {
+          message: errorData.message || `HTTP error! status: ${response.status}`,
+          status: response.status
+        } as ApiError;
+      }
+      return response.json();
+    } catch (error) {
+      if ((error as ApiError).status) {
+        throw error;
+      }
+      throw new Error('Network error. Please check your connection.');
     }
-    return response.json();
   },
 
   async put<T>(endpoint: string, data: unknown, options?: { headers?: Record<string, string> }): Promise<T> {
-    const isFormData = data instanceof FormData;
-    const headers: Record<string, string> = isFormData
-      ? {}
-      : { "Content-Type": "application/json", ...options?.headers };
+    try {
+      const isFormData = data instanceof FormData;
+      const headers: Record<string, string> = {
+        ...getAuthHeaders(),
+        ...(isFormData ? {} : { "Content-Type": "application/json" }),
+        ...options?.headers
+      };
 
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      method: "PUT",
-      headers,
-      body: isFormData ? data : JSON.stringify(data),
-    });
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+        method: "PUT",
+        headers,
+        body: isFormData ? data : JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw {
+          message: errorData.message || `HTTP error! status: ${response.status}`,
+          status: response.status
+        } as ApiError;
+      }
+      return response.json();
+    } catch (error) {
+      if ((error as ApiError).status) {
+        throw error;
+      }
+      throw new Error('Network error. Please check your connection.');
     }
-    return response.json();
   },
 
   async delete<T>(endpoint: string): Promise<T> {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      method: "DELETE",
-    });
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+    try {
+      const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+        method: "DELETE",
+        headers: {
+          ...getAuthHeaders(),
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw {
+          message: errorData.message || `HTTP error! status: ${response.status}`,
+          status: response.status
+        } as ApiError;
+      }
+      return response.json();
+    } catch (error) {
+      if ((error as ApiError).status) {
+        throw error;
+      }
+      throw new Error('Network error. Please check your connection.');
     }
-    return response.json();
   },
 };

@@ -3,6 +3,20 @@ import { Link, useNavigate } from 'react-router-dom';
 import { authService } from '../../services/auth.service';
 import { useAuth } from '../../contexts/AuthContext';
 
+const getErrorMessage = (error: unknown): string => {
+    // Nếu lỗi có thuộc tính message (từ API service)
+    if (error && typeof error === 'object' && 'message' in error) {
+        return (error as { message: string }).message;
+    }
+
+    // Nếu là Error object thông thường
+    if (error instanceof Error) {
+        return error.message;
+    }
+
+    return 'Đăng nhập thất bại. Vui lòng kiểm tra email và mật khẩu.';
+};
+
 const Login: React.FC = () => {
     const [formData, setFormData] = useState({
         email: '',
@@ -37,9 +51,9 @@ const Login: React.FC = () => {
             } else {
                 navigate('/');
             }
-        } catch (err: any) {
+        } catch (err) {
             console.error('Login error:', err);
-            setError(err.message || 'Đăng nhập thất bại. Vui lòng kiểm tra email và mật khẩu.');
+            setError(getErrorMessage(err));
         } finally {
             setLoading(false);
         }
