@@ -7,9 +7,9 @@ interface ApiError {
 
 // Helper function to get auth headers
 const getAuthHeaders = (): Record<string, string> => {
-  const token = localStorage.getItem('auth_token');
+  const token = localStorage.getItem("auth_token");
   if (token) {
-    return { 'Authorization': `Bearer ${token}` };
+    return { Authorization: `Bearer ${token}` };
   }
   return {};
 };
@@ -25,8 +25,9 @@ export const apiService = {
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw {
-          message: errorData.message || `HTTP error! status: ${response.status}`,
-          status: response.status
+          message:
+            errorData.message || `HTTP error! status: ${response.status}`,
+          status: response.status,
         } as ApiError;
       }
       return response.json();
@@ -34,19 +35,22 @@ export const apiService = {
       if ((error as ApiError).status) {
         throw error;
       }
-      throw new Error('Network error. Please check your connection.');
+      throw new Error("Network error. Please check your connection.");
     }
   },
 
-  async post<T>(endpoint: string, data: unknown, options?: { headers?: Record<string, string> }): Promise<T> {
+  async post<T>(
+    endpoint: string,
+    data: unknown,
+    options?: { headers?: Record<string, string> }
+  ): Promise<T> {
     try {
       const isFormData = data instanceof FormData;
       const headers: Record<string, string> = {
         ...getAuthHeaders(),
         ...(isFormData ? {} : { "Content-Type": "application/json" }),
-        ...options?.headers
+        ...options?.headers,
       };
-
       const response = await fetch(`${API_BASE_URL}${endpoint}`, {
         method: "POST",
         headers,
@@ -56,8 +60,9 @@ export const apiService = {
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw {
-          message: errorData.message || `HTTP error! status: ${response.status}`,
-          status: response.status
+          message:
+            errorData.message || `HTTP error! status: ${response.status}`,
+          status: response.status,
         } as ApiError;
       }
       return response.json();
@@ -65,17 +70,21 @@ export const apiService = {
       if ((error as ApiError).status) {
         throw error;
       }
-      throw new Error('Network error. Please check your connection.');
+      throw new Error("Network error. Please check your connection.");
     }
   },
 
-  async put<T>(endpoint: string, data: unknown, options?: { headers?: Record<string, string> }): Promise<T> {
+  async put<T>(
+    endpoint: string,
+    data: unknown,
+    options?: { headers?: Record<string, string> }
+  ): Promise<T> {
     try {
       const isFormData = data instanceof FormData;
       const headers: Record<string, string> = {
         ...getAuthHeaders(),
         ...(isFormData ? {} : { "Content-Type": "application/json" }),
-        ...options?.headers
+        ...options?.headers,
       };
 
       const response = await fetch(`${API_BASE_URL}${endpoint}`, {
@@ -87,8 +96,9 @@ export const apiService = {
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw {
-          message: errorData.message || `HTTP error! status: ${response.status}`,
-          status: response.status
+          message:
+            errorData.message || `HTTP error! status: ${response.status}`,
+          status: response.status,
         } as ApiError;
       }
       return response.json();
@@ -96,7 +106,7 @@ export const apiService = {
       if ((error as ApiError).status) {
         throw error;
       }
-      throw new Error('Network error. Please check your connection.');
+      throw new Error("Network error. Please check your connection.");
     }
   },
 
@@ -112,8 +122,9 @@ export const apiService = {
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw {
-          message: errorData.message || `HTTP error! status: ${response.status}`,
-          status: response.status
+          message:
+            errorData.message || `HTTP error! status: ${response.status}`,
+          status: response.status,
         } as ApiError;
       }
       return response.json();
@@ -121,7 +132,7 @@ export const apiService = {
       if ((error as ApiError).status) {
         throw error;
       }
-      throw new Error('Network error. Please check your connection.');
+      throw new Error("Network error. Please check your connection.");
     }
   },
 };
