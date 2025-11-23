@@ -3,17 +3,9 @@ name: Auto Deploy Backend to AWS EC2
 on:
   push:
     branches:
-      - develop  # Chỉ deploy khi push vào branch develop
+      - develop  # Thay đổi branch này nếu bạn dùng branch khác (main, master, develop, etc.)
     paths:
       - 'server/**'  # Chỉ deploy khi có thay đổi trong folder server
-    paths-ignore:
-      - 'server/**/*.md'
-      - 'server/**/*.txt'
-      - 'server/**/*.sh'
-      - 'server/**/*.bat'
-      - 'server/**/*.ps1'
-      - 'server/README.md'
-      - 'server/**/README.md'
   workflow_dispatch:  # Cho phép chạy thủ công từ GitHub Actions tab
 
 jobs:
@@ -35,21 +27,6 @@ jobs:
       working-directory: ./server
       run: mvn clean package -DskipTests
     
-    - name: Find JAR file
-      id: find-jar
-      run: |
-        JAR_FILE=$(find server/target -name "server-*.jar" ! -name "*-sources.jar" ! -name "*-javadoc.jar" | head -1)
-        if [ -z "$JAR_FILE" ]; then
-          echo "❌ JAR file not found!"
-          echo "Contents of server/target/:"
-          ls -la server/target/ || echo "Directory does not exist"
-          exit 1
-        fi
-        echo "✅ JAR file found: $JAR_FILE"
-        ls -lh "$JAR_FILE"
-        echo "jar_file=$JAR_FILE" >> $GITHUB_OUTPUT
-        echo "JAR_FILE=$JAR_FILE" >> $GITHUB_ENV
-    
     - name: Setup SSH
       uses: webfactory/ssh-agent@v0.7.0
       with:
@@ -61,57 +38,29 @@ jobs:
     
     - name: Copy JAR to EC2
       run: |
-        JAR_FILE="${{ steps.find-jar.outputs.jar_file }}"
-        if [ -z "$JAR_FILE" ]; then
-          echo "❌ JAR_FILE variable is empty!"
-          exit 1
-        fi
-        echo "Copying JAR file: $JAR_FILE"
-        scp "$JAR_FILE" ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/home/${{ secrets.EC2_USER }}/backend.jar
+        scp server/target/server-*.jar ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/home/${{ secrets.EC2_USER }}/backend.jar
     
     - name: Deploy and restart on EC2
       run: |
         ssh ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
-          set -e  # Exit on error
-          
           # Tạo thư mục nếu chưa có
           mkdir -p ~/app
           
-          # Kiểm tra JAR file có tồn tại không
-          if [ ! -f ~/backend.jar ]; then
-            echo "❌ JAR file not found in home directory!"
-            exit 1
-          fi
-          
           # Backup JAR cũ
           if [ -f ~/app/backend.jar ]; then
-            mv ~/app/backend.jar ~/app/backend.jar.backup.$(date +%Y%m%d_%H%M%S)
-            echo "✅ Old JAR backed up"
+            mv ~/app/backend.jar ~/app/backend.jar.backup
           fi
           
           # Copy JAR mới
           mv ~/backend.jar ~/app/backend.jar
-          echo "✅ New JAR copied to app directory"
           
           # Dừng service cũ (nếu đang chạy)
           sudo systemctl stop shop-perfume-backend || true
-          echo "⏸️ Service stopped"
           
           # Chạy JAR mới
           sudo systemctl start shop-perfume-backend
-          echo "▶️ Service started"
-          
-          # Đợi một chút để service khởi động
-          sleep 5
           
           # Kiểm tra status
-          if sudo systemctl is-active --quiet shop-perfume-backend; then
-            echo "✅ Service is running successfully!"
-            sudo systemctl status shop-perfume-backend --no-pager
-          else
-            echo "❌ Service failed to start!"
-            sudo systemctl status shop-perfume-backend --no-pager
-            sudo journalctl -u shop-perfume-backend -n 50 --no-pager
-            exit 1
-          fi
+          sleep 5
+          sudo systemctl status shop-perfume-backend
         EOF
