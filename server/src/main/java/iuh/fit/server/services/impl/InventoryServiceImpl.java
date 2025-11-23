@@ -9,6 +9,7 @@ import iuh.fit.server.model.entity.Product;
 import iuh.fit.server.repository.BrandRepository;
 import iuh.fit.server.repository.CategoryRepository;
 import iuh.fit.server.repository.InventoryRepository;
+import iuh.fit.server.repository.OrderItemRepository;
 import iuh.fit.server.repository.ProductRepository;
 import iuh.fit.server.services.ProductService;
 import lombok.RequiredArgsConstructor;
@@ -30,8 +31,8 @@ import java.util.stream.Collectors;
 @Transactional
 public class InventoryServiceImpl implements iuh.fit.server.services.InventoryService {
     private final InventoryMapper inventoryMapper;
-
     private final InventoryRepository inventoryRepository;
+    private final OrderItemRepository orderItemRepository;
 
     @Override
     public List<InventoryResponse> findAll() {
@@ -48,6 +49,46 @@ public class InventoryServiceImpl implements iuh.fit.server.services.InventorySe
         return inventories.map(inventoryMapper::toResponse);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<InventoryResponse> findBestSellers(int limit) {
+        log.info("Finding best selling inventories with limit: {}", limit);
+        
+        // Get best selling product IDs from order_item table
+        List<Object[]> bestSellingData = orderItemRepository.findBestSellingProductsWithLimit(limit);
+        
+        if (bestSellingData.isEmpty()) {
+            log.warn("No best selling products found, returning empty list");
+            return List.of();
+        }
+        
+        // Extract product IDs
+        List<Integer> productIds = bestSellingData.stream()
+                .map(row -> ((Number) row[0]).intValue())
+                .collect(Collectors.toList());
+        
+        log.info("Found {} best selling product IDs: {}", productIds.size(), productIds);
+        
+        // Fetch inventories for these products
+        List<Inventory> inventories = inventoryRepository.findByProductIds(productIds);
+        
+        // Sort by productIds order (best sellers first) to maintain ranking
+        List<Inventory> bestSellerInventories = new java.util.ArrayList<>();
+        for (Integer productId : productIds) {
+            inventories.stream()
+                    .filter(inv -> inv.getProduct().getProductId() == productId)
+                    .findFirst()
+                    .ifPresent(bestSellerInventories::add);
+        }
+        
+        // Map to response
+        List<InventoryResponse> responses = bestSellerInventories.stream()
+                .map(inventoryMapper::toResponse)
+                .collect(Collectors.toList());
+        
+        log.info("Returning {} best selling inventories", responses.size());
+        return responses;
+    }
 
 }
 

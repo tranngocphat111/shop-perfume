@@ -11,6 +11,7 @@ import iuh.fit.server.model.entity.Product;
 import iuh.fit.server.repository.BrandRepository;
 import iuh.fit.server.repository.CategoryRepository;
 import iuh.fit.server.repository.ImageRepository;
+import iuh.fit.server.repository.OrderItemRepository;
 import iuh.fit.server.repository.ProductRepository;
 import iuh.fit.server.services.CloudinaryService;
 import iuh.fit.server.services.ProductService;
@@ -39,6 +40,7 @@ public class ProductServiceImpl implements ProductService {
     private final BrandRepository brandRepository;
     private final CategoryRepository categoryRepository;
     private final ImageRepository imageRepository;
+    private final OrderItemRepository orderItemRepository;
     private final ProductMapper productMapper;
     private final CloudinaryService cloudinaryService;
 
@@ -310,6 +312,45 @@ public class ProductServiceImpl implements ProductService {
         // Delete
         productRepository.deleteById(productId);
         log.info("Product deleted successfully: {}", productId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ProductResponse> findBestSellers(int limit) {
+        log.info("Finding best selling products with limit: {}", limit);
+        
+        // Get best selling product IDs from order_item table
+        List<Object[]> bestSellingData = orderItemRepository.findBestSellingProductsWithLimit(limit);
+        
+        if (bestSellingData.isEmpty()) {
+            log.warn("No best selling products found, returning empty list");
+            return new ArrayList<>();
+        }
+        
+        // Extract product IDs
+        List<Integer> productIds = bestSellingData.stream()
+                .map(row -> ((Number) row[0]).intValue())
+                .collect(Collectors.toList());
+        
+        log.info("Found {} best selling product IDs: {}", productIds.size(), productIds);
+        
+        // Fetch products by IDs, maintaining the order
+        List<Product> products = productRepository.findAllById(productIds);
+        
+        // Sort products to maintain the order from query (best sellers first)
+        products.sort((p1, p2) -> {
+            int index1 = productIds.indexOf(p1.getProductId());
+            int index2 = productIds.indexOf(p2.getProductId());
+            return Integer.compare(index1, index2);
+        });
+        
+        // Map to response
+        List<ProductResponse> responses = products.stream()
+                .map(productMapper::toResponse)
+                .collect(Collectors.toList());
+        
+        log.info("Returning {} best selling products", responses.size());
+        return responses;
     }
 
 }
