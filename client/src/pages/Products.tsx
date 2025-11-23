@@ -24,8 +24,8 @@ export const Products = () => {
         productService.getAllBrands(),
         productService.getAllCategories(),
       ]);
-      setBrands(brandsRes.data);
-      setCategories(categoriesRes.data);
+      setBrands(brandsRes);
+      setCategories(categoriesRes);
     } catch (err) {
       console.error('Failed to load brands/categories:', err);
     }
