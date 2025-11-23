@@ -1,5 +1,0 @@
-client/package-lock.json
-/.idea
-/.github
-*.yml
-.github/workflows/deploy-backend-ec2.yml
