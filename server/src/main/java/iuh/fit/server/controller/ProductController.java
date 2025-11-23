@@ -93,6 +93,20 @@ public class ProductController {
     }
 
     /**
+     * GET /api/products/best-sellers - Lấy danh sách sản phẩm bán chạy nhất
+     * Dựa trên tổng quantity từ order_item table
+     */
+    @GetMapping("/best-sellers")
+    @Operation(summary = "Get best selling products", description = "Retrieve best selling products based on total quantity sold from order_item")
+    public ResponseEntity<List<ProductResponse>> getBestSellers(
+            @RequestParam(defaultValue = "20") int limit
+    ) {
+        log.info("REST request to get best sellers with limit: {}", limit);
+        List<ProductResponse> bestSellers = productService.findBestSellers(limit);
+        return ResponseEntity.ok(bestSellers);
+    }
+
+    /**
      * GET /api/products/{id} - Lấy sản phẩm theo ID
      */
     @GetMapping("/{id}")
