@@ -68,6 +68,10 @@ export const ProductModal = ({
       // Load existing images for edit mode
       if (mode === "edit" && initialData.existingImages) {
         setExistingImages(initialData.existingImages);
+        setImagesToDelete([]);
+      } else {
+        setExistingImages([]);
+        setImagesToDelete([]);
       }
     } else {
       setFormData({
@@ -84,11 +88,11 @@ export const ProductModal = ({
         images: [],
         primaryImageIndex: 0,
       });
+      setExistingImages([]);
+      setImagesToDelete([]);
     }
     setErrors({});
     setImagePreviews([]);
-    setExistingImages([]);
-    setImagesToDelete([]);
   }, [initialData, isOpen, mode]);
 
   const validate = () => {

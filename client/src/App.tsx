@@ -13,6 +13,7 @@ import { Dashboard } from "./pages/admin/Dashboard";
 import { StockAdjustments } from "./pages/admin/StockAdjustment";
 import { Products as AdminProducts } from "./pages/admin/Products";
 import { Footer } from "./components/Footer";
+import { Suppliers } from "./pages/admin/Suppliers";
 
 function AppContent() {
   const location = useLocation();
@@ -49,6 +50,7 @@ function AppContent() {
           />
           <Route path="/admin" element={<Dashboard />} />
           <Route path="/admin/products" element={<AdminProducts />} />
+          <Route path="/admin/suppliers" element={<Suppliers />} />
           <Route
             path="/admin/stock-adjustments"
             element={<StockAdjustments />}
