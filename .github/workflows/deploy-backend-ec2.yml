@@ -35,14 +35,20 @@ jobs:
       working-directory: ./server
       run: mvn clean package -DskipTests
     
-    - name: Check JAR file exists
+    - name: Find JAR file
+      id: find-jar
       run: |
-        if [ ! -f server/target/server-*.jar ]; then
+        JAR_FILE=$(find server/target -name "server-*.jar" ! -name "*-sources.jar" ! -name "*-javadoc.jar" | head -1)
+        if [ -z "$JAR_FILE" ]; then
           echo "❌ JAR file not found!"
+          echo "Contents of server/target/:"
+          ls -la server/target/ || echo "Directory does not exist"
           exit 1
         fi
-        echo "✅ JAR file found:"
-        ls -lh server/target/server-*.jar
+        echo "✅ JAR file found: $JAR_FILE"
+        ls -lh "$JAR_FILE"
+        echo "jar_file=$JAR_FILE" >> $GITHUB_OUTPUT
+        echo "JAR_FILE=$JAR_FILE" >> $GITHUB_ENV
     
     - name: Setup SSH
       uses: webfactory/ssh-agent@v0.7.0
@@ -55,7 +61,13 @@ jobs:
     
     - name: Copy JAR to EC2
       run: |
-        scp server/target/server-*.jar ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/home/${{ secrets.EC2_USER }}/backend.jar
+        JAR_FILE="${{ steps.find-jar.outputs.jar_file }}"
+        if [ -z "$JAR_FILE" ]; then
+          echo "❌ JAR_FILE variable is empty!"
+          exit 1
+        fi
+        echo "Copying JAR file: $JAR_FILE"
+        scp "$JAR_FILE" ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/home/${{ secrets.EC2_USER }}/backend.jar
     
     - name: Deploy and restart on EC2
       run: |
