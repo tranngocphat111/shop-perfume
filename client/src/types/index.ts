@@ -43,6 +43,7 @@ export interface Brand {
   brandId: number;
   name: string;
   description?: string;
+  url?: string;
 }
 
 export interface Category {
@@ -215,3 +216,12 @@ export interface PaymentCheckResponse {
   amount?: number;
   paymentDate?: string;
 }
+
+// Re-export home types for convenience
+export type {
+  HeroSlide,
+  HeroCarouselProps,
+  HomeCategory,
+  CategoriesSectionProps,
+  BestSellersSectionProps,
+} from "./home";

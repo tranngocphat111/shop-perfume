@@ -7,7 +7,6 @@ import org.mapstruct.ReportingPolicy;
 
 /**
  * Mapper cho Brand entity
- * Cực kỳ ngắn gọn với MapStruct!
  */
 @Mapper(componentModel = "spring", unmappedTargetPolicy = ReportingPolicy.IGNORE)
 public interface BrandMapper {
