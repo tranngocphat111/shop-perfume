@@ -51,6 +51,18 @@ export interface Category {
   description?: string;
 }
 
+export interface Supplier {
+  supplierId: number;
+  name: string;
+  email: string;
+  phone: string;
+  address: string;
+  createdAt: string;
+  lastUpdated: string;
+  createdBy?: string;
+  lastUpdatedBy?: string;
+}
+
 export interface ProductImage {
   imageId: number;
   url: string;

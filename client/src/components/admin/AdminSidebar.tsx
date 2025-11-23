@@ -20,6 +20,11 @@ export const AdminSidebar = ({ isOpen }: AdminSidebarProps) => {
       label: "Products",
     },
     {
+      path: "/admin/suppliers",
+      icon: "fa-truck",
+      label: "Suppliers",
+    },
+    {
       path: "/admin/stock-adjustments",
       icon: "fa-warehouse",
       label: "Stock Adjustments",
