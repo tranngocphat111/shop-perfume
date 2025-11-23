@@ -65,6 +65,7 @@ public class SecurityConfig {
                     .requestMatchers("/inventories/**").permitAll()
                     .requestMatchers("/brands/**").permitAll()
                     .requestMatchers("/categories/**").permitAll()
+                    .requestMatchers("/suppliers/**").permitAll()
                     .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
 
                     // Protected endpoints
