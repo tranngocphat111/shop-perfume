@@ -24,7 +24,6 @@ public class OpenApiConfig {
                 .description("REST API cho hệ thống E-Commerce");
         return new OpenAPI()
                 .info(infomation)
-                .addSecurityItem(new SecurityRequirement().addList("BearerAuth"))
                 .components(new Components()
                         .addSecuritySchemes("BearerAuth", new SecurityScheme()
                                 .type(SecurityScheme.Type.HTTP)

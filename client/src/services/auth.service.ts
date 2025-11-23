@@ -30,20 +30,20 @@ class AuthService {
     const response = await apiService.post<AuthResponse>('/auth/login', credentials);
 
     // Lưu token và thông tin user vào localStorage
-    this.setToken(response.data.token);
-    this.setUser(response.data);
+    this.setToken(response.token);
+    this.setUser(response);
 
-    return response.data;
+    return response;
   }
 
   async register(userData: RegisterRequest): Promise<AuthResponse> {
     const response = await apiService.post<AuthResponse>('/auth/register', userData);
 
     // Lưu token và thông tin user vào localStorage
-    this.setToken(response.data.token);
-    this.setUser(response.data);
+    this.setToken(response.token);
+    this.setUser(response);
 
-    return response.data;
+    return response;
   }
 
   logout(): void {
@@ -65,7 +65,7 @@ class AuthService {
 
     try {
       return JSON.parse(userStr);
-    } catch (e) {
+    } catch {
       return null;
     }
   }
@@ -93,7 +93,7 @@ class AuthService {
       const payload = JSON.parse(atob(token.split('.')[1]));
       const expirationTime = payload.exp * 1000; // Convert to milliseconds
       return Date.now() >= expirationTime;
-    } catch (e) {
+    } catch {
       return true; // If can't parse, consider it expired
     }
   }

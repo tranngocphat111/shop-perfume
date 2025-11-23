@@ -11,10 +11,12 @@ export const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRout
   const { isAuthenticated, isAdmin } = useAuth();
 
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
+    // Nếu yêu cầu admin, redirect về admin login
+    return <Navigate to={requireAdmin ? "/admin/login" : "/login"} replace />;
   }
 
   if (requireAdmin && !isAdmin) {
+    // Nếu đã đăng nhập nhưng không phải admin, redirect về home
     return <Navigate to="/" replace />;
   }
 
