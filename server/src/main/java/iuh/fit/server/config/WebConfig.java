@@ -19,7 +19,8 @@ import java.util.List;
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
 
-    @Value("${cors.allowed.origins:http://localhost:3000}")
+
+    @Value("${cors.allowed.origins:https://shop-perfume.vercel.app,http://localhost:3000}")
     private String allowedOrigins;
 
     @Override
