@@ -1,17 +1,73 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { Home } from './pages/Home';
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+import { CartProvider } from "./contexts/CartContext";
+import { AuthProvider } from "./contexts/AuthContext";
+import { Header } from "./components/Header";
+import { Home } from "./pages/Home";
+import { Products as CustomerProducts } from "./pages/Products";
+import { Cart } from "./pages/Cart";
+import { Checkout } from "./pages/Checkout";
+import Login from "./pages/auth/Login";
+import Register from "./pages/auth/Register";
+import "./App.css";
+import { Dashboard } from "./pages/admin/Dashboard";
+import { StockAdjustments } from "./pages/admin/StockAdjustment";
+import { Products as AdminProducts } from "./pages/admin/Products";
+
+function AppContent() {
+  const location = useLocation();
+  const isHomePage = location.pathname === "/";
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <Header />
+      <main className={`min-h-[calc(100vh-80px)] ${isHomePage ? "" : "pt-20"}`}>
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/products" element={<CustomerProducts />} />
+          <Route path="/cart" element={<Cart />} />
+          <Route path="/checkout" element={<Checkout />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route
+            path="/about"
+            element={
+              <div className="p-8 text-center">About Page - Coming Soon</div>
+            }
+          />
+          <Route
+            path="/brands"
+            element={
+              <div className="p-8 text-center">Brands Page - Coming Soon</div>
+            }
+          />
+          <Route
+            path="/contact"
+            element={
+              <div className="p-8 text-center">Contact Page - Coming Soon</div>
+            }
+          />
+          <Route path="/admin" element={<Dashboard />} />
+          <Route path="/admin/products" element={<AdminProducts />} />
+          <Route
+            path="/admin/stock-adjustments"
+            element={<StockAdjustments />}
+          />
+        </Routes>
+      </main>
+    </div>
+  );
+}
 
 function App() {
   return (
     <BrowserRouter>
-      <div className="min-h-screen bg-gray-50">
-        <Routes>
-          <Route path="/" element={<Home />} />
-        </Routes>
-      </div>
+      <AuthProvider>
+        <CartProvider>
+          <AppContent />
+        </CartProvider>
+      </AuthProvider>
     </BrowserRouter>
   );
 }
 
 export default App;
-

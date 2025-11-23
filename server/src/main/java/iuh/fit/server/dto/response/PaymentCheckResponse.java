@@ -1,0 +1,19 @@
+package iuh.fit.server.dto.response;
+
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.util.Date;
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class PaymentCheckResponse {
+    private Boolean paid;
+    private String orderId;
+    private String transactionId;
+    private Double amount;
+    private Date paymentDate;
+}
+
