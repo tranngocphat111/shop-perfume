@@ -6,6 +6,14 @@ on:
       - develop  # Thay đổi branch này nếu bạn dùng branch khác (main, master, develop, etc.)
     paths:
       - 'server/**'  # Chỉ deploy khi có thay đổi trong folder server
+    paths-ignore:
+      - 'server/**/*.md'  # Bỏ qua file markdown
+      - 'server/**/*.txt'  # Bỏ qua file text
+      - 'server/**/*.sh'   # Bỏ qua script shell (nếu không cần)
+      - 'server/**/*.bat'  # Bỏ qua script Windows
+      - 'server/**/*.ps1'  # Bỏ qua PowerShell script
+      - 'server/README.md'
+      - 'server/**/README.md'
   workflow_dispatch:  # Cho phép chạy thủ công từ GitHub Actions tab
 
 jobs:
