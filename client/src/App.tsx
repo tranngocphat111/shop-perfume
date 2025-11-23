@@ -8,6 +8,8 @@ import { Cart } from "./pages/Cart";
 import { Checkout } from "./pages/Checkout";
 import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
+import AdminLogin from "./pages/auth/AdminLogin";
+import { ProtectedRoute } from "./components/ProtectedRoute";
 import "./App.css";
 import { Dashboard } from "./pages/admin/Dashboard";
 import { StockAdjustments } from "./pages/admin/StockAdjustment";
@@ -17,11 +19,13 @@ import { Suppliers } from "./pages/admin/Suppliers";
 function AppContent() {
   const location = useLocation();
   const isHomePage = location.pathname === "/";
+  const isAdminRoute = location.pathname.startsWith("/admin");
+  const isAuthRoute = location.pathname === "/login" || location.pathname === "/register" || location.pathname === "/admin/login";
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Header />
-      <main className={`min-h-[calc(100vh-80px)] ${isHomePage ? "" : "pt-20"}`}>
+      {!isAdminRoute && !isAuthRoute && <Header />}
+      <main className={`min-h-[calc(100vh-80px)] ${isHomePage || isAdminRoute || isAuthRoute ? "" : "pt-20"}`}>
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/products" element={<CustomerProducts />} />
@@ -29,6 +33,7 @@ function AppContent() {
           <Route path="/checkout" element={<Checkout />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/admin/login" element={<AdminLogin />} />
           <Route
             path="/about"
             element={
@@ -47,12 +52,37 @@ function AppContent() {
               <div className="p-8 text-center">Contact Page - Coming Soon</div>
             }
           />
-          <Route path="/admin" element={<Dashboard />} />
-          <Route path="/admin/products" element={<AdminProducts />} />
-          <Route path="/admin/suppliers" element={<Suppliers />} />
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute requireAdmin={true}>
+                <Dashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/products"
+            element={
+              <ProtectedRoute requireAdmin={true}>
+                <AdminProducts />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/suppliers"
+            element={
+              <ProtectedRoute requireAdmin={true}>
+                <Suppliers />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/admin/stock-adjustments"
-            element={<StockAdjustments />}
+            element={
+              <ProtectedRoute requireAdmin={true}>
+                <StockAdjustments />
+              </ProtectedRoute>
+            }
           />
         </Routes>
       </main>

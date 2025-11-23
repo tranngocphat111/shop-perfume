@@ -1,29 +1,49 @@
-# Logs
-logs
-*.log
+# --- Node dependencies ---
+node_modules/
+
+# --- Native directories (managed by Expo) ---
+/ios
+/android
+
+# --- Expo specific ---
+.expo/
+.expo-shared/
+.expo/*
+dist/
+web-build/
+
+
+
+# --- Credentials & keys ---
+*.jks
+*.keystore
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.pem
+
+# --- Metro bundler ---
+.metro-cache/
+.metro-health-check*
+
+# --- Debug logs ---
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-pnpm-debug.log*
-lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-*.local
-
-# Editor directories and files
-.vscode/*
-!.vscode/extensions.json
-.idea
-.DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
-
-*.md
+# --- Environment files ---
 .env
-.env.development
-.env.example
+.env.*
+.env*.local
+
+# --- TypeScript ---
+*.tsbuildinfo
+
+# --- VSCode ---
+.vscode/
+
+# --- Optional ---
+README-OLD.md
+*.orig.*
+*.md
