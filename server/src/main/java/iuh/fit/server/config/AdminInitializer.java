@@ -59,7 +59,7 @@ public class AdminInitializer implements CommandLineRunner {
 
         log.info("===============================================");
         log.info("Admin account created successfully!");
-        log.info("Email: admin@shopperfume.com");
+        log.info("Email: shopperfume.admin@gmail.com");
         log.info("Password: Admin@123");
         log.info("Please change the password after first login");
         log.info("===============================================");
