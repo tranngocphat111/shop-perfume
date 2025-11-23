@@ -59,6 +59,28 @@ export const calculateSubtotal = (unitPrice: number, quantity: number): number =
 };
 
 /**
+ * Get brand logo URL from brand object
+ * Handles both full URLs and relative paths
+ */
+export const getBrandLogoUrl = (brandUrl: string | undefined | null): string | null => {
+  if (!brandUrl) return null;
+  
+  const url = brandUrl.trim();
+  if (!url) return null;
+  
+  // If it's already a full URL, return as is
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return url;
+  }
+  
+  // Remove leading slash if present
+  const cleanUrl = url.startsWith('/') ? url.substring(1) : url;
+  
+  // Prepend Cloudinary base URL
+  return `${CLOUDINARY_BASE_URL}${cleanUrl}`;
+};
+
+/**
  * Cloudinary base URL constant để export
  */
 export { CLOUDINARY_BASE_URL };

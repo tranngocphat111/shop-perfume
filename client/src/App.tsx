@@ -12,6 +12,7 @@ import "./App.css";
 import { Dashboard } from "./pages/admin/Dashboard";
 import { StockAdjustments } from "./pages/admin/StockAdjustment";
 import { Products as AdminProducts } from "./pages/admin/Products";
+import { Footer } from "./components/Footer";
 
 function AppContent() {
   const location = useLocation();
@@ -54,6 +55,8 @@ function AppContent() {
           />
         </Routes>
       </main>
+      <Footer />
+
     </div>
   );
 }
