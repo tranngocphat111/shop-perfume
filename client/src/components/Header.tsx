@@ -193,19 +193,11 @@ export const Header = () => {
                 window.scrollTo({ top: 0, behavior: "smooth" });
               }
             }}
-            className="transition-all duration-300 hover:opacity-80"
+            className={`font-normal tracking-wider transition-all duration-300 ${
+              isCompact ? "text-2xl md:text-3xl" : "text-3xl md:text-4xl"
+            } ${textColor} hover:opacity-80`}
           >
-            <img
-              src={
-                isScrolled
-                  ? "https://res.cloudinary.com/piin/image/upload/v1763985017/logo/SPTN-BLACK.png"
-                  : "https://res.cloudinary.com/piin/image/upload/v1763985017/logo/SPTN-WHITE.png"
-              }
-              alt="LAN Perfume Logo"
-              className={`transition-all duration-300 ${
-                isCompact ? "h-20 md:h-22" : "h-22 md:h-24"
-              }`}
-            />
+        LAN
           </Link>
 
           {/* Navigation */}
@@ -231,7 +223,7 @@ export const Header = () => {
               ></span>
             </Link>
             <NavLink to="/about" isScrolled={isScrolled} isCompact={isCompact}>
-              Về SPTN Perfume
+              Về LAN Perfume
             </NavLink>
 
             {/* Dropdown: Bộ sưu tập nước hoa */}
@@ -655,11 +647,7 @@ export const Header = () => {
             {/* Liên hệ tư vấn Button */}
             <Link
               to="/contact"
-              className={`px-4 py-2 rounded-full font-normal text-sm transition-all duration-300 ${
-                isScrolled
-                  ? "bg-black text-white hover:bg-gray-800"
-                  : "bg-white text-gray-900 hover:bg-gray-100"
-              }`}
+              className="bg-white text-gray-900 px-4 py-2 rounded-full font-normal text-sm hover:bg-gray-100 transition-all duration-300"
             >
               Liên hệ tư vấn
             </Link>
