@@ -19,14 +19,14 @@ export const Footer = () => {
           <div className="lg:col-span-2">
             <Link to="/" className="inline-block mb-6">
               <h3 className="text-3xl md:text-4xl font-light tracking-wider mb-2 hover:opacity-80 transition-opacity">
-                LAN
+                SPTN
               </h3>
               <div className="h-px w-16 bg-gradient-to-r from-white to-transparent" />
             </Link>
             <p className="text-gray-300 text-sm md:text-base leading-relaxed mb-6 max-w-md">
-              "Luxe - Art - Nostalgia" - Mỗi mùi hương là một tuyên ngôn thầm lặng 
+              "Style - Premium - Timeless - Nostalgia" - Mỗi mùi hương là một tuyên ngôn thầm lặng 
               dành cho người có gu sống riêng biệt. Khám phá thế giới nước hoa cao cấp 
-              với LAN Perfume.
+              với SPTN Perfume.
             </p>
             
             {/* Social Media */}
@@ -72,7 +72,7 @@ export const Footer = () => {
                 <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                 </svg>
-                <span>lanperfumestore@gmail.com</span>
+                <span>sptnperfumestore@gmail.com</span>
               </div>
             </div>
           </div>
@@ -116,7 +116,7 @@ export const Footer = () => {
                   className="text-gray-300 hover:text-white transition-colors text-sm flex items-center gap-2 group"
                 >
                   <span className="w-1 h-1 rounded-full bg-transparent group-hover:bg-white transition-all" />
-                  Về LAN Perfume
+                  Về SPTN Perfume
                 </Link>
               </li>
               <li>
@@ -241,7 +241,7 @@ export const Footer = () => {
 
             {/* Copyright */}
             <div className="text-xs md:text-sm text-gray-400 text-center md:text-right">
-              <p>&copy; {new Date().getFullYear()} LAN Perfume. All rights reserved.</p>
+              <p>&copy; {new Date().getFullYear()} SPTN Perfume. All rights reserved.</p>
             </div>
           </div>
         </div>
