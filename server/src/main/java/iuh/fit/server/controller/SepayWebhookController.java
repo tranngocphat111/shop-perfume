@@ -34,7 +34,7 @@ public class SepayWebhookController {
      * Sepay sends webhook with header: "Authorization": "Apikey YOUR_API_KEY"
      * Sepay typically sends JSON, but we support both JSON and form-urlencoded
      */
-    @PostMapping(value = "/sepay", consumes = {MediaType.APPLICATION_JSON_VALUE, MediaType.APPLICATION_FORM_URLENCODED_VALUE})
+    @PostMapping(value = "/sepay", consumes = {MediaType.APPLICATION_JSON_VALUE, MediaType.APPLICATION_FORM_URLENCODED_VALUE, MediaType.ALL_VALUE})
     public ResponseEntity<?> handleSepayWebhook(
             @RequestBody(required = false) SepayWebhookRequest webhookRequest,
             @RequestParam(required = false) java.util.Map<String, String> params,
@@ -44,7 +44,7 @@ public class SepayWebhookController {
             String authHeader = request.getHeader("Authorization");
             
             if (!verifyApiKey(authHeader)) {
-                log.error("Sepay webhook API key verification failed");
+                log.error("Sepay webhook API key verification failed. Header: {}", authHeader != null ? "present" : "missing");
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                         .body(new WebhookResponse("error", "Invalid API key"));
             }
@@ -56,7 +56,7 @@ public class SepayWebhookController {
             
             // Check if request body is null
             if (webhookRequest == null) {
-                log.error("Sepay webhook request body is null");
+                log.error("Sepay webhook request body is null. Content-Type: {}", request.getContentType());
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                         .body(new WebhookResponse("error", "Request body is required"));
             }
@@ -141,10 +141,20 @@ public class SepayWebhookController {
 
     /**
      * Health check endpoint for webhook
+     * Sepay can use this to verify the endpoint is accessible
      */
     @GetMapping("/sepay/health")
     public ResponseEntity<?> healthCheck() {
         return ResponseEntity.ok().body(new WebhookResponse("ok", "Webhook endpoint is active"));
+    }
+    
+    /**
+     * Simple GET endpoint to test if Sepay can reach the server
+     * This helps verify webhook URL configuration in Sepay dashboard
+     */
+    @GetMapping("/sepay")
+    public ResponseEntity<?> testConnection() {
+        return ResponseEntity.ok().body(new WebhookResponse("ok", "Webhook endpoint is reachable. URL: /api/webhooks/sepay"));
     }
 
     /**
@@ -165,6 +175,43 @@ public class SepayWebhookController {
             log.error("Error processing test webhook", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(new WebhookResponse("error", "Error processing test webhook: " + e.getMessage()));
+        }
+    }
+    
+    /**
+     * Manual webhook trigger from real transaction
+     * Use this when Sepay doesn't send webhook automatically
+     * Usage: POST /api/webhooks/sepay/manual with orderId and amount
+     * This endpoint bypasses API key check for manual processing
+     */
+    @PostMapping("/sepay/manual")
+    public ResponseEntity<?> manualWebhook(
+            @RequestParam Integer orderId,
+            @RequestParam Double amount,
+            @RequestParam(required = false) String transactionDate) {
+        try {
+            // Create webhook request from transaction data
+            SepayWebhookRequest webhookRequest = new SepayWebhookRequest();
+            webhookRequest.setId(System.currentTimeMillis()); // Use timestamp as ID
+            webhookRequest.setGateway("MBBank");
+            webhookRequest.setTransactionDate(transactionDate != null ? transactionDate : java.time.LocalDateTime.now().toString());
+            webhookRequest.setAccountNumber("0963360910");
+            webhookRequest.setCode("STNP" + orderId);
+            webhookRequest.setContent("STNP" + orderId);
+            webhookRequest.setTransferType("in");
+            webhookRequest.setTransferAmount(amount);
+            webhookRequest.setDescription("STNP" + orderId);
+            
+            boolean processed = orderService.processSepayWebhook(webhookRequest);
+            if (processed) {
+                return ResponseEntity.ok().body(new WebhookSuccessResponse(true, "Manual webhook processed successfully for order " + orderId));
+            } else {
+                return ResponseEntity.ok().body(new WebhookSuccessResponse(false, "Manual webhook failed. Order " + orderId + " not found or amount mismatch."));
+            }
+        } catch (Exception e) {
+            log.error("Error processing manual webhook", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new WebhookResponse("error", "Error processing manual webhook: " + e.getMessage()));
         }
     }
 

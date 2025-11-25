@@ -18,6 +18,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.web.cors.CorsConfigurationSource;
 
 @Configuration
@@ -51,6 +52,17 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        // Custom matcher for webhook endpoints - works with context-path=/api
+        RequestMatcher webhookMatcher = new RequestMatcher() {
+            @Override
+            public boolean matches(jakarta.servlet.http.HttpServletRequest request) {
+                String servletPath = request.getServletPath();
+                String requestURI = request.getRequestURI();
+                return (servletPath != null && servletPath.startsWith("/webhooks/")) ||
+                       (requestURI != null && (requestURI.startsWith("/api/webhooks/") || requestURI.startsWith("/webhooks/")));
+            }
+        };
+        
         http
             .csrf(csrf -> csrf.disable())
             .cors(cors -> cors.configurationSource(corsConfigurationSource))
@@ -60,9 +72,9 @@ public class SecurityConfig {
                 exception.authenticationEntryPoint(authenticationEntryPoint))
             .authorizeHttpRequests(auth -> auth
                      // CRITICAL: Webhook endpoints MUST be FIRST (before any other rules)
-                    // Sepay webhook endpoint (must be public) - support all possible path formats
-                    .requestMatchers("/webhooks/**").permitAll()
-                    .requestMatchers("/api/webhooks/**").permitAll()
+                    // Sepay webhook endpoint (must be public)
+                    // Use custom matcher to handle both servletPath and requestURI
+                    .requestMatchers(webhookMatcher).permitAll()
                     
                     // CRITICAL: Guest checkout endpoints MUST be SECOND to ensure they are matched
                     // Note: context-path=/api, Controller has @RequestMapping("/orders"), so servletPath is /orders/create

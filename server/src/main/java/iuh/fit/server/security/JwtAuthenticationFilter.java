@@ -71,8 +71,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String pathToCheck = (servletPath != null && !servletPath.isEmpty()) ? servletPath : requestURI;
         
         // CRITICAL: Skip JWT filter for webhook endpoints FIRST
-        if (pathToCheck.startsWith("/webhooks/") || requestURI.startsWith("/api/webhooks/")) {
-            logger.debug("Skipping JWT filter for webhook: servletPath=" + servletPath + ", requestURI=" + requestURI);
+        // Check both servletPath (after context-path removal) and full requestURI
+        boolean isWebhook = (pathToCheck != null && pathToCheck.startsWith("/webhooks/")) ||
+                           (requestURI != null && (requestURI.startsWith("/api/webhooks/") || requestURI.startsWith("/webhooks/")));
+        
+        if (isWebhook) {
+            logger.debug("Skipping JWT filter for webhook: servletPath=" + servletPath + ", requestURI=" + requestURI + ", pathToCheck=" + pathToCheck);
             return true;
         }
         
