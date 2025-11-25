@@ -3,14 +3,22 @@ import { Link, useNavigate, Navigate } from "react-router-dom";
 import { authService } from "../../services/auth.service";
 import { useAuth } from "../../contexts/AuthContext";
 
+const getErrorMessage = (error: unknown): string => {
+  if (error && typeof error === "object" && "message" in error) {
+    return (error as { message: string }).message;
+  }
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return "Đăng ký thất bại. Vui lòng thử lại.";
+};
+
 const Register: React.FC = () => {
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     password: "",
     confirmPassword: "",
-    phone: "",
-    address: "",
   });
   const [error, setError] = useState<string>("");
   const [success, setSuccess] = useState<string>("");
@@ -18,41 +26,34 @@ const Register: React.FC = () => {
   const navigate = useNavigate();
   const { login, isAuthenticated } = useAuth();
 
-  // Redirect if already logged in
   if (isAuthenticated) {
     return <Navigate to="/" replace />;
   }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
+    setFormData({ ...formData, [e.target.name]: e.target.value });
     if (error) setError("");
     if (success) setSuccess("");
   };
 
   const validateForm = (): boolean => {
-    if (formData.name.length < 2) {
+    if (formData.name.trim().length < 2) {
       setError("Tên phải có ít nhất 2 ký tự");
       return false;
     }
-
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) {
+      setError("Email không hợp lệ");
+      return false;
+    }
     if (formData.password.length < 6) {
       setError("Mật khẩu phải có ít nhất 6 ký tự");
       return false;
     }
-
     if (formData.password !== formData.confirmPassword) {
       setError("Mật khẩu xác nhận không khớp");
       return false;
     }
-
-    if (formData.phone && !/^(\+84|0)[0-9]{9,10}$/.test(formData.phone)) {
-      setError("Số điện thoại không hợp lệ (VD: 0912345678)");
-      return false;
-    }
-
     return true;
   };
 
@@ -60,61 +61,46 @@ const Register: React.FC = () => {
     e.preventDefault();
     setError("");
     setSuccess("");
-
-    if (!validateForm()) {
-      return;
-    }
-
+    if (!validateForm()) return;
     setLoading(true);
-
     try {
       const registerData = {
-        name: formData.name,
-        email: formData.email,
+        name: formData.name.trim(),
+        email: formData.email.trim(),
         password: formData.password,
-        phone: formData.phone || undefined,
-        address: formData.address || undefined,
       };
-
       const response = await authService.register(registerData);
       login(response.token, response);
-
-      setSuccess("Đăng ký thành công! Đang chuyển hướng...");
-      setTimeout(() => navigate("/"), 1000);
-    } catch (err: any) {
-      console.error("Register error:", err);
-      setError(
-        err.message || "Đăng ký thất bại. Email có thể đã được sử dụng."
-      );
+      navigate("/");
+    } catch (err) {
+      setError(getErrorMessage(err));
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl overflow-hidden border border-gray-100">
-        {/* Header */}
-        <div className="bg-white border-b border-gray-100 p-8 text-center">
+    <div className="flex justify-center items-center px-4 py-12 min-h-screen bg-gray-50 sm:px-6 lg:px-8">
+      <div className="overflow-hidden w-full max-w-md bg-white rounded-lg border border-gray-100 shadow-xl">
+        <div className="p-8 text-center bg-white border-b border-gray-100">
           <Link to="/" className="inline-block mb-4">
             <img
               src="https://res.cloudinary.com/piin/image/upload/v1763985017/logo/SPTN-BLACK.png"
               alt="STPN Perfume"
-              className="h-16 mx-auto"
+              className="mx-auto h-16"
             />
           </Link>
-          <h2 className="text-2xl font-semibold text-gray-900 tracking-tight">
+          <h2 className="text-2xl font-semibold tracking-tight text-gray-900">
             Đăng ký tài khoản
           </h2>
-          <p className="text-gray-600 mt-2 text-sm">
+          <p className="mt-2 text-sm text-gray-600">
             Tạo tài khoản để trải nghiệm mua sắm
           </p>
         </div>
 
-        {/* Body */}
         <div className="p-8">
           {error && (
-            <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 rounded-r">
+            <div className="p-4 mb-6 bg-red-50 rounded-r border-l-4 border-red-500">
               <div className="flex items-start">
                 <svg
                   className="w-5 h-5 text-red-500 mt-0.5 mr-3 flex-shrink-0"
@@ -133,7 +119,7 @@ const Register: React.FC = () => {
           )}
 
           {success && (
-            <div className="mb-6 p-4 bg-green-50 border-l-4 border-green-500 rounded-r">
+            <div className="p-4 mb-6 bg-green-50 rounded-r border-l-4 border-green-500">
               <div className="flex items-start">
                 <svg
                   className="w-5 h-5 text-green-500 mt-0.5 mr-3 flex-shrink-0"
@@ -152,109 +138,72 @@ const Register: React.FC = () => {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-5">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Họ và tên <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleChange}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition"
-                  placeholder="Nhập họ và tên"
-                  required
-                  disabled={loading}
-                  minLength={2}
-                  maxLength={100}
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Email <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition"
-                  placeholder="Nhập địa chỉ email"
-                  required
-                  disabled={loading}
-                />
-              </div>
+            <div>
+              <label className="block mb-2 text-sm font-medium text-gray-700">
+                Họ và tên <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                name="name"
+                value={formData.name}
+                onChange={handleChange}
+                className="px-4 py-3 w-full rounded-lg border border-gray-300 transition focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+                placeholder="Nhập họ và tên"
+                required
+                disabled={loading}
+                minLength={2}
+                maxLength={100}
+              />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Mật khẩu <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="password"
-                  name="password"
-                  value={formData.password}
-                  onChange={handleChange}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition"
-                  placeholder="Tối thiểu 6 ký tự"
-                  required
-                  disabled={loading}
-                  minLength={6}
-                  maxLength={50}
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Xác nhận mật khẩu <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="password"
-                  name="confirmPassword"
-                  value={formData.confirmPassword}
-                  onChange={handleChange}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition"
-                  placeholder="Nhập lại mật khẩu"
-                  required
-                  disabled={loading}
-                />
-              </div>
+            <div>
+              <label className="block mb-2 text-sm font-medium text-gray-700">
+                Email <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="email"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                className="px-4 py-3 w-full rounded-lg border border-gray-300 transition focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+                placeholder="Nhập địa chỉ email"
+                required
+                disabled={loading}
+              />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Số điện thoại
-                </label>
-                <input
-                  type="tel"
-                  name="phone"
-                  value={formData.phone}
-                  onChange={handleChange}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition"
-                  placeholder="VD: 0912345678"
-                  disabled={loading}
-                />
-              </div>
+            <div>
+              <label className="block mb-2 text-sm font-medium text-gray-700">
+                Mật khẩu <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="password"
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
+                className="px-4 py-3 w-full rounded-lg border border-gray-300 transition focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+                placeholder="Tối thiểu 6 ký tự"
+                required
+                disabled={loading}
+                minLength={6}
+                maxLength={50}
+              />
+            </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Địa chỉ
-                </label>
-                <input
-                  type="text"
-                  name="address"
-                  value={formData.address}
-                  onChange={handleChange}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition"
-                  placeholder="Nhập địa chỉ"
-                  disabled={loading}
-                  maxLength={255}
-                />
-              </div>
+            <div>
+              <label className="block mb-2 text-sm font-medium text-gray-700">
+                Xác nhận mật khẩu <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="password"
+                name="confirmPassword"
+                value={formData.confirmPassword}
+                onChange={handleChange}
+                className="px-4 py-3 w-full rounded-lg border border-gray-300 transition focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+                placeholder="Nhập lại mật khẩu"
+                required
+                disabled={loading}
+              />
             </div>
 
             <button
@@ -267,9 +216,9 @@ const Register: React.FC = () => {
               disabled={loading}
             >
               {loading ? (
-                <span className="flex items-center justify-center">
+                <span className="flex justify-center items-center">
                   <svg
-                    className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+                    className="mr-3 -ml-1 w-5 h-5 text-white animate-spin"
                     xmlns="http://www.w3.org/2000/svg"
                     fill="none"
                     viewBox="0 0 24 24"
@@ -296,22 +245,22 @@ const Register: React.FC = () => {
             </button>
           </form>
 
-          <div className="mt-6 text-center space-y-3">
+          <div className="mt-6 space-y-3 text-center">
             <p className="text-sm text-gray-600">
               Đã có tài khoản?{" "}
               <Link
                 to="/login"
-                className="text-gray-900 font-medium hover:underline"
+                className="font-medium text-gray-900 hover:underline"
               >
                 Đăng nhập
               </Link>
             </p>
             <Link
               to="/"
-              className="inline-flex items-center text-sm text-gray-500 hover:text-gray-900 transition"
+              className="inline-flex items-center text-sm text-gray-500 transition hover:text-gray-900"
             >
               <svg
-                className="w-4 h-4 mr-2"
+                className="mr-2 w-4 h-4"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
