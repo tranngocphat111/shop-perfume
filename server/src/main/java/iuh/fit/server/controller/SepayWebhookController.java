@@ -24,8 +24,8 @@ public class SepayWebhookController {
 
     private final OrderService orderService;
 
-    
-    private String sepayApiKey = "Apikey PASS_KEY";
+    @Value("${sepay.webhook.api-key:PASS_KEY}")
+    private String sepayApiKey;
 
     /**
      * Handle Sepay webhook callback for payment verification
