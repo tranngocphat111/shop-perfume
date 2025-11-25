@@ -76,6 +76,54 @@ export interface Inventory {
   quantity: number;
 }
 
+export interface PurchaseInvoice {
+  purchaseInvoiceId: number;
+  totalAmount: number;
+  email: string;
+  status: "PENDING" | "COMPLETED" | "CANCELLED";
+  createdAt: string;
+  lastUpdated: string;
+  createdBy?: string;
+  lastUpdatedBy?: string;
+  supplier: {
+    supplierId: number;
+    name: string;
+    email: string;
+    phone: string;
+  };
+  details: PurchaseInvoiceDetail[];
+}
+
+export interface PurchaseInvoiceDetail {
+  purchaseInvoiceDetailId: number;
+  quantity: number;
+  importPrice: number;
+  subTotal: number;
+  product: {
+    productId: number;
+    name: string;
+    brand: {
+      brandId: number;
+      name: string;
+    };
+    category: {
+      categoryId: number;
+      name: string;
+    };
+  };
+}
+
+export interface PurchaseInvoiceFormData {
+  supplierId: number;
+  email: string;
+  status: "PENDING" | "COMPLETED" | "CANCELLED";
+  details: {
+    productId: number;
+    quantity: number;
+    importPrice: number;
+  }[];
+}
+
 export interface CartItem {
   product: Product;
   quantity: number;

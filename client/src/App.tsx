@@ -20,8 +20,8 @@ import { StockAdjustments } from "./pages/admin/StockAdjustment";
 import { Products as AdminProducts } from "./pages/admin/Products";
 import { Footer } from "./components/Footer";
 import { Suppliers } from "./pages/admin/Suppliers";
+import { PurchaseInvoices } from "./pages/admin/PurchaseInvoices";
 import { ScrollToTop } from "./components/ScrollToTop";
-
 
 function AppContent() {
   const location = useLocation();
@@ -38,8 +38,7 @@ function AppContent() {
       <main
         className={`min-h-[calc(100vh-80px)] ${
           isHomePage || isAdminRoute || isAuthRoute ? "" : "pt-20"
-        }`}
-      >
+        }`}>
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/products" element={<CustomerProducts />} />
@@ -106,6 +105,14 @@ function AppContent() {
             element={
               <ProtectedRoute requireAdmin={true}>
                 <StockAdjustments />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/purchase-invoices"
+            element={
+              <ProtectedRoute requireAdmin={true}>
+                <PurchaseInvoices />
               </ProtectedRoute>
             }
           />

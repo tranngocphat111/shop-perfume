@@ -1,5 +1,5 @@
-const API_BASE_URL = "http://13.251.125.90:8080/api";
-// const API_BASE_URL = "http://localhost:8080/api";
+// const API_BASE_URL = "http://13.251.125.90:8080/api";
+const API_BASE_URL = "http://localhost:8080/api";
 
 interface ApiError {
   message: string;
@@ -23,17 +23,17 @@ export const apiService = {
     try {
       const fullUrl = `${API_BASE_URL}${endpoint}`;
       const headers = { ...getAuthHeaders() };
-      
+
       // Only log non-polling requests (payment check is called frequently)
       const isPollingRequest = endpoint.includes('/payment/check-qr');
       if (!isPollingRequest) {
         console.log('[API] 🔵 GET Request:', fullUrl);
       }
-      
+
       const response = await fetch(fullUrl, {
         headers,
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         console.error('[API] ❌ GET Error:', {
@@ -48,9 +48,9 @@ export const apiService = {
           response: { data: errorData },
         } as ApiError & { response?: { data?: any } };
       }
-      
+
       const data = await response.json();
-      
+
       // Only log non-polling requests or if payment status changed
       if (!isPollingRequest || (data.paid || data.cancelled)) {
         console.log('[API] ✅ GET Response:', {
@@ -59,7 +59,7 @@ export const apiService = {
           data: data
         });
       }
-      
+
       return data;
     } catch (error) {
       if ((error as ApiError).status) {
@@ -83,11 +83,11 @@ export const apiService = {
         ...(isFormData ? {} : { "Content-Type": "application/json" }),
         ...options?.headers,
       };
-      
+
       console.log('[API] 🔵 POST Request:', fullUrl);
       console.log('[API] 🔵 Request Data:', isFormData ? '[FormData]' : data);
       console.log('[API] 🔵 Headers:', headers);
-      
+
       const response = await fetch(fullUrl, {
         method: "POST",
         headers,
@@ -109,14 +109,14 @@ export const apiService = {
           response: { data: errorData },
         } as ApiError & { response?: { data?: any } };
       }
-      
+
       const responseData = await response.json();
       console.log('[API] ✅ POST Response:', {
         url: fullUrl,
         status: response.status,
         data: responseData
       });
-      
+
       return responseData;
     } catch (error) {
       if ((error as ApiError).status) {

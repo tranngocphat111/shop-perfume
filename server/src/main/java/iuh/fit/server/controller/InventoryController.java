@@ -13,9 +13,13 @@ import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.Map;
 
 import java.util.List;
 
@@ -97,6 +101,22 @@ public class InventoryController {
     }
 
     /**
+     * GET /api/inventories/{id} - Lấy inventory theo ID
+     */
+    @GetMapping("/{id}")
+    @Operation(summary = "Get inventory by ID", description = "Retrieve inventory information by inventory ID")
+    public ResponseEntity<InventoryResponse> getInventoryById(
+            @PathVariable Integer id
+    ) {
+        log.info("REST request to get inventory by id: {}", id);
+        InventoryResponse inventory = inventoryService.findById(id);
+        if (inventory == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(inventory);
+    }
+
+    /**
      * GET /api/inventories/product/{productId} - Lấy inventory theo productId
      */
     @GetMapping("/product/{productId}")
@@ -110,6 +130,24 @@ public class InventoryController {
             return ResponseEntity.notFound().build();
         }
         return ResponseEntity.ok(inventory);
+    }
+
+    /**
+     * PUT /api/inventories/{id} - Cập nhật số lượng tồn kho
+     */
+    @org.springframework.web.bind.annotation.PutMapping("/{id}")
+    @Operation(summary = "Update inventory quantity", description = "Update the quantity of an inventory item")
+    public ResponseEntity<InventoryResponse> updateInventory(
+            @PathVariable Integer id,
+            @org.springframework.web.bind.annotation.RequestBody java.util.Map<String, Integer> request
+    ) {
+        log.info("REST request to update inventory {}: {}", id, request);
+        Integer quantity = request.get("quantity");
+        if (quantity == null || quantity < 0) {
+            return ResponseEntity.badRequest().build();
+        }
+        InventoryResponse updated = inventoryService.updateQuantity(id, quantity);
+        return ResponseEntity.ok(updated);
     }
 
 }
