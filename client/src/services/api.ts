@@ -24,8 +24,11 @@ export const apiService = {
       const fullUrl = `${API_BASE_URL}${endpoint}`;
       const headers = { ...getAuthHeaders() };
       
-      console.log('[API] 🔵 GET Request:', fullUrl);
-      console.log('[API] 🔵 Headers:', headers);
+      // Only log non-polling requests (payment check is called frequently)
+      const isPollingRequest = endpoint.includes('/payment/check-qr');
+      if (!isPollingRequest) {
+        console.log('[API] 🔵 GET Request:', fullUrl);
+      }
       
       const response = await fetch(fullUrl, {
         headers,
@@ -47,11 +50,15 @@ export const apiService = {
       }
       
       const data = await response.json();
-      console.log('[API] ✅ GET Response:', {
-        url: fullUrl,
-        status: response.status,
-        data: data
-      });
+      
+      // Only log non-polling requests or if payment status changed
+      if (!isPollingRequest || (data.paid || data.cancelled)) {
+        console.log('[API] ✅ GET Response:', {
+          url: fullUrl,
+          status: response.status,
+          data: data
+        });
+      }
       
       return data;
     } catch (error) {

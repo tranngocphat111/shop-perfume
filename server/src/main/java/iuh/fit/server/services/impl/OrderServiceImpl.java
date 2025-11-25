@@ -39,7 +39,6 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
     @Transactional
     @Override
     public OrderResponse createOrder(OrderCreateRequest request) {
-        log.info("Creating order for guest: {}, phone: {}", request.getFullName(), request.getPhone());
 
         // Create Order entity
         Order order = new Order();
@@ -106,7 +105,6 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
         // Save order (cascade will save orderItems, payment, and shipment)
         Order savedOrder = orderRepository.save(order);
 
-        log.info("Order created successfully with ID: {}", savedOrder.getOrderId());
 
         // Map to response using OrderMapper
         return orderMapper.toResponse(savedOrder);
@@ -114,8 +112,6 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
 
     @Override
     public PaymentCheckResponse checkQRPayment(String orderId) {
-        log.info("Checking QR payment for order ID: {}", orderId);
-        
         // First, check if order should be cancelled due to timeout
         try {
             Integer orderIdInt = Integer.parseInt(orderId);
@@ -130,16 +126,46 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
                 return response;
             }
         } catch (NumberFormatException e) {
-            log.error("Invalid order ID format: {}", orderId);
+            // Invalid order ID format
         }
         
-        // In a real implementation, this would check with the bank API
-        // For now, we'll return a mock response
-        // TODO: Implement actual payment verification with bank API
-        
+        // Check actual payment status from database
         PaymentCheckResponse response = new PaymentCheckResponse();
-        response.setPaid(false); // Change to true when payment is verified
         response.setOrderId(orderId);
+        response.setPaid(false);
+        response.setCancelled(false);
+        
+        try {
+            Integer orderIdInt = Integer.parseInt(orderId);
+            Optional<Order> orderOpt = orderRepository.findById(orderIdInt);
+            
+            if (orderOpt.isEmpty()) {
+                return response;
+            }
+            
+            Order order = orderOpt.get();
+            Payment payment = order.getPayment();
+            
+            if (payment == null) {
+                return response;
+            }
+            
+            // Check if payment is PAID
+            if (payment.getStatus() == PaymentStatus.PAID) {
+                response.setPaid(true);
+                response.setAmount(payment.getAmount());
+                response.setPaymentDate(payment.getPaymentDate());
+            } 
+            // Check if payment is FAILED (cancelled due to timeout)
+            else if (payment.getStatus() == PaymentStatus.FAILED) {
+                response.setCancelled(true);
+            }
+            
+        } catch (NumberFormatException e) {
+            // Invalid order ID format
+        } catch (Exception e) {
+            log.error("Error checking QR payment for order: {}", orderId, e);
+        }
         
         return response;
     }
@@ -149,7 +175,6 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
     public void cancelOrderIfTimeout(Integer orderId) {
         Optional<Order> orderOpt = orderRepository.findById(orderId);
         if (orderOpt.isEmpty()) {
-            log.warn("Order not found: {}", orderId);
             return;
         }
         
@@ -169,7 +194,6 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
         // Check if order was created more than 30 minutes ago
         Date orderDate = order.getCreatedAt() != null ? order.getCreatedAt() : order.getOrderDate();
         if (orderDate == null) {
-            log.warn("Order {} has no creation date", orderId);
             return;
         }
         
@@ -178,8 +202,6 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
             // Cancel the order by setting payment status to FAILED
             payment.setStatus(PaymentStatus.FAILED);
             paymentRepository.save(payment);
-            log.info("Order {} cancelled due to QR payment timeout ({} minutes elapsed)", 
-                    orderId, TimeUnit.MILLISECONDS.toMinutes(timeElapsed));
         }
     }
     
@@ -198,7 +220,6 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
     
     @Override
     public List<OrderResponse> getOrdersByEmail(String email) {
-        log.info("Getting orders for email: {}", email);
         List<Order> orders = orderRepository.findByGuestEmailOrderByOrderDateDesc(email);
         return orders.stream()
                 .map(orderMapper::toResponse)
@@ -207,7 +228,6 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
     
     @Override
     public List<OrderResponse> getOrdersByUserId(Integer userId) {
-        log.info("Getting orders for user ID: {}", userId);
         List<Order> orders = orderRepository.findByUserIdOrderByOrderDateDesc(userId);
         return orders.stream()
                 .map(orderMapper::toResponse)
@@ -218,21 +238,9 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
     @Transactional
     public boolean processSepayWebhook(SepayWebhookRequest webhookRequest) {
         try {
-            log.info("=== Processing Sepay Webhook ===");
-            log.info("Transaction ID: {}", webhookRequest.getId());
-            log.info("Amount: {}", webhookRequest.getAmount());
-            log.info("Content: {}", webhookRequest.getContent());
-            log.info("Status: {}", webhookRequest.getStatus());
-            log.info("Account Number: {}", webhookRequest.getAccountNumber());
-            log.info("Account Name: {}", webhookRequest.getAccountName());
-            log.info("Bank: {}", webhookRequest.getBank());
-            log.info("Transaction Date: {}", webhookRequest.getTransactionDate());
-            log.info("Reference: {}", webhookRequest.getReference());
-            log.info("=================================");
-            
-            // Only process successful transactions
-            if (webhookRequest.getStatus() == null || !webhookRequest.getStatus().equalsIgnoreCase("success")) {
-                log.info("Ignoring webhook with status: {} (only processing 'success' status)", webhookRequest.getStatus());
+            // Only process "in" transactions (money in = payment received)
+            // "out" = money out (withdrawal), we ignore these
+            if (webhookRequest.getTransferType() == null || !webhookRequest.getTransferType().equalsIgnoreCase("in")) {
                 return false;
             }
             
@@ -240,24 +248,22 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
             // Format: "STNP_123", "Thanh toan don hang #123", "LAN_123", or "123"
             Integer orderId = extractOrderIdFromContent(webhookRequest.getContent());
             if (orderId == null) {
-                log.warn("Could not extract order ID from content: '{}'", webhookRequest.getContent());
-                log.warn("Trying to extract from reference: '{}'", webhookRequest.getReference());
-                // Try to extract from reference if content fails
-                if (webhookRequest.getReference() != null) {
-                    orderId = extractOrderIdFromContent(webhookRequest.getReference());
+                // Try to extract from referenceCode if content fails
+                if (webhookRequest.getReferenceCode() != null) {
+                    orderId = extractOrderIdFromContent(webhookRequest.getReferenceCode());
+                }
+                // Also try code field (Sepay auto-recognized payment code)
+                if (orderId == null && webhookRequest.getCode() != null) {
+                    orderId = extractOrderIdFromContent(webhookRequest.getCode());
                 }
                 if (orderId == null) {
-                    log.error("Failed to extract order ID from both content and reference");
                     return false;
                 }
             }
             
-            log.info("Extracted Order ID: {}", orderId);
-            
             // Find the order
             Optional<Order> orderOpt = orderRepository.findById(orderId);
             if (orderOpt.isEmpty()) {
-                log.warn("Order not found with ID: {}", orderId);
                 return false;
             }
             
@@ -265,36 +271,24 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
             Payment payment = order.getPayment();
             
             if (payment == null) {
-                log.warn("Payment not found for order: {}", orderId);
                 return false;
             }
-            
-            log.info("Found order {} with payment status: {}", orderId, payment.getStatus());
-            log.info("Order amount: {}, Webhook amount: {}", payment.getAmount(), webhookRequest.getAmount());
             
             // Verify amount matches (allow small difference for rounding)
-            double amountDifference = Math.abs(payment.getAmount() - webhookRequest.getAmount());
+            double amountDifference = Math.abs(payment.getAmount() - webhookRequest.getTransferAmount());
             if (amountDifference > 1000) { // Allow 1000 VND difference
-                log.warn("Amount mismatch for order {}: expected {}, received {}, difference: {}", 
-                        orderId, payment.getAmount(), webhookRequest.getAmount(), amountDifference);
                 return false;
             }
-            
-            log.info("Amount verified successfully (difference: {} VND)", amountDifference);
             
             // Only update if payment is still pending
             if (payment.getStatus() == PaymentStatus.PENDING) {
                 payment.setStatus(PaymentStatus.PAID);
                 payment.setPaymentDate(new Date());
                 paymentRepository.save(payment);
-                
-                log.info("✅ Successfully updated payment status to PAID for order: {}", orderId);
-                log.info("Payment date set to: {}", payment.getPaymentDate());
                 return true;
-            } else {
-                log.info("Payment for order {} already processed with status: {}", orderId, payment.getStatus());
-                return false;
             }
+            
+            return false;
             
         } catch (Exception e) {
             log.error("Error processing Sepay webhook", e);
@@ -349,7 +343,7 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
             }
             
         } catch (NumberFormatException e) {
-            log.warn("Could not parse order ID from content: {}", content);
+            // Silent fail - return null
         }
         
         return null;
