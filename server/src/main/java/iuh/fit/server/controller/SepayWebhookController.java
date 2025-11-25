@@ -185,7 +185,7 @@ public class SepayWebhookController {
      * This endpoint bypasses API key check for manual processing
      * Supports both form-urlencoded and JSON
      */
-    @PostMapping(value = "/sepay/manual", consumes = {MediaType.APPLICATION_JSON_VALUE, MediaType.APPLICATION_FORM_URLENCODED_VALUE})
+    @PostMapping(value = "/sepay/manual", consumes = {MediaType.APPLICATION_JSON_VALUE, MediaType.APPLICATION_FORM_URLENCODED_VALUE, MediaType.ALL_VALUE})
     public ResponseEntity<?> manualWebhook(
             @RequestParam(required = false) Integer orderId,
             @RequestParam(required = false) Double amount,
