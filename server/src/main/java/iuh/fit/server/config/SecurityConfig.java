@@ -67,6 +67,10 @@ public class SecurityConfig {
                     .requestMatchers("/categories/**").permitAll()
                     .requestMatchers("/api/admin/suppliers").permitAll()
                     .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                    
+                    // Allow guest checkout (create order without login)
+                    .requestMatchers("/api/orders/create").permitAll()
+                    .requestMatchers("/api/payment/check-qr").permitAll()
 
                     // Protected endpoints
                     .requestMatchers("/cart/**").authenticated()

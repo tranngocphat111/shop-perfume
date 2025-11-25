@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCart } from '../contexts/CartContext';
-import { ShippingForm, PaymentMethodSelector, QRPayment, OrderSummary } from '../components/checkout';
-import type { CheckoutFormData, OrderRequest } from '../types';
+import { useAuth } from '../contexts/AuthContext';
+import { ShippingForm, PaymentMethodSelector, OrderSummary } from '../components/checkout';
+import type { CheckoutFormData, OrderRequest, OrderResponse } from '../types';
 import { apiService } from '../services/api';
 
 const initialFormData: CheckoutFormData = {
@@ -23,12 +24,12 @@ const initialFormData: CheckoutFormData = {
 export const Checkout: React.FC = () => {
   const navigate = useNavigate();
   const { cart, clearCart } = useCart();
+  const { user, isAuthenticated } = useAuth();
   const cartItems = cart.items;
   const [formData, setFormData] = useState<CheckoutFormData>(initialFormData);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [isPaymentConfirmed, setIsPaymentConfirmed] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 
   // Redirect if cart is empty
   useEffect(() => {
@@ -36,6 +37,18 @@ export const Checkout: React.FC = () => {
       navigate('/cart');
     }
   }, [cartItems, navigate]);
+
+  // Auto-fill user information if logged in
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      setFormData(prev => ({
+        ...prev,
+        fullName: prev.fullName || user.name || '',
+        email: prev.email || user.email || '',
+        // Note: phone and address are not in AuthResponse, so we keep user input
+      }));
+    }
+  }, [isAuthenticated, user]);
 
   // Calculate total
   const total = cartItems.reduce(
@@ -49,11 +62,6 @@ export const Checkout: React.FC = () => {
 
   const handlePaymentMethodChange = (method: CheckoutFormData['paymentMethod']) => {
     updateFormData({ paymentMethod: method });
-    setIsPaymentConfirmed(false);
-  };
-
-  const handleQRPaymentConfirmed = () => {
-    setIsPaymentConfirmed(true);
   };
 
   const validateForm = (): boolean => {
@@ -90,17 +98,10 @@ export const Checkout: React.FC = () => {
 
   const handleSubmit = async () => {
     setError(null);
-    setSuccess(null);
 
     // Validate form
     if (!validateForm()) {
       window.scrollTo({ top: 0, behavior: 'smooth' });
-      return;
-    }
-
-    // Check QR payment confirmation
-    if (formData.paymentMethod === 'qr-payment' && !isPaymentConfirmed) {
-      setError('Vui lòng hoàn tất thanh toán QR trước khi đặt hàng');
       return;
     }
 
@@ -125,30 +126,44 @@ export const Checkout: React.FC = () => {
       };
 
       // Submit order
-      const response = await apiService.post('/api/orders/create', orderRequest);
+      const response = await apiService.post<OrderResponse>('/api/orders/create', orderRequest);
 
       if (response) {
         // Clear cart
         clearCart();
         
-        // Show success message
-        setSuccess('Đặt hàng thành công! Chúng tôi sẽ liên hệ với bạn sớm nhất.');
-        
-        // Redirect to home after 2 seconds
-        setTimeout(() => {
-          navigate('/');
-        }, 2000);
+        // Navigate to payment page with order information
+        navigate('/payment', {
+          state: {
+            order: response,
+            paymentMethod: formData.paymentMethod,
+            totalAmount: total,
+          },
+        });
       }
     } catch (err: any) {
       console.error('Error placing order:', err);
-      setError(err.response?.data?.message || 'Có lỗi xảy ra khi đặt hàng. Vui lòng thử lại!');
+      
+      // Handle validation errors from backend
+      if (err.status === 400) {
+        const errorData = err.response?.data || err;
+        if (errorData.errors && typeof errorData.errors === 'object') {
+          setValidationErrors(errorData.errors);
+          setError('Vui lòng kiểm tra lại thông tin đã nhập');
+        } else {
+          setValidationErrors({});
+          setError(errorData.message || 'Có lỗi xảy ra khi đặt hàng. Vui lòng thử lại!');
+        }
+      } else {
+        setValidationErrors({});
+        setError(err.response?.data?.message || err.message || 'Có lỗi xảy ra khi đặt hàng. Vui lòng thử lại!');
+      }
+      
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } finally {
       setIsProcessing(false);
     }
   };
-
-  const showQRWarning = formData.paymentMethod === 'qr-payment' && !isPaymentConfirmed;
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -198,25 +213,6 @@ export const Checkout: React.FC = () => {
           </div>
         )}
 
-        {success && (
-          <div className="mb-6 p-4 bg-green-50 border-l-4 border-green-500 text-green-700 rounded-lg animate-fadeIn">
-            <div className="flex items-start">
-              <svg
-                className="w-5 h-5 mt-0.5 mr-3 flex-shrink-0"
-                fill="currentColor"
-                viewBox="0 0 20 20"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                  clipRule="evenodd"
-                />
-              </svg>
-              <span>{success}</span>
-            </div>
-          </div>
-        )}
-
         {/* Page Title */}
         <h1 className="text-3xl md:text-4xl font-bold mb-2">Thanh toán</h1>
         <p className="text-gray-600 mb-8">
@@ -228,24 +224,13 @@ export const Checkout: React.FC = () => {
           {/* Left Column: Shipping & Payment */}
           <div className="lg:col-span-2 space-y-6">
             {/* Shipping Form */}
-            <ShippingForm formData={formData} onUpdate={updateFormData} />
+            <ShippingForm formData={formData} onUpdate={updateFormData} validationErrors={validationErrors} />
 
             {/* Payment Methods */}
             <PaymentMethodSelector
               selectedMethod={formData.paymentMethod}
               onSelect={handlePaymentMethodChange}
-              onQRPaymentSelect={() => setIsPaymentConfirmed(false)}
             />
-
-            {/* QR Payment Details (if selected) */}
-            {formData.paymentMethod === 'qr-payment' && (
-              <div className="bg-white p-6 md:p-8 rounded-xl shadow-sm">
-                <QRPayment
-                  amount={total}
-                  onPaymentConfirmed={handleQRPaymentConfirmed}
-                />
-              </div>
-            )}
           </div>
 
           {/* Right Column: Order Summary */}
@@ -254,8 +239,8 @@ export const Checkout: React.FC = () => {
               cartItems={cartItems}
               onSubmit={handleSubmit}
               isProcessing={isProcessing}
-              showQRWarning={showQRWarning}
-              isPaymentConfirmed={isPaymentConfirmed}
+              showQRWarning={false}
+              isPaymentConfirmed={false}
             />
           </div>
         </div>
