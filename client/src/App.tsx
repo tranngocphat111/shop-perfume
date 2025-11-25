@@ -6,6 +6,7 @@ import { Home } from "./pages/Home";
 import { Products as CustomerProducts } from "./pages/Products";
 import { Cart } from "./pages/Cart";
 import { Checkout } from "./pages/Checkout";
+import { Payment } from "./pages/Payment";
 import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
 import AdminLogin from "./pages/auth/AdminLogin";
@@ -32,6 +33,7 @@ function AppContent() {
           <Route path="/products" element={<CustomerProducts />} />
           <Route path="/cart" element={<Cart />} />
           <Route path="/checkout" element={<Checkout />} />
+          <Route path="/payment" element={<Payment />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/admin/login" element={<AdminLogin />} />

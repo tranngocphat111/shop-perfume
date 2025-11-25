@@ -4,6 +4,7 @@ import iuh.fit.server.dto.request.OrderCreateRequest;
 import iuh.fit.server.dto.response.OrderResponse;
 import iuh.fit.server.dto.response.PaymentCheckResponse;
 import iuh.fit.server.services.OrderService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -23,7 +24,7 @@ public class OrderController {
      * Create a new order
      */
     @PostMapping("/orders/create")
-    public ResponseEntity<?> createOrder(@RequestBody OrderCreateRequest request) {
+    public ResponseEntity<?> createOrder(@Valid @RequestBody OrderCreateRequest request) {
         try {
             log.info("Received order creation request for: {}", request.getFullName());
             OrderResponse response = orderService.createOrder(request);
