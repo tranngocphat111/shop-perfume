@@ -127,11 +127,23 @@ export const ShippingForm: React.FC<ShippingFormProps> = ({ formData, onUpdate, 
             <input
               type="text"
               value={formData.fullName}
-              onChange={(e) => onUpdate({ fullName: e.target.value })}
+              onChange={(e) => {
+                const value = e.target.value;
+                onUpdate({ fullName: value });
+              }}
+              onBlur={(e) => {
+                // Validate on blur
+                const value = e.target.value.trim();
+                if (value && (value.length < 2 || value.length > 100)) {
+                  // Error will be shown from backend validation
+                } else if (value && !/^[\p{L}\s]+$/u.test(value)) {
+                  // Error will be shown from backend validation
+                }
+              }}
               className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent transition-all ${
                 validationErrors.fullName ? 'border-red-500 bg-red-50' : 'border-gray-300'
               }`}
-              placeholder="Nhập đầy đủ họ và tên của bạn"
+              placeholder="Nhập đầy đủ họ và tên của bạn (chỉ chữ cái)"
               required
             />
             {validationErrors.fullName && (
@@ -148,11 +160,15 @@ export const ShippingForm: React.FC<ShippingFormProps> = ({ formData, onUpdate, 
             <input
               type="tel"
               value={formData.phone}
-              onChange={(e) => onUpdate({ phone: e.target.value })}
+              onChange={(e) => {
+                const value = e.target.value;
+                // Only allow numbers, +, and spaces (will be trimmed)
+                onUpdate({ phone: value });
+              }}
               className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent transition-all ${
                 validationErrors.phone ? 'border-red-500 bg-red-50' : 'border-gray-300'
               }`}
-              placeholder="Nhập số điện thoại"
+              placeholder="VD: 0912345678 hoặc +84912345678"
               required
             />
             {validationErrors.phone && (
@@ -175,7 +191,7 @@ export const ShippingForm: React.FC<ShippingFormProps> = ({ formData, onUpdate, 
             className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent transition-all ${
               validationErrors.email ? 'border-red-500 bg-red-50' : 'border-gray-300'
             }`}
-            placeholder="Nhập Email"
+            placeholder="VD: example@email.com"
             required
           />
           {validationErrors.email && (
@@ -325,10 +341,40 @@ export const ShippingForm: React.FC<ShippingFormProps> = ({ formData, onUpdate, 
           <textarea
             value={formData.note || ''}
             onChange={(e) => onUpdate({ note: e.target.value })}
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent transition-all resize-y min-h-[100px]"
+            className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent transition-all resize-y min-h-[100px] ${
+              validationErrors.note ? 'border-red-500 bg-red-50' : 'border-gray-300'
+            }`}
             placeholder="Ghi chú..."
           />
+          {validationErrors.note && (
+            <p className="mt-1 text-sm text-red-600 font-medium">
+              {validationErrors.note}
+            </p>
+          )}
         </div>
+
+        {/* General Error (if any) */}
+        {validationErrors._general && (
+          <div className="p-3 bg-red-50 border border-red-500 rounded-lg">
+            <p className="text-sm text-red-600 font-medium">
+              {validationErrors._general}
+            </p>
+          </div>
+        )}
+
+        {/* Cart Items Errors (if any) */}
+        {validationErrors._cartItemsArray && (
+          <div className="p-3 bg-red-50 border border-red-500 rounded-lg">
+            <p className="text-sm font-semibold text-red-700 mb-2">Lỗi sản phẩm:</p>
+            <ul className="list-disc list-inside space-y-1">
+              {JSON.parse(validationErrors._cartItemsArray).map((error: string, index: number) => (
+                <li key={index} className="text-sm text-red-600">
+                  {error}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
     </div>
   );

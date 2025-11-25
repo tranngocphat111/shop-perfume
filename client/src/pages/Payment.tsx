@@ -4,6 +4,7 @@ import { FaInfoCircle, FaClock, FaCheckCircle, FaSpinner, FaSearch, FaMoneyBillW
 import { apiService } from '../services/api';
 import type { OrderResponse } from '../types';
 import { formatCurrency } from '../utils/helpers';
+import { generateOrderQRCode } from '../services/sepay';
 
 const BANK_INFO = {
   accountName: 'NGUYEN NGOC LAN',
@@ -34,10 +35,8 @@ export const Payment: React.FC = () => {
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null); // Time remaining in seconds
 
   const generateQRCode = useCallback((orderId: string, amount: number) => {
-    const amountRounded = Math.floor(amount);
-    const content = `LAN_${orderId}`;
-    
-    const url = `https://img.vietqr.io/image/${BANK_INFO.bankCode}-${BANK_INFO.accountNo}-compact2.jpg?amount=${amountRounded}&addInfo=${encodeURIComponent(content)}&accountName=${encodeURIComponent(BANK_INFO.accountName)}`;
+    // Use Sepay QR code generation
+    const url = generateOrderQRCode(orderId, amount);
     
     const img = new Image();
     img.onload = () => {
@@ -275,12 +274,8 @@ export const Payment: React.FC = () => {
                               alt="QR Code"
                               className="w-full h-full object-contain"
                             />
-                            <div className="absolute -top-2 -left-2 bg-white rounded shadow-md p-1">
-                              <img
-                                src="https://img.vietqr.io/image/vietqr-logo.png"
-                                alt="VIETQR"
-                                className="h-5"
-                              />
+                            <div className="absolute -top-2 -left-2 bg-white rounded shadow-md p-1 px-2">
+                              <span className="text-[10px] font-semibold text-blue-600">SEPAY</span>
                             </div>
                           </div>
                         ) : (
