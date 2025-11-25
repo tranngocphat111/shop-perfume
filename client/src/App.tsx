@@ -10,6 +10,7 @@ import { Payment } from "./pages/Payment";
 import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
 import AdminLogin from "./pages/auth/AdminLogin";
+import Profile from "./pages/Profile";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import "./App.css";
 import { Dashboard } from "./pages/admin/Dashboard";
@@ -22,12 +23,19 @@ function AppContent() {
   const location = useLocation();
   const isHomePage = location.pathname === "/";
   const isAdminRoute = location.pathname.startsWith("/admin");
-  const isAuthRoute = location.pathname === "/login" || location.pathname === "/register" || location.pathname === "/admin/login";
+  const isAuthRoute =
+    location.pathname === "/login" ||
+    location.pathname === "/register" ||
+    location.pathname === "/admin/login";
 
   return (
     <div className="min-h-screen bg-gray-50">
       {!isAdminRoute && !isAuthRoute && <Header />}
-      <main className={`min-h-[calc(100vh-80px)] ${isHomePage || isAdminRoute || isAuthRoute ? "" : "pt-20"}`}>
+      <main
+        className={`min-h-[calc(100vh-80px)] ${
+          isHomePage || isAdminRoute || isAuthRoute ? "" : "pt-20"
+        }`}
+      >
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/products" element={<CustomerProducts />} />
@@ -37,6 +45,14 @@ function AppContent() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/admin/login" element={<AdminLogin />} />
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute>
+                <Profile />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/about"
             element={
@@ -90,7 +106,6 @@ function AppContent() {
         </Routes>
       </main>
       <Footer />
-
     </div>
   );
 }
