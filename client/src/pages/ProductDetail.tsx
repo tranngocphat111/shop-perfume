@@ -5,7 +5,6 @@ import { ShoppingCart, Plus, Minus, Package, Sparkles, Tag, ShoppingBag, Info, S
 import { productService } from "../services/perfume.service";
 import { inventoryService } from "../services/inventory.service";
 import { useCart } from "../contexts/CartContext";
-import { PerfumeCard } from "../components/PerfumeCard";
 import type { Product, Inventory } from "../types";
 import {
   getPrimaryImageUrl,
@@ -115,6 +114,12 @@ export const ProductDetail = () => {
     return lines;
   };
 
+  // Scroll to top when component mounts or id changes
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [id]);
+
+  // Fetch main product data (critical - hiển thị ngay)
   useEffect(() => {
     const fetchProduct = async () => {
       if (!id) return;
@@ -126,23 +131,19 @@ export const ProductDetail = () => {
         const productId = parseInt(id, 10);
         if (isNaN(productId)) {
           setError("ID sản phẩm không hợp lệ");
+          setLoading(false);
           return;
         }
 
-        // Load product và inventory song song (parallel) - sử dụng endpoint trực tiếp để tối ưu
+        // CHỈ fetch product và inventory - hiển thị ngay, không đợi related products
         const [productResult, inventoryResult] = await Promise.allSettled([
-          // Fetch product
           productService.getProductById(productId),
-          
-          // Fetch inventory trực tiếp theo productId (nhanh hơn nhiều)
           inventoryService.getInventoryByProductId(productId)
         ]);
 
         // Xử lý product result
         if (productResult.status === 'fulfilled') {
           const productData = productResult.value;
-          console.log("Product data:", productData); // Debug log
-          console.log("Product brand:", productData.brand); // Debug log
           setProduct(productData);
 
           // Set inventory
@@ -154,7 +155,6 @@ export const ProductDetail = () => {
               quantity: inventoryData.quantity,
             });
           } else {
-            // Set default inventory nếu không tìm thấy
             setInventory({
               inventoryId: productId,
               product: productData,
@@ -162,51 +162,8 @@ export const ProductDetail = () => {
             });
           }
 
-          // Load related products song song sau khi có product data
-          const [relatedByBrand, relatedByCategory] = await Promise.allSettled([
-            // Fetch related products by brand
-            productData.brand && productData.brand.brandId
-              ? productService.getProductsByBrand(productData.brand.brandId)
-                  .then(products => products
-                    .filter((p) => p.productId !== productId)
-                    .slice(0, 4)
-                  )
-                  .catch(err => {
-                    console.warn("Could not fetch related products by brand:", err);
-                    return [];
-                  })
-              : Promise.resolve([]),
-            
-            // Fetch products by category
-            productService.getProductsByCategory(productData.category.categoryId)
-              .then(products => products
-                .filter((p) => p.productId !== productId)
-                .slice(0, 4)
-              )
-              .catch(err => {
-                console.warn("Could not fetch products by category:", err);
-                return [];
-              })
-          ]);
-
-          // Update related products
-          if (relatedByBrand.status === 'fulfilled' && relatedByBrand.value) {
-            const brandProducts = Array.isArray(relatedByBrand.value) ? relatedByBrand.value : [];
-            console.log("Related products by brand:", brandProducts);
-            setRelatedProducts(brandProducts);
-          } else {
-            console.log("No related products by brand found");
-            setRelatedProducts([]);
-          }
-
-          if (relatedByCategory.status === 'fulfilled' && relatedByCategory.value) {
-            const categoryProducts = Array.isArray(relatedByCategory.value) ? relatedByCategory.value : [];
-            console.log("Related products by category:", categoryProducts);
-            setSameCategoryProducts(categoryProducts);
-          } else {
-            console.log("No related products by category found");
-            setSameCategoryProducts([]);
-          }
+          // HIỂN THỊ NGAY - không đợi related products
+          setLoading(false);
         } else {
           throw productResult.reason || new Error("Failed to fetch product");
         }
@@ -218,13 +175,79 @@ export const ProductDetail = () => {
             ? err.message
             : "Không thể tải thông tin sản phẩm"
         );
-      } finally {
         setLoading(false);
       }
     };
 
     fetchProduct();
   }, [id]);
+
+  // Lazy load related products (sau khi trang đã render)
+  useEffect(() => {
+    if (!product || loading) return;
+
+    const fetchRelatedProducts = async () => {
+      const productId = product.productId;
+      
+      try {
+        // Fetch related products song song (chỉ fetch 4 items mỗi loại để tối ưu)
+        const [relatedByBrand, relatedByCategory] = await Promise.allSettled([
+          // Fetch related products by brand (chỉ cần 4 items)
+          product.brand && product.brand.brandId
+            ? productService.getProductsByBrand(product.brand.brandId)
+                .then(products => products
+                  .filter(p => p.productId !== productId)
+                  .slice(0, 4)
+                )
+                .catch(err => {
+                  console.warn("Could not fetch related products by brand:", err);
+                  return [];
+                })
+            : Promise.resolve([]),
+          
+          // Fetch products by category (chỉ cần 4 items)
+          productService.getProductsByCategory(product.category.categoryId)
+            .then(products => products
+              .filter(p => p.productId !== productId)
+              .slice(0, 4)
+            )
+            .catch(err => {
+              console.warn("Could not fetch products by category:", err);
+              return [];
+            })
+        ]);
+
+        // Process brand products
+        const brandProducts = relatedByBrand.status === 'fulfilled' && relatedByBrand.value
+          ? (Array.isArray(relatedByBrand.value) ? relatedByBrand.value : [])
+          : [];
+        
+        const relatedByBrandFiltered = brandProducts
+          .filter(p => p.productId !== productId)
+          .slice(0, 3);
+        
+        setRelatedProducts(relatedByBrandFiltered);
+
+        // Process category products
+        const categoryProducts = relatedByCategory.status === 'fulfilled' && relatedByCategory.value
+          ? (Array.isArray(relatedByCategory.value) ? relatedByCategory.value : [])
+          : [];
+        
+        const relatedByCategoryFiltered = categoryProducts
+          .filter(p => p.productId !== productId)
+          .slice(0, 3);
+        
+        setSameCategoryProducts(relatedByCategoryFiltered);
+      } catch (err) {
+        console.warn("Failed to fetch related products:", err);
+        // Không set error vì đây là non-critical data
+      }
+    };
+
+    // Delay một chút để ưu tiên render trang chính
+    const timeoutId = setTimeout(fetchRelatedProducts, 100);
+    return () => clearTimeout(timeoutId);
+  }, [product, loading]);
 
   const handleAddToCart = async () => {
     if (!product || isAddingToCart) return;
@@ -318,7 +341,12 @@ export const ProductDetail = () => {
   return (
     <div className="bg-white min-h-screen pt-20">
       {/* Breadcrumb */}
-      <div className=" py-3 md:py-4">
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, margin: "-50px" }}
+        transition={{ duration: 0.3 }}
+        className="py-3 md:py-4">
         <div className="max-w-7xl mx-auto px-4 md:px-6">
           <nav className="text-xs md:text-sm flex items-center gap-2">
             <Link
@@ -344,16 +372,23 @@ export const ProductDetail = () => {
             </span>
           </nav>
         </div>
-      </div>
+      </motion.div>
 
       {/* Product Detail Container */}
       <div className="max-w-7xl mx-auto px-4 md:px-6 py-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-50px" }}
+          transition={{ duration: 0.5, ease: "easeOut" }}
           className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 mb-16">
           {/* Left Column - Images */}
-          <div className="flex flex-col gap-4">
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true, margin: "-50px" }}
+            transition={{ duration: 0.5, ease: "easeOut" }}
+            className="flex flex-col gap-4">
             {/* Main Image - Swipeable */}
             <div 
               className="relative rounded-xl overflow-hidden border border-gray-200 shadow-sm cursor-grab active:cursor-grabbing"
@@ -413,12 +448,22 @@ export const ProductDetail = () => {
                 ))}
               </div>
             )}
-          </div>
+          </motion.div>
 
           {/* Right Column - Product Info */}
-          <div className="space-y-6">
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true, margin: "-50px" }}
+            transition={{ duration: 0.5, delay: 0.2, ease: "easeOut" }}
+            className="space-y-6">
             {/* Brand & Category - Ngang hàng, đồng bộ thiết kế */}
-            <div className="flex flex-wrap items-center gap-2 mb-2">
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-50px" }}
+              transition={{ duration: 0.4, delay: 0.3 }}
+              className="flex flex-wrap items-center gap-2 mb-2">
               {/* Brand */}
               {product.brand && (
                 <Link
@@ -440,15 +485,25 @@ export const ProductDetail = () => {
                   {product.category.name}
                 </span>
               </Link>
-            </div>
+            </motion.div>
 
             {/* Product Name */}
-            <h1 className="text-2xl md:text-3xl font-bold text-black leading-tight">
+            <motion.h1
+              initial={{ opacity: 0, y: 10 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-50px" }}
+              transition={{ duration: 0.4, delay: 0.4 }}
+              className="text-2xl md:text-3xl font-bold text-black leading-tight">
               {product.name}
-            </h1>
+            </motion.h1>
 
             {/* Price */}
-            <div className="flex items-center gap-4">
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-50px" }}
+              transition={{ duration: 0.4, delay: 0.5 }}
+              className="flex items-center gap-4">
               {showPrice ? (
                 <span className="text-3xl md:text-4xl font-bold text-black">
                   {formatCurrency(product.unitPrice)} ₫
@@ -458,10 +513,15 @@ export const ProductDetail = () => {
                   Liên hệ
                 </span>
               )}
-            </div>
+            </motion.div>
 
             {/* Product Specs */}
-            <div className="grid grid-cols-2 gap-4 py-4 border-y border-gray-200">
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-50px" }}
+              transition={{ duration: 0.4, delay: 0.6 }}
+              className="grid grid-cols-2 gap-4 py-4 border-y border-gray-200">
               {product.perfumeLongevity && (
                 <div>
                   <p className="text-sm text-gray-600 mb-1">Độ lưu hương</p>
@@ -494,11 +554,15 @@ export const ProductDetail = () => {
                   </p>
                 </div>
               )}
-            </div>
-
+            </motion.div>
 
             {/* Stock Status & Quantity */}
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 py-4 border-y border-gray-200">
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-50px" }}
+              transition={{ duration: 0.4, delay: 0.7 }}
+              className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 py-4 border-y border-gray-200">
               {/* Stock Status */}
               {inventory && (
                 <div className="flex items-center gap-3">
@@ -555,10 +619,15 @@ export const ProductDetail = () => {
                   </div>
                 </div>
               )}
-            </div>
+            </motion.div>
 
             {/* Action Buttons */}
-            <div className="flex flex-row gap-2.5 pt-2">
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-50px" }}
+              transition={{ duration: 0.4, delay: 0.8 }}
+              className="flex flex-row gap-2.5 pt-2">
               <button
                 onClick={() => {
                   if (isInStock && showPrice) {
@@ -595,15 +664,16 @@ export const ProductDetail = () => {
                   </>
                 )}
               </button>
-            </div>
-          </div>
+            </motion.div>
+          </motion.div>
         </motion.div>
 
         {/* Tabs Section and Related Products - 2 Columns */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-50px" }}
+          transition={{ duration: 0.5, delay: 0.3, ease: "easeOut" }}
           className="mb-16 lg:mt-0">
           <div className="grid grid-cols-1 lg:grid-cols-8 gap-24">
             {/* Left Column - Tabs Section */}
@@ -890,27 +960,64 @@ export const ProductDetail = () => {
             </div>
 
             {/* Right Column - Related Products */}
-            <div className="lg:col-span-3">
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true, margin: "-50px" }}
+              transition={{ duration: 0.5, delay: 0.4, ease: "easeOut" }}
+              className="lg:col-span-3">
               <div className="space-y-8">
                 {/* Related Products by Brand */}
-                <div>
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, margin: "-50px" }}
+                  transition={{ duration: 0.4, delay: 0.5 }}>
                   <h2 className="flex items-center gap-2 font-medium text-base text-black mb-4 py-4">
                     <Tag className="w-5 h-5" />
                     <span>Sản phẩm cùng thương hiệu</span>
                   </h2>
                   {relatedProducts.length > 0 ? (
-                    <div className="space-y-4">
-                      {relatedProducts.map((relatedProduct) => {
-                        const relatedInventory: Inventory = {
-                          inventoryId: relatedProduct.productId,
-                          product: relatedProduct,
-                          quantity: 100,
-                        };
+                    <div className="space-y-3">
+                      {relatedProducts.map((relatedProduct, index) => {
+                        const imageUrl = getPrimaryImageUrl(relatedProduct);
+                        const showPrice = relatedProduct.unitPrice > 0;
                         return (
-                          <PerfumeCard
+                          <motion.div
                             key={relatedProduct.productId}
-                            inventory={relatedInventory}
-                          />
+                            initial={{ opacity: 0, x: 20 }}
+                            whileInView={{ opacity: 1, x: 0 }}
+                            viewport={{ once: true, margin: "-50px" }}
+                            transition={{ duration: 0.4, delay: index * 0.1 }}>
+                            <Link
+                              to={`/products/${relatedProduct.productId}`}
+                              className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded-lg transition-colors group">
+                            {/* Image - Left */}
+                            <div className="flex-shrink-0 w-20 h-20 bg-white rounded border border-gray-200 flex items-center justify-center overflow-hidden">
+                              <img
+                                src={imageUrl}
+                                alt={relatedProduct.name}
+                                className="w-full h-full object-contain"
+                                onError={(e) => {
+                                  e.currentTarget.src = "https://via.placeholder.com/80x80/f0f0f0/333333?text=No+Image";
+                                }}
+                              />
+                            </div>
+                            {/* Info - Right */}
+                            <div className="flex-1 min-w-0">
+                              <h3 className="text-sm font-medium text-gray-900 group-hover:text-black line-clamp-2 mb-1">
+                                {relatedProduct.name}
+                              </h3>
+                              {showPrice ? (
+                                <p className="text-sm font-semibold text-black">
+                                  {formatCurrency(relatedProduct.unitPrice)} ₫
+                                </p>
+                              ) : (
+                                <p className="text-sm text-gray-500">Liên hệ</p>
+                              )}
+                            </div>
+                            </Link>
+                          </motion.div>
                         );
                       })}
                     </div>
@@ -919,27 +1026,59 @@ export const ProductDetail = () => {
                       <p className="text-sm">Không có sản phẩm cùng thương hiệu</p>
                     </div>
                   )}
-                </div>
+                </motion.div>
 
                 {/* Products by Category */}
-                <div>
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, margin: "-50px" }}
+                  transition={{ duration: 0.4, delay: 0.6 }}>
                   <h2 className="flex items-center gap-2 font-medium text-base text-black mb-4 py-4">
                     <Sparkles className="w-5 h-5" />
                     <span>Sản phẩm cùng loại</span>
                   </h2>
                   {sameCategoryProducts.length > 0 ? (
-                    <div className="space-y-4">
-                      {sameCategoryProducts.map((categoryProduct) => {
-                        const categoryInventory: Inventory = {
-                          inventoryId: categoryProduct.productId,
-                          product: categoryProduct,
-                          quantity: 100,
-                        };
+                    <div className="space-y-3">
+                      {sameCategoryProducts.map((categoryProduct, index) => {
+                        const imageUrl = getPrimaryImageUrl(categoryProduct);
+                        const showPrice = categoryProduct.unitPrice > 0;
                         return (
-                          <PerfumeCard
+                          <motion.div
                             key={categoryProduct.productId}
-                            inventory={categoryInventory}
-                          />
+                            initial={{ opacity: 0, x: 20 }}
+                            whileInView={{ opacity: 1, x: 0 }}
+                            viewport={{ once: true, margin: "-50px" }}
+                            transition={{ duration: 0.4, delay: index * 0.1 }}>
+                            <Link
+                              to={`/products/${categoryProduct.productId}`}
+                              className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded-lg transition-colors group">
+                            {/* Image - Left */}
+                            <div className="flex-shrink-0 w-20 h-20 bg-white rounded border border-gray-200 flex items-center justify-center overflow-hidden">
+                              <img
+                                src={imageUrl}
+                                alt={categoryProduct.name}
+                                className="w-full h-full object-contain"
+                                onError={(e) => {
+                                  e.currentTarget.src = "https://via.placeholder.com/80x80/f0f0f0/333333?text=No+Image";
+                                }}
+                              />
+                            </div>
+                            {/* Info - Right */}
+                            <div className="flex-1 min-w-0">
+                              <h3 className="text-sm font-medium text-gray-900 group-hover:text-black line-clamp-2 mb-1">
+                                {categoryProduct.name}
+                              </h3>
+                              {showPrice ? (
+                                <p className="text-sm font-semibold text-black">
+                                  {formatCurrency(categoryProduct.unitPrice)} ₫
+                                </p>
+                              ) : (
+                                <p className="text-sm text-gray-500">Liên hệ</p>
+                              )}
+                            </div>
+                            </Link>
+                          </motion.div>
                         );
                       })}
                     </div>
@@ -948,9 +1087,9 @@ export const ProductDetail = () => {
                       <p className="text-sm">Không có sản phẩm cùng loại</p>
                     </div>
                   )}
-                </div>
+                </motion.div>
               </div>
-            </div>
+            </motion.div>
           </div>
         </motion.div>
       </div>
