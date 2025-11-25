@@ -104,7 +104,7 @@ export const HeroCarousel = ({ slides }: HeroCarouselProps) => {
                 >
                   <Link
                     to="/products"
-                    className="relative inline-flex items-center gap-3 border border-white text-white px-10 py-4 text-sm md:text-base overflow-hidden group rounded-full"
+                    className="relative inline-flex items-center gap-3 border border-white text-white px-9 py-3.5 text-sm md:text-base overflow-hidden group rounded-full"
                     onMouseEnter={(e) => {
                       const overlay = e.currentTarget.querySelector(
                         ".wipe-overlay"
@@ -140,7 +140,7 @@ export const HeroCarousel = ({ slides }: HeroCarouselProps) => {
                       className="relative w-4 h-4 group-hover:translate-x-1 transition-transform duration-200 z-10"
                       fill="none"
                       stroke="currentColor"
-                      viewBox="0 0 24 24"
+                      viewBox="0 0 24 20"
                     >
                       <path
                         strokeLinecap="round"
