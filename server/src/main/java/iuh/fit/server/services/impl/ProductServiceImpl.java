@@ -363,5 +363,25 @@ public class ProductServiceImpl implements ProductService {
         return products.map(productMapper::toResponse);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<ProductResponse> findByBrandId(int brandId) {
+        log.info("Finding products by brandId: {}", brandId);
+        List<Product> products = productRepository.findByBrandBrandId(brandId);
+        return products.stream()
+                .map(productMapper::toResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ProductResponse> findByCategoryId(int categoryId) {
+        log.info("Finding products by categoryId: {}", categoryId);
+        List<Product> products = productRepository.findByCategoryCategoryId(categoryId);
+        return products.stream()
+                .map(productMapper::toResponse)
+                .collect(Collectors.toList());
+    }
+
 }
 
