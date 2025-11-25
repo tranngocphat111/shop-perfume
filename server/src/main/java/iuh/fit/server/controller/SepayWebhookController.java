@@ -183,13 +183,27 @@ public class SepayWebhookController {
      * Use this when Sepay doesn't send webhook automatically
      * Usage: POST /api/webhooks/sepay/manual with orderId and amount
      * This endpoint bypasses API key check for manual processing
+     * Supports both form-urlencoded and JSON
      */
-    @PostMapping("/sepay/manual")
+    @PostMapping(value = "/sepay/manual", consumes = {MediaType.APPLICATION_JSON_VALUE, MediaType.APPLICATION_FORM_URLENCODED_VALUE})
     public ResponseEntity<?> manualWebhook(
-            @RequestParam Integer orderId,
-            @RequestParam Double amount,
-            @RequestParam(required = false) String transactionDate) {
+            @RequestParam(required = false) Integer orderId,
+            @RequestParam(required = false) Double amount,
+            @RequestParam(required = false) String transactionDate,
+            @RequestBody(required = false) java.util.Map<String, Object> jsonBody) {
         try {
+            // Support both form-urlencoded (@RequestParam) and JSON (@RequestBody)
+            if (jsonBody != null && !jsonBody.isEmpty()) {
+                orderId = jsonBody.containsKey("orderId") ? Integer.valueOf(jsonBody.get("orderId").toString()) : orderId;
+                amount = jsonBody.containsKey("amount") ? Double.valueOf(jsonBody.get("amount").toString()) : amount;
+                transactionDate = jsonBody.containsKey("transactionDate") ? jsonBody.get("transactionDate").toString() : transactionDate;
+            }
+            
+            if (orderId == null || amount == null) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(new WebhookResponse("error", "orderId and amount are required"));
+            }
+            
             // Create webhook request from transaction data
             SepayWebhookRequest webhookRequest = new SepayWebhookRequest();
             webhookRequest.setId(System.currentTimeMillis()); // Use timestamp as ID
