@@ -20,7 +20,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 @Service
@@ -245,7 +244,7 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
             }
             
             // Extract order ID from content
-            // Format: "STNP_123", "Thanh toan don hang #123", "LAN_123", or "123"
+            // Format: "STNP_123", "STNP123", "Thanh toan don hang #123", "LAN_123", or "123"
             Integer orderId = extractOrderIdFromContent(webhookRequest.getContent());
             if (orderId == null) {
                 // Try to extract from referenceCode if content fails
@@ -256,10 +255,21 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
                 if (orderId == null && webhookRequest.getCode() != null) {
                     orderId = extractOrderIdFromContent(webhookRequest.getCode());
                 }
+                // Also try description field (full SMS content)
+                if (orderId == null && webhookRequest.getDescription() != null) {
+                    orderId = extractOrderIdFromContent(webhookRequest.getDescription());
+                }
                 if (orderId == null) {
+                    System.out.println("❌ Could not extract order ID from webhook content");
+                    System.out.println("Content: " + webhookRequest.getContent());
+                    System.out.println("Reference Code: " + webhookRequest.getReferenceCode());
+                    System.out.println("Code: " + webhookRequest.getCode());
+                    System.out.println("Description: " + webhookRequest.getDescription());
                     return false;
                 }
             }
+            
+            System.out.println("✅ Extracted Order ID: " + orderId);
             
             // Find the order
             Optional<Order> orderOpt = orderRepository.findById(orderId);
@@ -298,7 +308,13 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
     
     /**
      * Extract order ID from webhook content
-     * Supports formats: "Thanh toan don hang #123", "STNP_123", "LAN_123", "123"
+     * Supports formats: 
+     * - "STNP_123" or "STNP_ 123" (with underscore)
+     * - "STNP123" (without underscore) - Real format from Sepay
+     * - "stnp123" (case insensitive)
+     * - "LAN_123" (legacy format)
+     * - "Thanh toan don hang #123"
+     * - "123" (just number)
      */
     private Integer extractOrderIdFromContent(String content) {
         if (content == null || content.trim().isEmpty()) {
@@ -306,43 +322,57 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
         }
         
         try {
-            // Try to find order ID pattern: #123, STNP_123, LAN_123, or just number
             String trimmed = content.trim();
+            String upperTrimmed = trimmed.toUpperCase();
             
-            // Pattern 1: "Thanh toan don hang #123"
+            // Pattern 1: "STNP_123" or "STNP_ 123" (with underscore and optional space)
+            if (upperTrimmed.contains("STNP_")) {
+                int index = upperTrimmed.indexOf("STNP_");
+                String afterStnp = trimmed.substring(index + 5).trim(); // Get text after "STNP_"
+                // Extract first number sequence
+                String numberStr = afterStnp.replaceAll("[^0-9]", "").split("\\s+")[0];
+                if (!numberStr.isEmpty()) {
+                    return Integer.parseInt(numberStr);
+                }
+            }
+            
+            // Pattern 2: "STNP123" (without underscore) - Real format from Sepay
+            // Use regex to find "STNP" followed immediately by digits
+            java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("STNP(\\d+)", java.util.regex.Pattern.CASE_INSENSITIVE);
+            java.util.regex.Matcher matcher = pattern.matcher(trimmed);
+            if (matcher.find()) {
+                String numberStr = matcher.group(1);
+                if (!numberStr.isEmpty()) {
+                    return Integer.parseInt(numberStr);
+                }
+            }
+            
+            // Pattern 3: "LAN_123" (legacy format)
+            if (upperTrimmed.contains("LAN_")) {
+                int index = upperTrimmed.indexOf("LAN_");
+                String afterLan = trimmed.substring(index + 4).trim();
+                String numberStr = afterLan.replaceAll("[^0-9]", "").split("\\s+")[0];
+                if (!numberStr.isEmpty()) {
+                    return Integer.parseInt(numberStr);
+                }
+            }
+            
+            // Pattern 4: "Thanh toan don hang #123"
             if (trimmed.contains("#")) {
                 String[] parts = trimmed.split("#");
                 if (parts.length > 1) {
-                    String idStr = parts[1].trim().split("\\s+")[0]; // Get first word after #
-                    return Integer.parseInt(idStr);
-                }
-            }
-            
-            // Pattern 2: "STNP_123" (new format)
-            if (trimmed.contains("STNP_") || trimmed.contains("stnp_")) {
-                String[] parts = trimmed.split("_");
-                if (parts.length > 1) {
                     String idStr = parts[1].trim().split("\\s+")[0];
                     return Integer.parseInt(idStr);
                 }
             }
             
-            // Pattern 3: "LAN_123" (legacy format for backward compatibility)
-            if (trimmed.contains("LAN_") || trimmed.contains("lan_")) {
-                String[] parts = trimmed.split("_");
-                if (parts.length > 1) {
-                    String idStr = parts[1].trim().split("\\s+")[0];
-                    return Integer.parseInt(idStr);
-                }
-            }
-            
-            // Pattern 4: Just a number
+            // Pattern 5: Just extract all numbers (fallback)
             String numberOnly = trimmed.replaceAll("[^0-9]", "");
-            if (!numberOnly.isEmpty()) {
+            if (!numberOnly.isEmpty() && numberOnly.length() <= 10) { // Reasonable order ID length
                 return Integer.parseInt(numberOnly);
             }
             
-        } catch (NumberFormatException e) {
+        } catch (NumberFormatException | StringIndexOutOfBoundsException e) {
             // Silent fail - return null
         }
         

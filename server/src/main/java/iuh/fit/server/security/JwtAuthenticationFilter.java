@@ -83,7 +83,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         
         // Skip JWT filter for public order/payment endpoints (guest checkout)
         if (pathToCheck.equals("/orders/create") || pathToCheck.startsWith("/payment/check-qr") ||
-            pathToCheck.matches("/orders/\\d+/cancel-timeout") || pathToCheck.startsWith("/webhooks/")) {
+            pathToCheck.matches("/orders/\\d+/cancel-timeout") || 
+            pathToCheck.startsWith("/orders/my-orders") ||
+            pathToCheck.startsWith("/webhooks/") || requestURI.startsWith("/api/webhooks/")) {
             return true;
         }
         

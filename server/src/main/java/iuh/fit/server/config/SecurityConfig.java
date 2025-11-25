@@ -67,7 +67,9 @@ public class SecurityConfig {
                     // Allow guest users to search orders by email
                     .requestMatchers("/orders/my-orders").permitAll()
                     // Sepay webhook endpoint (must be public)
+                    // Support both /webhooks/** (servletPath) and /api/webhooks/** (requestURI)
                     .requestMatchers("/webhooks/**").permitAll()
+                    .requestMatchers("/api/webhooks/**").permitAll()
                     
                     // Other public endpoints
                     .requestMatchers("/auth/**").permitAll()
