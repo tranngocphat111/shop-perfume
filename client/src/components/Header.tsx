@@ -547,7 +547,7 @@ export const Header = () => {
                         <i className="bi bi-person mr-2"></i> Thông tin cá nhân
                       </Link>
                       <Link
-                        to="/orders"
+                        to="/my-orders"
                         className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                         onClick={() => setShowUserMenu(false)}>
                         <i className="bi bi-bag mr-2"></i> Đơn hàng của tôi
@@ -625,15 +625,16 @@ export const Header = () => {
               </Link>
             </motion.div>
 
-            {/* Liên hệ tư vấn Button */}
+            {/* Tra cứu đơn hàng Button */}
             <Link
-              to="/contact"
+              to="/my-orders"
               className={`px-4 py-2 rounded-full font-normal text-sm transition-all duration-300 ${
                 isScrolled
                   ? "bg-black text-white hover:bg-gray-800"
                   : "bg-white text-gray-900 hover:bg-gray-100"
-              }`}>
-              Liên hệ tư vấn
+              }`}
+            >
+              Tra cứu đơn hàng
             </Link>
           </div>
         </div>

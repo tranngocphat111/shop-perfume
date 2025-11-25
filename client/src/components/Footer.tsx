@@ -128,6 +128,15 @@ export const Footer = () => {
                   Liên hệ
                 </Link>
               </li>
+              <li>
+                <Link
+                  to="/my-orders"
+                  className="text-gray-300 hover:text-white transition-colors text-sm flex items-center gap-2 group"
+                >
+                  <span className="w-1 h-1 rounded-full bg-transparent group-hover:bg-white transition-all" />
+                  Tra cứu đơn hàng
+                </Link>
+              </li>
             </ul>
           </div>
 

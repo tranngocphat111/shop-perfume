@@ -59,7 +59,15 @@ public class SecurityConfig {
             .exceptionHandling(exception ->
                 exception.authenticationEntryPoint(authenticationEntryPoint))
             .authorizeHttpRequests(auth -> auth
-                     // Public endpoints
+                     // CRITICAL: Guest checkout endpoints MUST be FIRST to ensure they are matched
+                    // Note: context-path=/api, Controller has @RequestMapping("/orders"), so servletPath is /orders/create
+                    .requestMatchers("/orders/create").permitAll()
+                    .requestMatchers("/payment/check-qr").permitAll()
+                    .requestMatchers("/orders/*/cancel-timeout").permitAll()
+                    // Allow guest users to search orders by email
+                    .requestMatchers("/orders/my-orders").permitAll()
+                    
+                    // Other public endpoints
                     .requestMatchers("/auth/**").permitAll()
                     .requestMatchers("/products/**").permitAll()
                     .requestMatchers("/inventories/**").permitAll()
@@ -67,20 +75,20 @@ public class SecurityConfig {
                     .requestMatchers("/categories/**").permitAll()
                     .requestMatchers("/api/admin/suppliers").permitAll()
                     .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
+
                     
                     // Allow guest checkout (create order without login)
                     .requestMatchers("/api/orders/create", "/api/api/orders/create/**").permitAll()
                     .requestMatchers("/api/payment/check-qr", "api/api/payment/check-qr/**").permitAll()
 
-                    // Protected endpoints
+                    // Protected endpoints (these come AFTER the specific permitAll rules above)
                     .requestMatchers("/cart/**").authenticated()
-                    .requestMatchers("/orders/**").authenticated()
                     .requestMatchers("/users/me").authenticated()
-
 
                     // Admin endpoints
                     .requestMatchers("/admin/**").hasRole("ADMIN")
 
+                    // All other requests require authentication
                     .anyRequest().authenticated()
             )
             .authenticationProvider(authenticationProvider())
