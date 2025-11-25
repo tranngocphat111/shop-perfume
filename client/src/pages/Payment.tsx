@@ -141,56 +141,78 @@ export const Payment: React.FC = () => {
 
   const checkPayment = useCallback(async () => {
     if (!order?.orderId) {
-      console.log('[Payment] ⚠️ Cannot check payment: orderId is missing');
       return;
     }
     
-    if (isPaid) {
-      console.log('[Payment] ✅ Payment already confirmed, skipping check');
-      return;
-    }
-    
-    if (isChecking) {
-      console.log('[Payment] ⏳ Payment check already in progress, skipping');
-      return;
-    }
-    
-    if (isCancelled) {
-      console.log('[Payment] ⚠️ Order already cancelled, skipping check');
+    if (isPaid || isChecking || isCancelled) {
       return;
     }
 
-    console.log('[Payment] 🔵 Checking payment status for order:', order.orderId);
     setIsChecking(true);
     try {
       const url = `/payment/check-qr?orderId=${order.orderId}`;
-      console.log('[Payment] 🔵 API Request URL:', url);
-      
-      const data = await apiService.get<{ paid: boolean; cancelled?: boolean }>(url);
-      console.log('[Payment] 🔵 Payment check response:', data);
+      const data = await apiService.get<{ 
+        paid: boolean; 
+        cancelled?: boolean;
+        amount?: number;
+        paymentDate?: string;
+        orderId?: string;
+      }>(url);
+
+      // Log payment status check result
+      console.log('[Payment] 📊 Payment Status Check:', {
+        orderId: order.orderId,
+        paid: data.paid,
+        cancelled: data.cancelled,
+        amount: data.amount,
+        paymentDate: data.paymentDate,
+        timestamp: new Date().toISOString()
+      });
 
       if (data.cancelled) {
-        console.log('[Payment] ⚠️ Order cancelled:', order.orderId);
+        console.log('[Payment] ⚠️⚠️⚠️ ORDER CANCELLED! Order:', order.orderId);
         setIsCancelled(true);
         setError('Đơn hàng đã bị hủy do quá thời gian thanh toán (30 phút). Vui lòng đặt hàng lại.');
       } else if (data.paid) {
-        console.log('[Payment] ✅ Payment confirmed! Order:', order.orderId);
+        console.log('[Payment] ✅✅✅✅✅ PAYMENT CONFIRMED! ✅✅✅✅✅');
+        console.log('[Payment] Order ID:', order.orderId);
+        console.log('[Payment] Amount:', data.amount);
+        console.log('[Payment] Payment Date:', data.paymentDate);
+        console.log('[Payment] Webhook đã xử lý thành công!');
         setIsPaid(true);
         // Redirect to home after 3 seconds
         setTimeout(() => {
-          console.log('[Payment] 🔵 Redirecting to home page');
           navigate('/', { state: { orderSuccess: true } });
         }, 3000);
       } else {
-        console.log('[Payment] ⏳ Payment still pending for order:', order.orderId);
+        // Payment still pending - log only every 10th check to reduce noise
+        const checkCount = Math.floor(Date.now() / 10000) % 10;
+        if (checkCount === 0) {
+          console.log('[Payment] ⏳ Payment still pending for order:', order.orderId, '- Waiting for webhook...');
+        }
       }
     } catch (error: any) {
-      console.error('[Payment] ❌ Error checking payment:', error);
-      console.error('[Payment] ❌ Error details:', {
-        message: error?.message,
-        response: error?.response?.data,
-        status: error?.response?.status
-      });
+      // Only log connection errors occasionally to avoid spam
+      const errorMessage = error?.message || '';
+      const isConnectionError = errorMessage.includes('Network error') || 
+                                errorMessage.includes('CONNECTION_REFUSED') ||
+                                errorMessage.includes('Failed to fetch');
+      
+      if (isConnectionError) {
+        // Log connection errors only every 30 seconds to reduce spam
+        const errorLogCount = Math.floor(Date.now() / 30000) % 2;
+        if (errorLogCount === 0) {
+          console.warn('[Payment] ⚠️ Server connection error - server may be restarting. Will retry...');
+        }
+      } else {
+        // Log other errors normally
+        console.error('[Payment] ❌ Error checking payment:', error);
+        console.error('[Payment] ❌ Error details:', {
+          message: error?.message,
+          response: error?.response?.data,
+          status: error?.response?.status
+        });
+      }
     } finally {
       setIsChecking(false);
     }
