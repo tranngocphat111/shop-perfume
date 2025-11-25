@@ -4,6 +4,8 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import iuh.fit.server.dto.request.ProductRequest;
 import iuh.fit.server.dto.response.ProductResponse;
+import iuh.fit.server.mapper.ProductMapper;
+import iuh.fit.server.model.entity.Inventory;
 import iuh.fit.server.services.ProductService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -32,6 +34,7 @@ import java.util.List;
 public class ProductController {
 
     private final ProductService productService;
+    private final ProductMapper productMapper;
 
     /**
      * GET /api/products - Lấy tất cả sản phẩm
@@ -138,6 +141,7 @@ public class ProductController {
         }
         
         ProductResponse product = productService.createWithImages(request, images, primaryImageIndex);
+
         return ResponseEntity.status(HttpStatus.CREATED).body(product);
     }
 
