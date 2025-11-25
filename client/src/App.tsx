@@ -18,6 +18,7 @@ import { StockAdjustments } from "./pages/admin/StockAdjustment";
 import { Products as AdminProducts } from "./pages/admin/Products";
 import { Footer } from "./components/Footer";
 import { Suppliers } from "./pages/admin/Suppliers";
+import Profile from "./pages/Profile";
 
 function AppContent() {
   const location = useLocation();
