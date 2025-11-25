@@ -25,7 +25,12 @@ public class JwtAuthenticationEntryPoint implements AuthenticationEntryPoint {
                          HttpServletResponse response,
                          AuthenticationException authException) throws IOException, ServletException {
 
-        log.error("Unauthorized error: {}", authException.getMessage());
+        String servletPath = request.getServletPath();
+        String requestURI = request.getRequestURI();
+        String contextPath = request.getContextPath();
+        
+        log.error("Unauthorized error - servletPath: {}, requestURI: {}, contextPath: {}, message: {}", 
+                servletPath, requestURI, contextPath, authException.getMessage());
 
         response.setContentType("application/json;charset=UTF-8");
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
@@ -33,7 +38,8 @@ public class JwtAuthenticationEntryPoint implements AuthenticationEntryPoint {
         Map<String, Object> errorResponse = new HashMap<>();
         errorResponse.put("error", "Unauthorized");
         errorResponse.put("message", "Bạn cần đăng nhập để truy cập tài nguyên này");
-        errorResponse.put("path", request.getServletPath());
+        errorResponse.put("path", servletPath);
+        errorResponse.put("requestURI", requestURI);
         errorResponse.put("timestamp", System.currentTimeMillis());
 
         ObjectMapper mapper = new ObjectMapper();

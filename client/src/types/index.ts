@@ -159,6 +159,14 @@ export interface DistrictDetail extends District {
 }
 
 // Order types
+export interface OrderItemRequest {
+  productId: number;
+  productName: string;
+  unitPrice: number;
+  imageUrl: string;
+  quantity: number;
+}
+
 export interface OrderRequest {
   fullName: string;
   phone: string;
@@ -169,7 +177,7 @@ export interface OrderRequest {
   address: string;
   note?: string;
   paymentMethod: string;
-  cartItems: CartItem[];
+  cartItems: OrderItemRequest[];
   totalAmount: number;
 }
 

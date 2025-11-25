@@ -61,16 +61,37 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
-        String path = request.getRequestURI();
+        String requestURI = request.getRequestURI();
+        String servletPath = request.getServletPath();
+        String contextPath = request.getContextPath();
+        
+        // With context-path=/api, servletPath already excludes context path
+        // Example: requestURI=/api/orders/create, servletPath=/orders/create (context-path already removed)
+        // So we use servletPath directly, or requestURI if servletPath is empty
+        String pathToCheck = (servletPath != null && !servletPath.isEmpty()) ? servletPath : requestURI;
+        
         // Skip JWT filter for public endpoints
-        return path.startsWith("/api/auth/") ||
-               path.startsWith("/api/products/") ||
-               path.startsWith("/api/inventories/") ||
-               path.startsWith("/api/brands/") ||
-               path.startsWith("/api/categories/") ||
-               path.startsWith("/api/swagger-ui") ||
-                path.startsWith("/api/suppliers/") ||
-               path.startsWith("/api/v3/api-docs");
+        // With context-path=/api, servletPath will be /orders/create (without /api prefix)
+        // Controller has @RequestMapping("/orders"), so servletPath is /orders/create
+        boolean shouldSkip = pathToCheck.startsWith("/auth/") ||
+               pathToCheck.startsWith("/products/") ||
+               pathToCheck.startsWith("/inventories/") ||
+               pathToCheck.startsWith("/brands/") ||
+               pathToCheck.startsWith("/categories/") ||
+               pathToCheck.startsWith("/swagger-ui") ||
+               pathToCheck.startsWith("/suppliers/") ||
+               pathToCheck.startsWith("/v3/api-docs") ||
+               pathToCheck.equals("/orders/create") ||
+               pathToCheck.startsWith("/payment/check-qr") ||
+               pathToCheck.matches("/orders/\\d+/cancel-timeout") ||
+               pathToCheck.startsWith("/orders/my-orders");
+        
+        if (pathToCheck.contains("orders/create")) {
+            logger.info("JWT Filter: requestURI=" + requestURI + ", servletPath=" + servletPath + 
+                       ", contextPath=" + contextPath + ", pathToCheck=" + pathToCheck + ", shouldSkip=" + shouldSkip);
+        }
+        
+        return shouldSkip;
     }
 
 

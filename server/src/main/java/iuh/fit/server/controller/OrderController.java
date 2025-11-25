@@ -2,20 +2,24 @@ package iuh.fit.server.controller;
 
 import iuh.fit.server.dto.request.OrderCreateRequest;
 import iuh.fit.server.dto.response.OrderResponse;
-import iuh.fit.server.dto.response.PaymentCheckResponse;
 import iuh.fit.server.services.OrderService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
-@RequestMapping("/api")
+@RequestMapping("/orders")
 @RequiredArgsConstructor
 @Slf4j
 // CORS is configured globally in WebConfig.java
+// Note: context-path=/api, so full path is /api/orders/...
 public class OrderController {
 
     private final OrderService orderService;
@@ -23,7 +27,7 @@ public class OrderController {
     /**
      * Create a new order
      */
-    @PostMapping("/orders/create")
+    @PostMapping("/create")
     public ResponseEntity<?> createOrder(@Valid @RequestBody OrderCreateRequest request) {
         try {
             log.info("Received order creation request for: {}", request.getFullName());
@@ -36,23 +40,65 @@ public class OrderController {
         }
     }
 
+    
     /**
-     * Check QR payment status
+     * Cancel order if timeout (for QR payment orders)
      */
-    @GetMapping("/payment/check-qr")
-    public ResponseEntity<?> checkQRPayment(@RequestParam String orderId) {
+    @PostMapping("/{orderId}/cancel-timeout")
+    public ResponseEntity<?> cancelOrderIfTimeout(@PathVariable Integer orderId) {
         try {
-            log.info("Checking QR payment for order: {}", orderId);
-            PaymentCheckResponse response = orderService.checkQRPayment(orderId);
-            return ResponseEntity.ok(response);
+            log.info("Checking timeout for order: {}", orderId);
+            orderService.cancelOrderIfTimeout(orderId);
+            boolean isCancelled = orderService.isOrderCancelled(orderId);
+            return ResponseEntity.ok(new CancelResponse(isCancelled, 
+                    isCancelled ? "Đơn hàng đã bị hủy do quá thời gian thanh toán" : "Đơn hàng vẫn còn hiệu lực"));
         } catch (Exception e) {
-            log.error("Error checking QR payment", e);
+            log.error("Error cancelling order", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(new ErrorResponse("Có lỗi xảy ra khi kiểm tra thanh toán: " + e.getMessage()));
+                    .body(new ErrorResponse("Có lỗi xảy ra khi hủy đơn hàng: " + e.getMessage()));
+        }
+    }
+    
+    /**
+     * Get orders by authenticated user or email
+     * Supports both authenticated users and guest users searching by email
+     */
+    @GetMapping("/my-orders")
+    public ResponseEntity<?> getMyOrders(
+            @RequestParam(required = false) String email,
+            Authentication authentication) {
+        try {
+            List<OrderResponse> orders;
+            String searchEmail = null;
+            
+            // If email parameter is provided, use it (for guest search or authenticated user searching different email)
+            if (email != null && !email.isEmpty()) {
+                searchEmail = email;
+            } else if (authentication != null && authentication.isAuthenticated()) {
+                // If user is authenticated and no email param, use authenticated user's email
+                UserDetails userDetails = (UserDetails) authentication.getPrincipal();
+                searchEmail = userDetails.getUsername();
+            } else {
+                // No email and not authenticated
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(new ErrorResponse("Vui lòng nhập email để tìm kiếm đơn hàng"));
+            }
+            
+            // Get orders by email
+            orders = orderService.getOrdersByEmail(searchEmail);
+            
+            return ResponseEntity.ok(orders);
+        } catch (Exception e) {
+            log.error("Error getting orders", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ErrorResponse("Có lỗi xảy ra khi lấy danh sách đơn hàng: " + e.getMessage()));
         }
     }
 
     // Error Response DTO
     private record ErrorResponse(String message) {}
+    
+    // Cancel Response DTO
+    private record CancelResponse(boolean cancelled, String message) {}
 }
 

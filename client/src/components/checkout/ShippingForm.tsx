@@ -128,14 +128,16 @@ export const ShippingForm: React.FC<ShippingFormProps> = ({ formData, onUpdate, 
               type="text"
               value={formData.fullName}
               onChange={(e) => onUpdate({ fullName: e.target.value })}
-              className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-black focus:border-transparent transition-all ${
-                validationErrors.fullName ? 'border-red-500' : 'border-gray-300'
+              className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent transition-all ${
+                validationErrors.fullName ? 'border-red-500 bg-red-50' : 'border-gray-300'
               }`}
               placeholder="Nhập đầy đủ họ và tên của bạn"
               required
             />
             {validationErrors.fullName && (
-              <p className="mt-1 text-sm text-red-600">{validationErrors.fullName}</p>
+              <p className="mt-1 text-sm text-red-600 font-medium">
+                {validationErrors.fullName}
+              </p>
             )}
           </div>
 
@@ -147,14 +149,16 @@ export const ShippingForm: React.FC<ShippingFormProps> = ({ formData, onUpdate, 
               type="tel"
               value={formData.phone}
               onChange={(e) => onUpdate({ phone: e.target.value })}
-              className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-black focus:border-transparent transition-all ${
-                validationErrors.phone ? 'border-red-500' : 'border-gray-300'
+              className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent transition-all ${
+                validationErrors.phone ? 'border-red-500 bg-red-50' : 'border-gray-300'
               }`}
               placeholder="Nhập số điện thoại"
               required
             />
             {validationErrors.phone && (
-              <p className="mt-1 text-sm text-red-600">{validationErrors.phone}</p>
+              <p className="mt-1 text-sm text-red-600 font-medium">
+                {validationErrors.phone}
+              </p>
             )}
           </div>
         </div>
@@ -168,14 +172,16 @@ export const ShippingForm: React.FC<ShippingFormProps> = ({ formData, onUpdate, 
             type="email"
             value={formData.email}
             onChange={(e) => onUpdate({ email: e.target.value })}
-            className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-black focus:border-transparent transition-all ${
-              validationErrors.email ? 'border-red-500' : 'border-gray-300'
+            className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent transition-all ${
+              validationErrors.email ? 'border-red-500 bg-red-50' : 'border-gray-300'
             }`}
             placeholder="Nhập Email"
             required
           />
           {validationErrors.email && (
-            <p className="mt-1 text-sm text-red-600">{validationErrors.email}</p>
+            <p className="mt-1 text-sm text-red-600 font-medium">
+              {validationErrors.email}
+            </p>
           )}
         </div>
 
@@ -188,7 +194,9 @@ export const ShippingForm: React.FC<ShippingFormProps> = ({ formData, onUpdate, 
             <select
               value={formData.cityCode}
               onChange={handleProvinceChange}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent transition-all bg-white appearance-none cursor-pointer"
+              className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent transition-all bg-white appearance-none cursor-pointer ${
+                validationErrors.city ? 'border-red-500 bg-red-50' : 'border-gray-300'
+              }`}
               style={{
                 backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23333' d='M6 9L1 4h10z'/%3E%3C/svg%3E")`,
                 backgroundRepeat: 'no-repeat',
@@ -207,6 +215,11 @@ export const ShippingForm: React.FC<ShippingFormProps> = ({ formData, onUpdate, 
                 </option>
               ))}
             </select>
+            {validationErrors.city && (
+              <p className="mt-1 text-sm text-red-600 font-medium">
+                {validationErrors.city}
+              </p>
+            )}
           </div>
 
           <div>
@@ -216,7 +229,9 @@ export const ShippingForm: React.FC<ShippingFormProps> = ({ formData, onUpdate, 
             <select
               value={formData.districtCode}
               onChange={handleDistrictChange}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent transition-all bg-white appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent transition-all bg-white appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
+                validationErrors.district ? 'border-red-500 bg-red-50' : 'border-gray-300'
+              }`}
               style={{
                 backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23333' d='M6 9L1 4h10z'/%3E%3C/svg%3E")`,
                 backgroundRepeat: 'no-repeat',
@@ -235,6 +250,11 @@ export const ShippingForm: React.FC<ShippingFormProps> = ({ formData, onUpdate, 
                 </option>
               ))}
             </select>
+            {validationErrors.district && (
+              <p className="mt-1 text-sm text-red-600 font-medium">
+                {validationErrors.district}
+              </p>
+            )}
           </div>
         </div>
 
@@ -247,7 +267,9 @@ export const ShippingForm: React.FC<ShippingFormProps> = ({ formData, onUpdate, 
             <select
               value={formData.wardCode}
               onChange={handleWardChange}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent transition-all bg-white appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent transition-all bg-white appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
+                validationErrors.ward ? 'border-red-500 bg-red-50' : 'border-gray-300'
+              }`}
               style={{
                 backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23333' d='M6 9L1 4h10z'/%3E%3C/svg%3E")`,
                 backgroundRepeat: 'no-repeat',
@@ -266,6 +288,11 @@ export const ShippingForm: React.FC<ShippingFormProps> = ({ formData, onUpdate, 
                 </option>
               ))}
             </select>
+            {validationErrors.ward && (
+              <p className="mt-1 text-sm text-red-600 font-medium">
+                {validationErrors.ward}
+              </p>
+            )}
           </div>
 
           <div>
@@ -276,14 +303,16 @@ export const ShippingForm: React.FC<ShippingFormProps> = ({ formData, onUpdate, 
               type="text"
               value={formData.address}
               onChange={(e) => onUpdate({ address: e.target.value })}
-              className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-black focus:border-transparent transition-all ${
-                validationErrors.address ? 'border-red-500' : 'border-gray-300'
+              className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent transition-all ${
+                validationErrors.address ? 'border-red-500 bg-red-50' : 'border-gray-300'
               }`}
               placeholder="Ví dụ: Số 18 Ngõ 86 Phú Kiều"
               required
             />
             {validationErrors.address && (
-              <p className="mt-1 text-sm text-red-600">{validationErrors.address}</p>
+              <p className="mt-1 text-sm text-red-600 font-medium">
+                {validationErrors.address}
+              </p>
             )}
           </div>
         </div>

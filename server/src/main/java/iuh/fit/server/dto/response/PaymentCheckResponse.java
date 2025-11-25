@@ -15,5 +15,6 @@ public class PaymentCheckResponse {
     private String transactionId;
     private Double amount;
     private Date paymentDate;
+    private Boolean cancelled; // Indicates if order was cancelled due to timeout
 }
 

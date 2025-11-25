@@ -9,6 +9,7 @@ import iuh.fit.server.model.enums.Method;
 import iuh.fit.server.model.enums.PaymentStatus;
 import iuh.fit.server.model.enums.ShipmentStatus;
 import iuh.fit.server.repository.OrderRepository;
+import iuh.fit.server.repository.PaymentRepository;
 import iuh.fit.server.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -17,6 +18,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Date;
 import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 @Service
@@ -25,8 +28,12 @@ import java.util.stream.Collectors;
 public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
 
     private final OrderRepository orderRepository;
+    private final PaymentRepository paymentRepository;
     private final ProductRepository productRepository;
     private final OrderMapper orderMapper;
+    
+    // Timeout for QR payment: 30 minutes in milliseconds
+    private static final long QR_PAYMENT_TIMEOUT_MS = 30 * 60 * 1000;
 
     @Transactional
     @Override
@@ -76,7 +83,7 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
                 break;
             case "qr-payment":
                 payment.setMethod(Method.E_WALLET);
-                payment.setStatus(PaymentStatus.PAID); // Assume already paid via QR
+                payment.setStatus(PaymentStatus.PENDING); // QR payment starts as PENDING until verified
                 break;
             case "bank-transfer":
                 payment.setMethod(Method.BANK_TRANSFER);
@@ -106,18 +113,104 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
 
     @Override
     public PaymentCheckResponse checkQRPayment(String orderId) {
-        // In a real implementation, this would check with the bank API
-        // For now, we'll return a mock response
         log.info("Checking QR payment for order ID: {}", orderId);
         
+        // First, check if order should be cancelled due to timeout
+        try {
+            Integer orderIdInt = Integer.parseInt(orderId);
+            cancelOrderIfTimeout(orderIdInt);
+            
+            // Check if order was cancelled
+            if (isOrderCancelled(orderIdInt)) {
+                PaymentCheckResponse response = new PaymentCheckResponse();
+                response.setPaid(false);
+                response.setOrderId(orderId);
+                response.setCancelled(true);
+                return response;
+            }
+        } catch (NumberFormatException e) {
+            log.error("Invalid order ID format: {}", orderId);
+        }
+        
+        // In a real implementation, this would check with the bank API
+        // For now, we'll return a mock response
         // TODO: Implement actual payment verification with bank API
-        // For demo purposes, we'll simulate a successful payment check
         
         PaymentCheckResponse response = new PaymentCheckResponse();
         response.setPaid(false); // Change to true when payment is verified
         response.setOrderId(orderId);
         
         return response;
+    }
+    
+    @Override
+    @Transactional
+    public void cancelOrderIfTimeout(Integer orderId) {
+        Optional<Order> orderOpt = orderRepository.findById(orderId);
+        if (orderOpt.isEmpty()) {
+            log.warn("Order not found: {}", orderId);
+            return;
+        }
+        
+        Order order = orderOpt.get();
+        Payment payment = order.getPayment();
+        
+        // Only cancel QR payment orders that are still PENDING
+        if (payment == null || payment.getStatus() != PaymentStatus.PENDING) {
+            return;
+        }
+        
+        // Check if payment method is QR payment (E_WALLET)
+        if (payment.getMethod() != Method.E_WALLET) {
+            return;
+        }
+        
+        // Check if order was created more than 30 minutes ago
+        Date orderDate = order.getCreatedAt() != null ? order.getCreatedAt() : order.getOrderDate();
+        if (orderDate == null) {
+            log.warn("Order {} has no creation date", orderId);
+            return;
+        }
+        
+        long timeElapsed = System.currentTimeMillis() - orderDate.getTime();
+        if (timeElapsed > QR_PAYMENT_TIMEOUT_MS) {
+            // Cancel the order by setting payment status to FAILED
+            payment.setStatus(PaymentStatus.FAILED);
+            paymentRepository.save(payment);
+            log.info("Order {} cancelled due to QR payment timeout ({} minutes elapsed)", 
+                    orderId, TimeUnit.MILLISECONDS.toMinutes(timeElapsed));
+        }
+    }
+    
+    @Override
+    public boolean isOrderCancelled(Integer orderId) {
+        Optional<Order> orderOpt = orderRepository.findById(orderId);
+        if (orderOpt.isEmpty()) {
+            return false;
+        }
+        
+        Order order = orderOpt.get();
+        Payment payment = order.getPayment();
+        
+        return payment != null && payment.getStatus() == PaymentStatus.FAILED;
+    }
+    
+    @Override
+    public List<OrderResponse> getOrdersByEmail(String email) {
+        log.info("Getting orders for email: {}", email);
+        List<Order> orders = orderRepository.findByGuestEmailOrderByOrderDateDesc(email);
+        return orders.stream()
+                .map(orderMapper::toResponse)
+                .collect(Collectors.toList());
+    }
+    
+    @Override
+    public List<OrderResponse> getOrdersByUserId(Integer userId) {
+        log.info("Getting orders for user ID: {}", userId);
+        List<Order> orders = orderRepository.findByUserIdOrderByOrderDateDesc(userId);
+        return orders.stream()
+                .map(orderMapper::toResponse)
+                .collect(Collectors.toList());
     }
 
 }

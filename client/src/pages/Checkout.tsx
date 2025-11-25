@@ -28,7 +28,6 @@ export const Checkout: React.FC = () => {
   const cartItems = cart.items;
   const [formData, setFormData] = useState<CheckoutFormData>(initialFormData);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 
   // Redirect if cart is empty
@@ -58,6 +57,36 @@ export const Checkout: React.FC = () => {
 
   const updateFormData = (data: Partial<CheckoutFormData>) => {
     setFormData(prev => ({ ...prev, ...data }));
+    // Clear validation errors for all fields being updated
+    setValidationErrors(prev => {
+      const newErrors = { ...prev };
+      // Map frontend field names to backend field names
+      const fieldMapping: Record<string, string[]> = {
+        fullName: ['fullName'],
+        phone: ['phone'],
+        email: ['email'],
+        cityCode: ['city'],
+        city: ['city'],
+        districtCode: ['district'],
+        district: ['district'],
+        wardCode: ['ward'],
+        ward: ['ward'],
+        address: ['address'],
+        paymentMethod: ['paymentMethod'],
+      };
+      
+      // Clear errors for all related fields
+      Object.keys(data).forEach(field => {
+        const relatedFields = fieldMapping[field] || [field];
+        relatedFields.forEach(relatedField => {
+          if (newErrors[relatedField]) {
+            delete newErrors[relatedField];
+          }
+        });
+      });
+      
+      return newErrors;
+    });
   };
 
   const handlePaymentMethodChange = (method: CheckoutFormData['paymentMethod']) => {
@@ -65,40 +94,48 @@ export const Checkout: React.FC = () => {
   };
 
   const validateForm = (): boolean => {
+    const errors: Record<string, string> = {};
+    let hasError = false;
+
     if (!formData.fullName.trim()) {
-      setError('Vui lòng nhập họ và tên');
-      return false;
+      errors.fullName = 'Họ và tên không được để trống';
+      hasError = true;
     }
     if (!formData.phone.trim()) {
-      setError('Vui lòng nhập số điện thoại');
-      return false;
+      errors.phone = 'Số điện thoại không được để trống';
+      hasError = true;
     }
     if (!formData.email.trim()) {
-      setError('Vui lòng nhập email');
-      return false;
+      errors.email = 'Email không được để trống';
+      hasError = true;
     }
     if (!formData.cityCode) {
-      setError('Vui lòng chọn tỉnh/thành phố');
-      return false;
+      errors.city = 'Vui lòng chọn tỉnh/thành phố';
+      hasError = true;
     }
     if (!formData.districtCode) {
-      setError('Vui lòng chọn quận/huyện');
-      return false;
+      errors.district = 'Vui lòng chọn quận/huyện';
+      hasError = true;
     }
     if (!formData.wardCode) {
-      setError('Vui lòng chọn xã/phường/thị trấn');
-      return false;
+      errors.ward = 'Vui lòng chọn xã/phường/thị trấn';
+      hasError = true;
     }
     if (!formData.address.trim()) {
-      setError('Vui lòng nhập địa chỉ cụ thể');
+      errors.address = 'Địa chỉ không được để trống';
+      hasError = true;
+    }
+
+    if (hasError) {
+      setValidationErrors(errors);
       return false;
     }
+
+    setValidationErrors({});
     return true;
   };
 
   const handleSubmit = async () => {
-    setError(null);
-
     // Validate form
     if (!validateForm()) {
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -111,6 +148,17 @@ export const Checkout: React.FC = () => {
       // Prepare order request
       const fullAddress = `${formData.address}, ${formData.ward}, ${formData.district}, ${formData.city}`;
       
+      // Map cartItems to the format expected by backend
+      const mappedCartItems = cartItems.map(item => ({
+        productId: item.product.productId,
+        productName: item.product.name,
+        unitPrice: item.product.unitPrice,
+        imageUrl: item.product.images && item.product.images.length > 0 
+          ? item.product.images[0].url 
+          : '',
+        quantity: item.quantity,
+      }));
+      
       const orderRequest: OrderRequest = {
         fullName: formData.fullName,
         phone: formData.phone,
@@ -121,12 +169,12 @@ export const Checkout: React.FC = () => {
         address: fullAddress,
         note: formData.note || '',
         paymentMethod: formData.paymentMethod,
-        cartItems: cartItems,
+        cartItems: mappedCartItems,
         totalAmount: total,
       };
 
-      // Submit order
-      const response = await apiService.post<OrderResponse>('/api/orders/create', orderRequest);
+      // Submit order - fix path (API_BASE_URL already includes /api)
+      const response = await apiService.post<OrderResponse>('/orders/create', orderRequest);
 
       if (response) {
         // Clear cart
@@ -148,15 +196,42 @@ export const Checkout: React.FC = () => {
       if (err.status === 400) {
         const errorData = err.response?.data || err;
         if (errorData.errors && typeof errorData.errors === 'object') {
-          setValidationErrors(errorData.errors);
-          setError('Vui lòng kiểm tra lại thông tin đã nhập');
+          // Map backend field names to frontend field names if needed
+          const mappedErrors: Record<string, string> = {};
+          const cartItemsErrors: string[] = [];
+          
+          Object.entries(errorData.errors).forEach(([field, message]) => {
+            // Handle nested errors from cartItems (e.g., cartItems[0].unitPrice)
+            if (field.startsWith('cartItems')) {
+              // Extract the actual field name from nested path (e.g., "unitPrice" from "cartItems[0].unitPrice")
+              const nestedField = field.includes('.') ? field.split('.').pop() : field;
+              const fieldLabels: Record<string, string> = {
+                productId: 'Mã sản phẩm',
+                productName: 'Tên sản phẩm',
+                unitPrice: 'Giá sản phẩm',
+                quantity: 'Số lượng',
+                imageUrl: 'Hình ảnh',
+              };
+              const fieldLabel = fieldLabels[nestedField || ''] || nestedField || 'Sản phẩm';
+              cartItemsErrors.push(`${fieldLabel}: ${message}`);
+            } else {
+              mappedErrors[field] = message as string;
+            }
+          });
+          
+          // Store cartItems errors separately for better display
+          // Store as array in a special format for rendering
+          if (cartItemsErrors.length > 0) {
+            // Use a special separator that we can split later
+            mappedErrors._cartItemsArray = JSON.stringify(cartItemsErrors);
+          }
+          
+          setValidationErrors(mappedErrors);
         } else {
           setValidationErrors({});
-          setError(errorData.message || 'Có lỗi xảy ra khi đặt hàng. Vui lòng thử lại!');
         }
       } else {
         setValidationErrors({});
-        setError(err.response?.data?.message || err.message || 'Có lỗi xảy ra khi đặt hàng. Vui lòng thử lại!');
       }
       
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -166,7 +241,7 @@ export const Checkout: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-gray-50 pt-24 pb-8">
       <div className="container mx-auto px-4 max-w-7xl">
         {/* Breadcrumb */}
         <nav className="mb-6 text-sm">
@@ -193,25 +268,6 @@ export const Checkout: React.FC = () => {
           </ol>
         </nav>
 
-        {/* Alert Messages */}
-        {error && (
-          <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 text-red-700 rounded-lg animate-fadeIn">
-            <div className="flex items-start">
-              <svg
-                className="w-5 h-5 mt-0.5 mr-3 flex-shrink-0"
-                fill="currentColor"
-                viewBox="0 0 20 20"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                  clipRule="evenodd"
-                />
-              </svg>
-              <span>{error}</span>
-            </div>
-          </div>
-        )}
 
         {/* Page Title */}
         <h1 className="text-3xl md:text-4xl font-bold mb-2">Thanh toán</h1>
