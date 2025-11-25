@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api")
 @RequiredArgsConstructor
 @Slf4j
-@CrossOrigin(origins = "*")
+// CORS is configured globally in WebConfig.java
 public class OrderController {
 
     private final OrderService orderService;
