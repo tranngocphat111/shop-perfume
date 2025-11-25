@@ -149,10 +149,12 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
                 return response;
             }
             
+            // Always set amount (even if not paid yet) so frontend can display it
+            response.setAmount(payment.getAmount());
+            
             // Check if payment is PAID
             if (payment.getStatus() == PaymentStatus.PAID) {
                 response.setPaid(true);
-                response.setAmount(payment.getAmount());
                 response.setPaymentDate(payment.getPaymentDate());
             } 
             // Check if payment is FAILED (cancelled due to timeout)
@@ -260,16 +262,9 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
                     orderId = extractOrderIdFromContent(webhookRequest.getDescription());
                 }
                 if (orderId == null) {
-                    System.out.println("❌ Could not extract order ID from webhook content");
-                    System.out.println("Content: " + webhookRequest.getContent());
-                    System.out.println("Reference Code: " + webhookRequest.getReferenceCode());
-                    System.out.println("Code: " + webhookRequest.getCode());
-                    System.out.println("Description: " + webhookRequest.getDescription());
                     return false;
                 }
             }
-            
-            System.out.println("✅ Extracted Order ID: " + orderId);
             
             // Find the order
             Optional<Order> orderOpt = orderRepository.findById(orderId);
