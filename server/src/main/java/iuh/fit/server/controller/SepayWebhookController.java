@@ -40,62 +40,38 @@ public class SepayWebhookController {
             @RequestParam(required = false) java.util.Map<String, String> params,
             HttpServletRequest request) {
         try {
-            // Log webhook received (use System.out for visibility)
-            System.out.println("=== SEPAY WEBHOOK RECEIVED ===");
-            System.out.println("Time: " + new java.util.Date());
-            System.out.println("Content-Type: " + request.getContentType());
-            
             // Verify API Key from Authorization header
             String authHeader = request.getHeader("Authorization");
-            System.out.println("Authorization header: " + (authHeader != null ? "Present" : "Missing"));
             
             if (!verifyApiKey(authHeader)) {
-                System.out.println("❌ API KEY VERIFICATION FAILED");
-                System.out.println("Expected: " + sepayApiKey);
-                System.out.println("Received: " + authHeader);
+                log.error("Sepay webhook API key verification failed");
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                         .body(new WebhookResponse("error", "Invalid API key"));
             }
             
-            System.out.println("✅ API KEY VERIFIED");
-            
             // Handle form-urlencoded if JSON body is null
             if (webhookRequest == null && params != null && !params.isEmpty()) {
-                System.out.println("Converting form-urlencoded to DTO");
                 webhookRequest = convertParamsToWebhookRequest(params);
             }
             
             // Check if request body is null
             if (webhookRequest == null) {
-                System.out.println("❌ REQUEST BODY IS NULL");
+                log.error("Sepay webhook request body is null");
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                         .body(new WebhookResponse("error", "Request body is required"));
             }
-            
-            // Log webhook details
-            System.out.println("Transaction ID: " + webhookRequest.getId());
-            System.out.println("Content: '" + webhookRequest.getContent() + "'");
-            System.out.println("Transfer Type: " + webhookRequest.getTransferType());
-            System.out.println("Transfer Amount: " + webhookRequest.getTransferAmount());
-            System.out.println("Reference Code: " + webhookRequest.getReferenceCode());
-            System.out.println("Code: " + webhookRequest.getCode());
             
             // Process the webhook and update payment status
             boolean processed = orderService.processSepayWebhook(webhookRequest);
             
             if (processed) {
-                System.out.println("✅ WEBHOOK PROCESSED SUCCESSFULLY");
                 // Sepay requires response: HTTP 200/201 with {"success": true}
                 return ResponseEntity.ok().body(new WebhookSuccessResponse(true, "Webhook processed successfully"));
             } else {
-                System.out.println("❌ WEBHOOK NOT PROCESSED - No matching order found");
-                System.out.println("Check if content contains order ID in format: STNP_XXX");
                 // Still return success to prevent retry, but with success: false
                 return ResponseEntity.ok().body(new WebhookSuccessResponse(false, "Webhook received but no matching order found"));
             }
         } catch (Exception e) {
-            System.out.println("❌ WEBHOOK ERROR: " + e.getMessage());
-            e.printStackTrace();
             log.error("Error processing Sepay webhook", e);
             // Return 200 to prevent Sepay from retrying
             return ResponseEntity.ok().body(new WebhookResponse("error", "Error processing webhook: " + e.getMessage()));
@@ -179,27 +155,13 @@ public class SepayWebhookController {
     @PostMapping("/sepay/test")
     public ResponseEntity<?> testWebhook(@RequestBody SepayWebhookRequest testRequest) {
         try {
-            // Log test request details for debugging
-            System.out.println("=== TEST WEBHOOK REQUEST ===");
-            System.out.println("ID: " + testRequest.getId());
-            System.out.println("Content: " + testRequest.getContent());
-            System.out.println("Transfer Type: " + testRequest.getTransferType());
-            System.out.println("Transfer Amount: " + testRequest.getTransferAmount());
-            System.out.println("Reference Code: " + testRequest.getReferenceCode());
-            System.out.println("Code: " + testRequest.getCode());
-            System.out.println("============================");
-            
             boolean processed = orderService.processSepayWebhook(testRequest);
             if (processed) {
-                System.out.println("✅ TEST WEBHOOK: Processed successfully");
                 return ResponseEntity.ok().body(new WebhookSuccessResponse(true, "Test webhook processed successfully"));
             } else {
-                System.out.println("❌ TEST WEBHOOK: No matching order found");
                 return ResponseEntity.ok().body(new WebhookSuccessResponse(false, "Test webhook received but no matching order found. Check content field for order ID."));
             }
         } catch (Exception e) {
-            System.out.println("❌ TEST WEBHOOK ERROR: " + e.getMessage());
-            e.printStackTrace();
             log.error("Error processing test webhook", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(new WebhookResponse("error", "Error processing test webhook: " + e.getMessage()));
