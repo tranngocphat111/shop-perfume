@@ -200,7 +200,7 @@ export interface OrderResponse {
     productId: number;
     productName: string;
     quantity: number;
-    price: number;
+    unitPrice: number;
     subTotal: number;
   }>;
 }

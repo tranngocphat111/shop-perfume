@@ -68,7 +68,7 @@ export const OrderCard: React.FC<OrderCardProps> = ({
                 <div className="flex-1">
                   <p className="text-sm font-medium text-gray-800">{item.productName}</p>
                   <p className="text-xs text-gray-500">
-                    SL: {item.quantity} × {formatCurrency(item.price)} ₫
+                    SL: {item.quantity} × {formatCurrency(item.unitPrice || 0)} ₫
                   </p>
                 </div>
               </div>
