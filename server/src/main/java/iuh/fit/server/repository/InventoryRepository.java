@@ -26,5 +26,9 @@ public interface InventoryRepository extends JpaRepository<Inventory, Integer> {
     // Lấy inventories theo danh sách product IDs, giữ nguyên thứ tự
     @Query("SELECT i FROM Inventory i WHERE i.product.productId IN :productIds")
     List<Inventory> findByProductIds(@Param("productIds") List<Integer> productIds);
+
+    // Lấy inventory theo productId
+    @Query("SELECT i FROM Inventory i WHERE i.product.productId = :productId")
+    Inventory findByProductId(@Param("productId") Integer productId);
 }
 

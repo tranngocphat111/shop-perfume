@@ -43,6 +43,7 @@ public class ProductServiceImpl implements ProductService {
     private final OrderItemRepository orderItemRepository;
     private final ProductMapper productMapper;
     private final CloudinaryService cloudinaryService;
+    private final iuh.fit.server.repository.InventoryRepository inventoryRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -100,6 +101,13 @@ public class ProductServiceImpl implements ProductService {
         Product savedProduct = productRepository.save(product);
         log.info("Product created successfully with id: {}", savedProduct.getProductId());
         
+        // Create Inventory with quantity 0
+        iuh.fit.server.model.entity.Inventory inventory = new iuh.fit.server.model.entity.Inventory();
+        inventory.setProduct(savedProduct);
+        inventory.setQuantity(0);
+        inventoryRepository.save(inventory);
+        log.info("Inventory created for product {} with quantity 0", savedProduct.getProductId());
+        
         return productMapper.toResponse(savedProduct);
     }
 
@@ -123,6 +131,13 @@ public class ProductServiceImpl implements ProductService {
         // Save product first to get ID
         Product savedProduct = productRepository.save(product);
         log.info("Product created successfully with id: {}", savedProduct.getProductId());
+        
+        // Create Inventory with quantity 0
+        iuh.fit.server.model.entity.Inventory inventory = new iuh.fit.server.model.entity.Inventory();
+        inventory.setProduct(savedProduct);
+        inventory.setQuantity(0);
+        inventoryRepository.save(inventory);
+        log.info("Inventory created for product {} with quantity 0", savedProduct.getProductId());
         
         // Upload images to Cloudinary in parallel
         List<String> publicIds;
@@ -361,6 +376,26 @@ public class ProductServiceImpl implements ProductService {
         
         Page<Product> products = productRepository.filterProducts(brandId, categoryId, searchTerm, pageable);
         return products.map(productMapper::toResponse);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ProductResponse> findByBrandId(int brandId) {
+        log.info("Finding products by brandId: {}", brandId);
+        List<Product> products = productRepository.findByBrandBrandId(brandId);
+        return products.stream()
+                .map(productMapper::toResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ProductResponse> findByCategoryId(int categoryId) {
+        log.info("Finding products by categoryId: {}", categoryId);
+        List<Product> products = productRepository.findByCategoryCategoryId(categoryId);
+        return products.stream()
+                .map(productMapper::toResponse)
+                .collect(Collectors.toList());
     }
 
 }

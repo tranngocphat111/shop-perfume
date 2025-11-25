@@ -42,4 +42,13 @@ export const inventoryService = {
     ): Promise<InventoryItem> {
         return apiService.put<InventoryItem>(`/inventories/${id}`, { quantity });
     },
+
+    async getInventoryByProductId(productId: number): Promise<InventoryItem | null> {
+        try {
+            return await apiService.get<InventoryItem>(`/inventories/product/${productId}`);
+        } catch (error) {
+            // Return null if inventory not found (404)
+            return null;
+        }
+    },
 };

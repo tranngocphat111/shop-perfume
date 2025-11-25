@@ -262,48 +262,48 @@ export const Suppliers = () => {
     setIsModalOpen(true);
   };
 
-  const handleDelete = async (item: SupplierData) => {
-    try {
-      await supplierService.deleteSupplier(item.id);
-      alert(
-        `✅ Xóa nhà cung cấp thành công!\n\nSupplier ID: ${item.id}\nTên: ${item.name}`
-      );
-      await fetchSuppliers(
-        currentPage,
-        pageSize,
-        sortField,
-        sortDirection,
-        searchQuery
-      );
-    } catch (err) {
-      console.error("Error deleting supplier:", err);
-      const errorMessage = err instanceof Error ? err.message : "Unknown error";
+  // const handleDelete = async (item: SupplierData) => {
+  //   try {
+  //     await supplierService.deleteSupplier(item.id);
+  //     alert(
+  //       `✅ Xóa nhà cung cấp thành công!\n\nSupplier ID: ${item.id}\nTên: ${item.name}`
+  //     );
+  //     await fetchSuppliers(
+  //       currentPage,
+  //       pageSize,
+  //       sortField,
+  //       sortDirection,
+  //       searchQuery
+  //     );
+  //   } catch (err) {
+  //     console.error("Error deleting supplier:", err);
+  //     const errorMessage = err instanceof Error ? err.message : "Unknown error";
 
-      let userMessage = `❌ Không thể xóa nhà cung cấp!\n\n`;
+  //     let userMessage = `❌ Không thể xóa nhà cung cấp!\n\n`;
 
-      if (errorMessage.includes("404")) {
-        userMessage += `Lỗi: Không tìm thấy nhà cung cấp\n`;
-        userMessage += `Có thể đã bị xóa trước đó.`;
-      } else if (
-        errorMessage.includes("constraint") ||
-        errorMessage.includes("foreign key") ||
-        errorMessage.includes("referenced")
-      ) {
-        userMessage += `Lỗi: Không thể xóa nhà cung cấp này\n`;
-        userMessage += `Nhà cung cấp đang được sử dụng trong hệ thống (có đơn nhập hàng liên quan).`;
-      } else if (
-        errorMessage.includes("500") ||
-        errorMessage.includes("Internal Server Error")
-      ) {
-        userMessage += `Lỗi: Lỗi server nội bộ\n`;
-        userMessage += `Vui lòng thử lại sau hoặc liên hệ quản trị viên.`;
-      } else {
-        userMessage += `Chi tiết lỗi: ${errorMessage}`;
-      }
+  //     if (errorMessage.includes("404")) {
+  //       userMessage += `Lỗi: Không tìm thấy nhà cung cấp\n`;
+  //       userMessage += `Có thể đã bị xóa trước đó.`;
+  //     } else if (
+  //       errorMessage.includes("constraint") ||
+  //       errorMessage.includes("foreign key") ||
+  //       errorMessage.includes("referenced")
+  //     ) {
+  //       userMessage += `Lỗi: Không thể xóa nhà cung cấp này\n`;
+  //       userMessage += `Nhà cung cấp đang được sử dụng trong hệ thống (có đơn nhập hàng liên quan).`;
+  //     } else if (
+  //       errorMessage.includes("500") ||
+  //       errorMessage.includes("Internal Server Error")
+  //     ) {
+  //       userMessage += `Lỗi: Lỗi server nội bộ\n`;
+  //       userMessage += `Vui lòng thử lại sau hoặc liên hệ quản trị viên.`;
+  //     } else {
+  //       userMessage += `Chi tiết lỗi: ${errorMessage}`;
+  //     }
 
-      alert(userMessage);
-    }
-  };
+  //     alert(userMessage);
+  //   }
+  // };
 
   const handleModalSubmit = async (data: SupplierFormData) => {
     try {
@@ -435,7 +435,7 @@ export const Suppliers = () => {
           onAdd={handleAdd}
           onView={handleView}
           onEdit={handleEdit}
-          onDelete={handleDelete}
+          // onDelete={handleDelete}
           searchPlaceholder="Search by ID, name, email, phone, address..."
           onSearch={handleSearch}
           serverSide={true}

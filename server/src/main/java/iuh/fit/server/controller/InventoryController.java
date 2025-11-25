@@ -12,6 +12,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -93,6 +94,22 @@ public class InventoryController {
         log.info("REST request to get best sellers with limit: {}", limit);
         List<InventoryResponse> bestSellers = inventoryService.findBestSellers(limit);
         return ResponseEntity.ok(bestSellers);
+    }
+
+    /**
+     * GET /api/inventories/product/{productId} - Lấy inventory theo productId
+     */
+    @GetMapping("/product/{productId}")
+    @Operation(summary = "Get inventory by product ID", description = "Retrieve inventory information for a specific product")
+    public ResponseEntity<InventoryResponse> getInventoryByProductId(
+            @PathVariable Integer productId
+    ) {
+        log.info("REST request to get inventory by productId: {}", productId);
+        InventoryResponse inventory = inventoryService.findByProductId(productId);
+        if (inventory == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(inventory);
     }
 
 }
