@@ -1,5 +1,6 @@
 package iuh.fit.server.config;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -17,24 +18,61 @@ import java.util.stream.Collectors;
  * Configuration cho CORS và Web MVC
  * Hỗ trợ cả development và production (AWS)
  */
+@Slf4j
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
 
     @Value("${cors.allowed.origins:http://localhost:3000,https://shop-perfume.vercel.app}")
     private String allowedOrigins;
-
-    @Override
-    public void addCorsMappings(CorsRegistry registry) {
-        // Parse and filter origins (same logic as corsConfigurationSource)
+    
+    /**
+     * Parse and filter origins, removing "*" which cannot be used with allowCredentials(true)
+     * This method ensures that even if environment variable contains "*", it will be filtered out
+     */
+    private List<String> parseAndFilterOrigins() {
+        log.info("=== CORS Configuration ===");
+        log.info("Raw CORS allowed origins from config: '{}'", allowedOrigins);
+        
+        // Check if the entire string is just "*" (with or without whitespace)
+        if (allowedOrigins != null && allowedOrigins.trim().equals("*")) {
+            log.error("CORS allowed origins is set to '*', which is not allowed with allowCredentials(true). Replacing with default origins.");
+            allowedOrigins = "http://localhost:3000,https://shop-perfume.vercel.app";
+        }
+        
+        // Parse and filter origins
         List<String> origins = Arrays.stream(allowedOrigins.split(","))
                 .map(String::trim)
-                .filter(origin -> !origin.isEmpty() && !origin.equals("*"))
+                .filter(origin -> {
+                    // Filter out empty strings
+                    if (origin.isEmpty()) {
+                        log.debug("Skipping empty origin");
+                        return false;
+                    }
+                    // Filter out "*" - this is critical!
+                    if (origin.equals("*")) {
+                        log.error("Found '*' in CORS origins list at position, removing it as it cannot be used with allowCredentials(true)");
+                        return false;
+                    }
+                    return true;
+                })
                 .collect(Collectors.toList());
         
+        // If no valid origins after filtering, use defaults
         if (origins.isEmpty()) {
+            log.warn("No valid CORS origins found after filtering, using default origins");
             origins = Arrays.asList("http://localhost:3000", "https://shop-perfume.vercel.app");
         }
         
+        log.info("Final CORS allowed origins ({}): {}", origins.size(), origins);
+        log.info("=== End CORS Configuration ===");
+        return origins;
+    }
+
+    @Override
+    public void addCorsMappings(CorsRegistry registry) {
+        List<String> origins = parseAndFilterOrigins();
+        
+        log.info("Registering CORS mappings with {} origins", origins.size());
         registry.addMapping("/**")
                 .allowedOrigins(origins.toArray(new String[0]))
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS")
@@ -45,21 +83,25 @@ public class WebConfig implements WebMvcConfigurer {
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
+        log.info("Creating CorsConfigurationSource bean");
         CorsConfiguration configuration = new CorsConfiguration();
         
-        // Parse multiple origins from comma-separated string
-        // Filter out "*" and trim whitespace, as "*" cannot be used with allowCredentials(true)
-        List<String> origins = Arrays.stream(allowedOrigins.split(","))
-                .map(String::trim)
-                .filter(origin -> !origin.isEmpty() && !origin.equals("*"))
-                .collect(Collectors.toList());
+        List<String> origins = parseAndFilterOrigins();
         
-        if (origins.isEmpty()) {
-            // Fallback to default origins if none specified
+        // CRITICAL: Use setAllowedOrigins with explicit list, NOT "*"
+        // This will throw IllegalArgumentException if origins contains "*"
+        try {
+            configuration.setAllowedOrigins(origins);
+            log.info("Successfully set CORS allowed origins: {}", origins);
+        } catch (IllegalArgumentException e) {
+            log.error("ERROR: Failed to set CORS origins. Error: {}", e.getMessage());
+            log.error("Origins that caused error: {}", origins);
+            // Use safe defaults
             origins = Arrays.asList("http://localhost:3000", "https://shop-perfume.vercel.app");
+            configuration.setAllowedOrigins(origins);
+            log.info("Using safe default origins: {}", origins);
         }
         
-        configuration.setAllowedOrigins(origins);
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
         configuration.setAllowCredentials(true);
@@ -67,6 +109,7 @@ public class WebConfig implements WebMvcConfigurer {
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
+        log.info("CorsConfigurationSource created successfully");
         return source;
     }
 }
