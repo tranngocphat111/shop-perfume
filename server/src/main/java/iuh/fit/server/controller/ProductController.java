@@ -187,5 +187,27 @@ public class ProductController {
         return ResponseEntity.noContent().build();
     }
 
+    /**
+     * GET /api/products/brand/{brandId} - Lấy danh sách sản phẩm theo brandId
+     */
+    @GetMapping("/brand/{brandId}")
+    @Operation(summary = "Get products by brand ID", description = "Retrieve all products for a specific brand")
+    public ResponseEntity<List<ProductResponse>> getProductsByBrand(@PathVariable Integer brandId) {
+        log.info("REST request to get products by brandId: {}", brandId);
+        List<ProductResponse> products = productService.findByBrandId(brandId);
+        return ResponseEntity.ok(products);
+    }
+
+    /**
+     * GET /api/products/category/{categoryId} - Lấy danh sách sản phẩm theo categoryId
+     */
+    @GetMapping("/category/{categoryId}")
+    @Operation(summary = "Get products by category ID", description = "Retrieve all products for a specific category")
+    public ResponseEntity<List<ProductResponse>> getProductsByCategory(@PathVariable Integer categoryId) {
+        log.info("REST request to get products by categoryId: {}", categoryId);
+        List<ProductResponse> products = productService.findByCategoryId(categoryId);
+        return ResponseEntity.ok(products);
+    }
+
 }
 
