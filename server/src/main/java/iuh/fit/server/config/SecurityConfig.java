@@ -73,16 +73,17 @@ public class SecurityConfig {
                     .requestMatchers("/inventories/**").permitAll()
                     .requestMatchers("/brands/**").permitAll()
                     .requestMatchers("/categories/**").permitAll()
-                    .requestMatchers("/api/admin/suppliers").permitAll()
+                    .requestMatchers("/admin/suppliers/**").hasRole("ADMIN")
                     .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
 
                     
                     // Allow guest checkout (create order without login)
-                    .requestMatchers("/api/orders/create", "/api/api/orders/create/**").permitAll()
-                    .requestMatchers("/api/payment/check-qr", "api/api/payment/check-qr/**").permitAll()
+                    .requestMatchers("/api/orders/create", "/api/orders/create/**").permitAll()
+                    .requestMatchers("/api/payment/check-qr", "/api/payment/check-qr/**").permitAll()
 
-                    // Protected endpoints (these come AFTER the specific permitAll rules above)
-                    .requestMatchers("/cart/**").authenticated()
+                    // Protected endpoints
+                    .requestMatchers("/carts/**").authenticated()
+                    .requestMatchers("/orders/**").authenticated()
                     .requestMatchers("/users/me").authenticated()
 
                     // Admin endpoints
