@@ -190,12 +190,22 @@ export const ProductDetail = () => {
           ]);
 
           // Update related products
-          if (relatedByBrand.status === 'fulfilled') {
-            setRelatedProducts(relatedByBrand.value);
+          if (relatedByBrand.status === 'fulfilled' && relatedByBrand.value) {
+            const brandProducts = Array.isArray(relatedByBrand.value) ? relatedByBrand.value : [];
+            console.log("Related products by brand:", brandProducts);
+            setRelatedProducts(brandProducts);
+          } else {
+            console.log("No related products by brand found");
+            setRelatedProducts([]);
           }
 
-          if (relatedByCategory.status === 'fulfilled') {
-            setSameCategoryProducts(relatedByCategory.value);
+          if (relatedByCategory.status === 'fulfilled' && relatedByCategory.value) {
+            const categoryProducts = Array.isArray(relatedByCategory.value) ? relatedByCategory.value : [];
+            console.log("Related products by category:", categoryProducts);
+            setSameCategoryProducts(categoryProducts);
+          } else {
+            console.log("No related products by category found");
+            setSameCategoryProducts([]);
           }
         } else {
           throw productResult.reason || new Error("Failed to fetch product");
@@ -313,19 +323,19 @@ export const ProductDetail = () => {
           <nav className="text-xs md:text-sm flex items-center gap-2">
             <Link
               to="/"
-              className="text-gray-600 hover:text-black transition-colors">
+              className="text-gray-500 font-normal hover:text-black transition-colors">
               Trang chủ
             </Link>
             <span className="text-gray-400">/</span>
             <Link
               to="/products"
-              className="text-gray-600 hover:text-black transition-colors">
+              className="text-gray-500 font-normal hover:text-black transition-colors">
               Sản phẩm
             </Link>
             <span className="text-gray-400">/</span>
             <Link
               to={`/products?brandId=${product.brand.brandId}`}
-              className="text-gray-600 hover:text-black transition-colors">
+              className="text-gray-500 font-normal hover:text-black transition-colors">
               {product.brand.name}
             </Link>
             <span className="text-gray-400">/</span>
@@ -589,14 +599,17 @@ export const ProductDetail = () => {
           </div>
         </motion.div>
 
-        {/* Tabs Section - Aligned with images */}
+        {/* Tabs Section and Related Products - 2 Columns */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
           className="mb-16 lg:mt-0">
-          {/* Tabs Navigation */}
-          <div className="border-b border-gray-200 mb-8">
+          <div className="grid grid-cols-1 lg:grid-cols-8 gap-24">
+            {/* Left Column - Tabs Section */}
+            <div className="lg:col-span-5">
+              {/* Tabs Navigation */}
+              <div className="border-b border-gray-200 mb-8">
             <nav className="flex gap-8 -mb-px">
               <button
                 onClick={() => setActiveTab("description")}
@@ -873,64 +886,73 @@ export const ProductDetail = () => {
                 </div>
               </div>
             )}
+              </div>
+            </div>
+
+            {/* Right Column - Related Products */}
+            <div className="lg:col-span-3">
+              <div className="space-y-8">
+                {/* Related Products by Brand */}
+                <div>
+                  <h2 className="flex items-center gap-2 font-medium text-base text-black mb-4 py-4">
+                    <Tag className="w-5 h-5" />
+                    <span>Sản phẩm cùng thương hiệu</span>
+                  </h2>
+                  {relatedProducts.length > 0 ? (
+                    <div className="space-y-4">
+                      {relatedProducts.map((relatedProduct) => {
+                        const relatedInventory: Inventory = {
+                          inventoryId: relatedProduct.productId,
+                          product: relatedProduct,
+                          quantity: 100,
+                        };
+                        return (
+                          <PerfumeCard
+                            key={relatedProduct.productId}
+                            inventory={relatedInventory}
+                          />
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-gray-500 border border-gray-200 rounded-lg">
+                      <p className="text-sm">Không có sản phẩm cùng thương hiệu</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Products by Category */}
+                <div>
+                  <h2 className="flex items-center gap-2 font-medium text-base text-black mb-4 py-4">
+                    <Sparkles className="w-5 h-5" />
+                    <span>Sản phẩm cùng loại</span>
+                  </h2>
+                  {sameCategoryProducts.length > 0 ? (
+                    <div className="space-y-4">
+                      {sameCategoryProducts.map((categoryProduct) => {
+                        const categoryInventory: Inventory = {
+                          inventoryId: categoryProduct.productId,
+                          product: categoryProduct,
+                          quantity: 100,
+                        };
+                        return (
+                          <PerfumeCard
+                            key={categoryProduct.productId}
+                            inventory={categoryInventory}
+                          />
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-gray-500 border border-gray-200 rounded-lg">
+                      <p className="text-sm">Không có sản phẩm cùng loại</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
         </motion.div>
-
-        {/* Related Products by Brand */}
-        {relatedProducts.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5 }}
-            className="mb-16">
-            <h2 className="text-2xl font-bold text-black mb-8">
-              Sản phẩm cùng thương hiệu
-            </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {relatedProducts.map((relatedProduct) => {
-                const relatedInventory: Inventory = {
-                  inventoryId: relatedProduct.productId,
-                  product: relatedProduct,
-                  quantity: 100,
-                };
-                return (
-                  <PerfumeCard
-                    key={relatedProduct.productId}
-                    inventory={relatedInventory}
-                  />
-                );
-              })}
-            </div>
-          </motion.div>
-        )}
-
-        {/* Products by Category */}
-        {sameCategoryProducts.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.6 }}
-            className="mb-16">
-            <h2 className="text-2xl font-bold text-black mb-8">
-              Sản phẩm cùng loại
-            </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {sameCategoryProducts.map((categoryProduct) => {
-                const categoryInventory: Inventory = {
-                  inventoryId: categoryProduct.productId,
-                  product: categoryProduct,
-                  quantity: 100,
-                };
-                return (
-                  <PerfumeCard
-                    key={categoryProduct.productId}
-                    inventory={categoryInventory}
-                  />
-                );
-              })}
-            </div>
-          </motion.div>
-        )}
       </div>
     </div>
   );
