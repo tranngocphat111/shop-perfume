@@ -3,7 +3,6 @@ import { useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { apiService } from '../services/api';
 import type { OrderResponse } from '../types';
-import { formatCurrency } from '../utils/helpers';
 import { generateOrderQRCode } from '../services/sepay';
 import {
   OrderSearchForm,

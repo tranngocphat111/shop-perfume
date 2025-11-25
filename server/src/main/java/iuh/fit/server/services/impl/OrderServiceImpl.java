@@ -218,27 +218,46 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
     @Transactional
     public boolean processSepayWebhook(SepayWebhookRequest webhookRequest) {
         try {
-            log.info("Processing Sepay webhook: transactionId={}, amount={}, content={}, status={}", 
-                    webhookRequest.getId(), webhookRequest.getAmount(), webhookRequest.getContent(), webhookRequest.getStatus());
+            log.info("=== Processing Sepay Webhook ===");
+            log.info("Transaction ID: {}", webhookRequest.getId());
+            log.info("Amount: {}", webhookRequest.getAmount());
+            log.info("Content: {}", webhookRequest.getContent());
+            log.info("Status: {}", webhookRequest.getStatus());
+            log.info("Account Number: {}", webhookRequest.getAccountNumber());
+            log.info("Account Name: {}", webhookRequest.getAccountName());
+            log.info("Bank: {}", webhookRequest.getBank());
+            log.info("Transaction Date: {}", webhookRequest.getTransactionDate());
+            log.info("Reference: {}", webhookRequest.getReference());
+            log.info("=================================");
             
             // Only process successful transactions
             if (webhookRequest.getStatus() == null || !webhookRequest.getStatus().equalsIgnoreCase("success")) {
-                log.info("Ignoring webhook with status: {}", webhookRequest.getStatus());
+                log.info("Ignoring webhook with status: {} (only processing 'success' status)", webhookRequest.getStatus());
                 return false;
             }
             
             // Extract order ID from content
-            // Format: "Thanh toan don hang #123" or "LAN_123"
+            // Format: "STNP_123", "Thanh toan don hang #123", "LAN_123", or "123"
             Integer orderId = extractOrderIdFromContent(webhookRequest.getContent());
             if (orderId == null) {
-                log.warn("Could not extract order ID from content: {}", webhookRequest.getContent());
-                return false;
+                log.warn("Could not extract order ID from content: '{}'", webhookRequest.getContent());
+                log.warn("Trying to extract from reference: '{}'", webhookRequest.getReference());
+                // Try to extract from reference if content fails
+                if (webhookRequest.getReference() != null) {
+                    orderId = extractOrderIdFromContent(webhookRequest.getReference());
+                }
+                if (orderId == null) {
+                    log.error("Failed to extract order ID from both content and reference");
+                    return false;
+                }
             }
+            
+            log.info("Extracted Order ID: {}", orderId);
             
             // Find the order
             Optional<Order> orderOpt = orderRepository.findById(orderId);
             if (orderOpt.isEmpty()) {
-                log.warn("Order not found: {}", orderId);
+                log.warn("Order not found with ID: {}", orderId);
                 return false;
             }
             
@@ -250,13 +269,18 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
                 return false;
             }
             
+            log.info("Found order {} with payment status: {}", orderId, payment.getStatus());
+            log.info("Order amount: {}, Webhook amount: {}", payment.getAmount(), webhookRequest.getAmount());
+            
             // Verify amount matches (allow small difference for rounding)
             double amountDifference = Math.abs(payment.getAmount() - webhookRequest.getAmount());
             if (amountDifference > 1000) { // Allow 1000 VND difference
-                log.warn("Amount mismatch for order {}: expected {}, received {}", 
-                        orderId, payment.getAmount(), webhookRequest.getAmount());
+                log.warn("Amount mismatch for order {}: expected {}, received {}, difference: {}", 
+                        orderId, payment.getAmount(), webhookRequest.getAmount(), amountDifference);
                 return false;
             }
+            
+            log.info("Amount verified successfully (difference: {} VND)", amountDifference);
             
             // Only update if payment is still pending
             if (payment.getStatus() == PaymentStatus.PENDING) {
@@ -264,7 +288,8 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
                 payment.setPaymentDate(new Date());
                 paymentRepository.save(payment);
                 
-                log.info("Successfully updated payment status to PAID for order: {}", orderId);
+                log.info("✅ Successfully updated payment status to PAID for order: {}", orderId);
+                log.info("Payment date set to: {}", payment.getPaymentDate());
                 return true;
             } else {
                 log.info("Payment for order {} already processed with status: {}", orderId, payment.getStatus());
@@ -279,7 +304,7 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
     
     /**
      * Extract order ID from webhook content
-     * Supports formats: "Thanh toan don hang #123", "LAN_123", "123"
+     * Supports formats: "Thanh toan don hang #123", "STNP_123", "LAN_123", "123"
      */
     private Integer extractOrderIdFromContent(String content) {
         if (content == null || content.trim().isEmpty()) {
@@ -287,7 +312,7 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
         }
         
         try {
-            // Try to find order ID pattern: #123, LAN_123, or just number
+            // Try to find order ID pattern: #123, STNP_123, LAN_123, or just number
             String trimmed = content.trim();
             
             // Pattern 1: "Thanh toan don hang #123"
@@ -299,7 +324,16 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
                 }
             }
             
-            // Pattern 2: "LAN_123"
+            // Pattern 2: "STNP_123" (new format)
+            if (trimmed.contains("STNP_") || trimmed.contains("stnp_")) {
+                String[] parts = trimmed.split("_");
+                if (parts.length > 1) {
+                    String idStr = parts[1].trim().split("\\s+")[0];
+                    return Integer.parseInt(idStr);
+                }
+            }
+            
+            // Pattern 3: "LAN_123" (legacy format for backward compatibility)
             if (trimmed.contains("LAN_") || trimmed.contains("lan_")) {
                 String[] parts = trimmed.split("_");
                 if (parts.length > 1) {
@@ -308,7 +342,7 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
                 }
             }
             
-            // Pattern 3: Just a number
+            // Pattern 4: Just a number
             String numberOnly = trimmed.replaceAll("[^0-9]", "");
             if (!numberOnly.isEmpty()) {
                 return Integer.parseInt(numberOnly);

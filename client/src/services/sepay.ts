@@ -51,7 +51,7 @@ export const generateOrderQRCode = (
   const config: SepayQRConfig = {
     ...DEFAULT_SEPAY_CONFIG,
     amount,
-    description: `Thanh toan don hang #${orderId}`,
+    description: `STNP_${orderId}`,
     ...customConfig,
   };
   
