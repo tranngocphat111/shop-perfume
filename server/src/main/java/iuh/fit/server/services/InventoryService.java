@@ -33,5 +33,12 @@ public interface InventoryService {
      */
     List<InventoryResponse> findBestSellers(int limit);
 
+    /**
+     * Tìm inventory theo productId
+     * @param productId ID của sản phẩm
+     * @return InventoryResponse hoặc null nếu không tìm thấy
+     */
+    InventoryResponse findByProductId(Integer productId);
+
 }
 
