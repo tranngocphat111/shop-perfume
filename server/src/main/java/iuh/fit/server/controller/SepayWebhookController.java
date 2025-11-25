@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
@@ -32,34 +33,63 @@ public class SepayWebhookController {
      * 
      * Sepay sends webhook with header: "Authorization": "Apikey YOUR_API_KEY"
      */
-    @PostMapping("/sepay")
+    @PostMapping(value = "/sepay", consumes = {MediaType.APPLICATION_JSON_VALUE, MediaType.APPLICATION_FORM_URLENCODED_VALUE})
     public ResponseEntity<?> handleSepayWebhook(
-            @RequestBody SepayWebhookRequest webhookRequest,
+            @RequestBody(required = false) SepayWebhookRequest webhookRequest,
             HttpServletRequest request) {
         try {
-            // Log all headers for debugging
+            // Log all headers and request info FIRST for debugging
             log.info("=== Sepay Webhook Received ===");
-            log.info("Headers: {}", request.getHeaderNames());
-            request.getHeaderNames().asIterator().forEachRemaining(headerName -> {
-                log.info("Header {}: {}", headerName, request.getHeader(headerName));
-            });
-            log.info("Request Body: {}", webhookRequest);
-            log.info("==============================");
+            log.info("Request Method: {}", request.getMethod());
+            log.info("Request URI: {}", request.getRequestURI());
+            log.info("Request URL: {}", request.getRequestURL());
+            log.info("Servlet Path: {}", request.getServletPath());
+            log.info("Context Path: {}", request.getContextPath());
+            log.info("Content Type: {}", request.getContentType());
+            log.info("Content Length: {}", request.getContentLength());
             
-            // Verify API Key from Authorization header
+            // Log all headers
+            log.info("--- Headers ---");
+            if (request.getHeaderNames() != null) {
+                request.getHeaderNames().asIterator().forEachRemaining(headerName -> {
+                    log.info("Header '{}': {}", headerName, request.getHeader(headerName));
+                });
+            }
+            log.info("--- End Headers ---");
+            
+            // Verify API Key from Authorization header FIRST
             String authHeader = request.getHeader("Authorization");
+            log.info("Authorization header: {}", authHeader);
+            
             if (!verifyApiKey(authHeader)) {
-                log.warn("Invalid or missing API key. Authorization header: {}", authHeader);
+                log.warn("❌ Invalid or missing API key. Authorization header: {}", authHeader);
+                log.warn("Expected API key: {}", sepayApiKey);
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                         .body(new WebhookResponse("error", "Invalid API key"));
             }
             
-            log.info("API key verified successfully");
+            log.info("✅ API key verified successfully");
+            
+            // Check if request body is null
+            if (webhookRequest == null) {
+                log.warn("⚠️ Request body is null - webhookRequest object is null");
+                log.warn("This might indicate a JSON parsing issue or empty body");
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(new WebhookResponse("error", "Request body is required"));
+            }
+            
+            log.info("Request Body received: {}", webhookRequest);
+            log.info("Transaction ID: {}", webhookRequest.getId());
+            log.info("Amount: {}", webhookRequest.getAmount());
+            log.info("Content: {}", webhookRequest.getContent());
+            log.info("Status: {}", webhookRequest.getStatus());
+            log.info("==============================");
+            
+            // Process the webhook and update payment status
             log.info("Processing webhook: transactionId={}, amount={}, content={}, status={}", 
                     webhookRequest.getId(), webhookRequest.getAmount(), 
                     webhookRequest.getContent(), webhookRequest.getStatus());
             
-            // Process the webhook and update payment status
             boolean processed = orderService.processSepayWebhook(webhookRequest);
             
             if (processed) {

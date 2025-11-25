@@ -62,7 +62,7 @@ export const OrderDetails: React.FC<OrderDetailsProps> = ({
               <div className="flex-1">
                 <p className="font-medium text-gray-800">{item.productName}</p>
                 <p className="text-sm text-gray-500">
-                  Số lượng: {item.quantity} × {formatCurrency(item.price)} ₫
+                  Số lượng: {item.quantity} × {formatCurrency(item.unitPrice || 0)} ₫
                 </p>
               </div>
               <div className="text-right">

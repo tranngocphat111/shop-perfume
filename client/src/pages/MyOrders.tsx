@@ -41,6 +41,7 @@ export const MyOrders: React.FC = () => {
     const emailToSearch = email || searchEmail;
     
     if (!emailToSearch || !emailToSearch.trim()) {
+      console.log('[MyOrders] ⚠️ Email is required');
       setError('Vui lòng nhập email để tìm kiếm đơn hàng');
       return;
     }
@@ -48,22 +49,49 @@ export const MyOrders: React.FC = () => {
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(emailToSearch.trim())) {
+      console.log('[MyOrders] ⚠️ Invalid email format:', emailToSearch);
       setError('Email không hợp lệ. Vui lòng nhập đúng định dạng email.');
       return;
     }
 
+    console.log('[MyOrders] 🔵 Fetching orders for email:', emailToSearch);
     setIsLoading(true);
     setError(null);
     setHasSearched(true);
     
     try {
-      const response = await apiService.get<OrderResponse[]>(`/orders/my-orders?email=${encodeURIComponent(emailToSearch.trim())}`);
+      const url = `/orders/my-orders?email=${encodeURIComponent(emailToSearch.trim())}`;
+      console.log('[MyOrders] 🔵 API Request URL:', url);
+      
+      const response = await apiService.get<OrderResponse[]>(url);
+      console.log('[MyOrders] 🔵 Orders fetched:', {
+        count: response?.length || 0,
+        orders: response
+      });
+      
       setOrders(response || []);
       if (response && response.length === 0) {
+        console.log('[MyOrders] ℹ️ No orders found for email:', emailToSearch);
         setError(null); // Clear error if no orders found (not an error)
+      } else {
+        console.log('[MyOrders] ✅ Successfully loaded', response?.length || 0, 'orders');
+        // Log payment status for each order
+        response?.forEach(order => {
+          console.log('[MyOrders] 📦 Order:', {
+            orderId: order.orderId,
+            paymentStatus: order.payment?.status,
+            paymentMethod: order.payment?.method,
+            totalAmount: order.totalAmount
+          });
+        });
       }
     } catch (err: any) {
-      console.error('Error fetching orders:', err);
+      console.error('[MyOrders] ❌ Error fetching orders:', err);
+      console.error('[MyOrders] ❌ Error details:', {
+        message: err?.message,
+        response: err?.response?.data,
+        status: err?.response?.status
+      });
       const errorMessage = err.response?.data?.message || err.message || 'Không thể tải danh sách đơn hàng. Vui lòng thử lại sau.';
       setError(errorMessage);
       setOrders([]);
@@ -111,14 +139,19 @@ export const MyOrders: React.FC = () => {
             newTimeRemaining[order.orderId] = Math.floor(remaining / 1000);
           } else {
             // Timeout - check with backend
+            console.log('[MyOrders] ⏰ Timeout reached for order:', order.orderId);
             apiService.post(`/orders/${order.orderId}/cancel-timeout`, {})
-              .then(() => {
+              .then((response) => {
+                console.log('[MyOrders] 🔵 Timeout check response for order', order.orderId, ':', response);
                 // Refresh orders after timeout
                 if (searchEmail) {
+                  console.log('[MyOrders] 🔵 Refreshing orders after timeout');
                   fetchOrders(searchEmail);
                 }
               })
-              .catch(err => console.error('Error checking timeout:', err));
+              .catch(err => {
+                console.error('[MyOrders] ❌ Error checking timeout for order', order.orderId, ':', err);
+              });
           }
         }
       });
