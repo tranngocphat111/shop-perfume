@@ -29,6 +29,9 @@ export const StockAdjustments = () => {
   const [currentPage, setCurrentPage] = useState(0);
   const [pageSize, setPageSize] = useState(25);
 
+  // Search state
+  const [searchQuery, setSearchQuery] = useState<string>("");
+
   // Modal states
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
@@ -80,7 +83,7 @@ export const StockAdjustments = () => {
 
   useEffect(() => {
     fetchInventory(currentPage, pageSize);
-  }, [currentPage, pageSize]);
+  }, [currentPage, pageSize, searchQuery]);
 
   const handlePageChange = (page: number, size: number) => {
     // Nếu size thay đổi, reset về trang đầu
@@ -91,6 +94,11 @@ export const StockAdjustments = () => {
       // Chỉ thay đổi page
       setCurrentPage(page);
     }
+  };
+
+  const handleSearch = (query: string) => {
+    setSearchQuery(query);
+    setCurrentPage(0); // Reset to first page when searching
   };
 
   const columns: Column[] = [
@@ -174,14 +182,21 @@ export const StockAdjustments = () => {
       console.log("handleView called with item:", item);
       console.log("Fetching inventory with ID:", item.id);
 
+      // Set modal open first to show loading state
+      setIsDetailModalOpen(true);
+
       // Now id is inventoryId, so we can directly use it
       const inventoryData = await inventoryService.getInventoryById(item.id);
       console.log("Inventory data received:", inventoryData);
 
+      if (!inventoryData) {
+        throw new Error("No data returned from API");
+      }
+
       setSelectedInventory(inventoryData);
-      setIsDetailModalOpen(true);
     } catch (err) {
       console.error("Error fetching inventory details:", err);
+      setIsDetailModalOpen(false); // Close modal on error
       const errorMessage = err instanceof Error ? err.message : String(err);
       alert(`❌ Không thể tải thông tin chi tiết.\n\nLỗi: ${errorMessage}`);
     }
@@ -281,7 +296,8 @@ export const StockAdjustments = () => {
           title="Stock Adjustments"
           onView={handleView}
           // onEdit={handleEdit}
-          searchPlaceholder="Search products..."
+          searchPlaceholder="Search by product name, brand, category..."
+          onSearch={handleSearch}
           serverSide={true}
           totalElements={totalElements}
           currentPage={currentPage}

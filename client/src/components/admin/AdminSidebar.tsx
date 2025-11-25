@@ -25,6 +25,11 @@ export const AdminSidebar = ({ isOpen }: AdminSidebarProps) => {
       label: "Suppliers",
     },
     {
+      path: "/admin/purchase-invoices",
+      icon: "fa-file-invoice",
+      label: "Purchase Invoices",
+    },
+    {
       path: "/admin/stock-adjustments",
       icon: "fa-warehouse",
       label: "Stock Adjustments",
