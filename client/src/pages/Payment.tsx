@@ -7,8 +7,8 @@ import { formatCurrency } from '../utils/helpers';
 import { generateOrderQRCode } from '../services/sepay';
 
 const BANK_INFO = {
-  accountName: 'NGUYEN NGOC LAN',
-  accountNo: '0359234689',
+  accountName: 'TRẦN NGỌC PHÁT',
+  accountNo: '0963360910',
   bankCode: '970422',
   bankName: 'MB Bank',
 };
@@ -311,14 +311,15 @@ export const Payment: React.FC = () => {
                         </div>
                         <div className="flex justify-between py-2 bg-blue-50 rounded px-3 -mx-3">
                           <span className="text-slate-700 font-medium">Nội dung CK</span>
-                          <span className="font-mono font-bold text-blue-600">LAN_{order.orderId}</span>
+                          <span className="font-mono font-bold text-blue-600">STNP_{order.orderId}</span>
                         </div>
                       </div>
 
                       {/* Logos */}
-                      <div className="flex items-center justify-center gap-4 pt-3 border-t border-slate-100">
-                        <img src="https://img.vietqr.io/image/napas-logo.png" alt="NAPAS" className="h-6 opacity-60" />
-                        <img src="https://img.vietqr.io/image/mb-logo.png" alt="MB Bank" className="h-6 opacity-60" />
+                      <div className="flex items-center justify-center gap-2 pt-3 border-t border-slate-100">
+                        <span className="text-xs font-semibold text-gray-600">SEPAY</span>
+                        <span className="text-xs text-gray-500">•</span>
+                        <span className="text-xs text-gray-500">Powered by Sepay</span>
                       </div>
                     </div>
                   </div>

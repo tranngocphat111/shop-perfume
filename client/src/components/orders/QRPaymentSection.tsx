@@ -4,7 +4,7 @@ import { formatCurrency } from '../../utils/helpers';
 import { DEFAULT_SEPAY_CONFIG } from '../../services/sepay';
 
 const BANK_INFO = {
-  accountName: 'NGUYEN NGOC LAN',
+  accountName: 'TRẦN NGỌC PHÁT',
   accountNo: DEFAULT_SEPAY_CONFIG.account,
   bankCode: '970422',
   bankName: DEFAULT_SEPAY_CONFIG.bank,
@@ -78,7 +78,7 @@ export const QRPaymentSection: React.FC<QRPaymentSectionProps> = ({
                   </div>
                   <div className="flex justify-between py-1 bg-blue-50 rounded px-2 -mx-2">
                     <span className="text-gray-700 font-medium">Nội dung CK</span>
-                    <span className="font-mono font-bold text-blue-600">LAN_{orderId}</span>
+                    <span className="font-mono font-bold text-blue-600">STNP_{orderId}</span>
                   </div>
                 </div>
               </div>

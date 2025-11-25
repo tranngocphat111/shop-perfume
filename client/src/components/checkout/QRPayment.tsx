@@ -9,7 +9,7 @@ interface QRPaymentProps {
 import { generateOrderQRCode, DEFAULT_SEPAY_CONFIG } from '../../services/sepay';
 
 const BANK_INFO = {
-  accountName: 'NGUYEN NGOC LAN',
+  accountName: 'TRẦN NGỌC PHÁT',
   accountNo: DEFAULT_SEPAY_CONFIG.account,
   bankCode: '970422',
   bankName: DEFAULT_SEPAY_CONFIG.bank,
@@ -164,7 +164,7 @@ export const QRPayment: React.FC<QRPaymentProps> = ({ amount, onPaymentConfirmed
             </div>
             <div className="flex justify-between py-2">
               <span className="text-gray-600 font-medium">Nội dung:</span>
-              <span className="font-semibold text-blue-600">LAN_{orderId}</span>
+              <span className="font-semibold text-blue-600">STNP_{orderId}</span>
             </div>
           </div>
         </div>
