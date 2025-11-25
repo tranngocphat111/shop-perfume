@@ -65,5 +65,10 @@ public interface ProductService {
      */
     List<ProductResponse> findBestSellers(int limit);
 
+    /**
+     * Lọc sản phẩm theo brand, category và search term
+     */
+    Page<ProductResponse> filterProducts(Integer brandId, Integer categoryId, String searchTerm, Pageable pageable);
+
 }
 

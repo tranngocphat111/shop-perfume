@@ -54,13 +54,16 @@ public class ProductController {
     @GetMapping({"/page", "/paginated"})
     public ResponseEntity<Page<ProductResponse>> getProductsPaginated(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "12") int size,
             @RequestParam(required = false) String sort,
+            @RequestParam(required = false) Integer brandId,
+            @RequestParam(required = false) Integer categoryId,
             @RequestParam(required = false) String sortBy,
             @RequestParam(required = false) String direction,
             @RequestParam(required = false) String search
     ) {
-        log.info("REST request to get products with pagination - page: {}, size: {}, search: {}", page, size, search);
+        log.info("REST request to get products with pagination - page: {}, size: {}, brandId: {}, categoryId: {}, search: {}", 
+                page, size, brandId, categoryId, search);
 
         // Parse sort parameter (format: "field,direction" or just "field")
         String fieldName = "productId";
@@ -81,13 +84,8 @@ public class ProductController {
 
         Pageable pageable = PageRequest.of(page, size, Sort.by(sortDirection, fieldName));
         
-        // If search term provided, use search method
-        Page<ProductResponse> products;
-        if (search != null && !search.trim().isEmpty()) {
-            products = productService.searchProducts(search.trim(), pageable);
-        } else {
-            products = productService.findAllPaginated(pageable);
-        }
+        // Use filter method to support brandId, categoryId and search
+        Page<ProductResponse> products = productService.filterProducts(brandId, categoryId, search, pageable);
         
         return ResponseEntity.ok(products);
     }

@@ -50,4 +50,22 @@ public interface ProductRepository extends JpaRepository<Product, Integer> {
            "LOWER(p.brand.name) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
            "LOWER(p.category.name) LIKE LOWER(CONCAT('%', :searchTerm, '%'))")
     Page<Product> searchProducts(@Param("searchTerm") String searchTerm, Pageable pageable);
+
+    /**
+     * Lọc sản phẩm theo brand, category và search term
+     * Hỗ trợ filter kết hợp: có thể filter theo brand, category hoặc cả hai
+     */
+    @Query("SELECT p FROM Product p WHERE " +
+           "(:brandId IS NULL OR p.brand.brandId = :brandId) AND " +
+           "(:categoryId IS NULL OR p.category.categoryId = :categoryId) AND " +
+           "(:searchTerm IS NULL OR :searchTerm = '' OR " +
+           "LOWER(p.name) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
+           "LOWER(p.brand.name) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
+           "LOWER(p.category.name) LIKE LOWER(CONCAT('%', :searchTerm, '%')))")
+    Page<Product> filterProducts(
+        @Param("brandId") Integer brandId,
+        @Param("categoryId") Integer categoryId,
+        @Param("searchTerm") String searchTerm,
+        Pageable pageable
+    );
 }

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { AdminLayout, DataTable, type Column } from "../../components/admin";
-import { productAdminService } from "../../services/product.service";
+import { productService as productAdminService } from "../../services/product.service";
 import { productService } from "../../services/perfume.service";
 import type { Brand, Category, Product } from "../../types";
 import {
