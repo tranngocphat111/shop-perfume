@@ -70,6 +70,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         // So we use servletPath directly, or requestURI if servletPath is empty
         String pathToCheck = (servletPath != null && !servletPath.isEmpty()) ? servletPath : requestURI;
         
+        // CRITICAL: Skip JWT filter for webhook endpoints FIRST
+        if (pathToCheck.startsWith("/webhooks/") || requestURI.startsWith("/api/webhooks/")) {
+            logger.debug("Skipping JWT filter for webhook: servletPath=" + servletPath + ", requestURI=" + requestURI);
+            return true;
+        }
+        
         // Always skip JWT filter for auth endpoints
         if (pathToCheck.startsWith("/auth/") || requestURI.startsWith("/api/auth/")) {
             return true;
@@ -84,8 +90,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         // Skip JWT filter for public order/payment endpoints (guest checkout)
         if (pathToCheck.equals("/orders/create") || pathToCheck.startsWith("/payment/check-qr") ||
             pathToCheck.matches("/orders/\\d+/cancel-timeout") || 
-            pathToCheck.startsWith("/orders/my-orders") ||
-            pathToCheck.startsWith("/webhooks/") || requestURI.startsWith("/api/webhooks/")) {
+            pathToCheck.startsWith("/orders/my-orders")) {
             return true;
         }
         

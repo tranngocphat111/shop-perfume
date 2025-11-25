@@ -32,15 +32,18 @@ public class SepayWebhookController {
      * This endpoint receives notifications when a payment is received
      * 
      * Sepay sends webhook with header: "Authorization": "Apikey YOUR_API_KEY"
+     * Sepay typically sends JSON, but we support both JSON and form-urlencoded
      */
     @PostMapping(value = "/sepay", consumes = {MediaType.APPLICATION_JSON_VALUE, MediaType.APPLICATION_FORM_URLENCODED_VALUE})
     public ResponseEntity<?> handleSepayWebhook(
             @RequestBody(required = false) SepayWebhookRequest webhookRequest,
+            @RequestParam(required = false) java.util.Map<String, String> params,
             HttpServletRequest request) {
         try {
             // Log webhook received (use System.out for visibility)
             System.out.println("=== SEPAY WEBHOOK RECEIVED ===");
             System.out.println("Time: " + new java.util.Date());
+            System.out.println("Content-Type: " + request.getContentType());
             
             // Verify API Key from Authorization header
             String authHeader = request.getHeader("Authorization");
@@ -55,6 +58,12 @@ public class SepayWebhookController {
             }
             
             System.out.println("✅ API KEY VERIFIED");
+            
+            // Handle form-urlencoded if JSON body is null
+            if (webhookRequest == null && params != null && !params.isEmpty()) {
+                System.out.println("Converting form-urlencoded to DTO");
+                webhookRequest = convertParamsToWebhookRequest(params);
+            }
             
             // Check if request body is null
             if (webhookRequest == null) {
@@ -112,6 +121,46 @@ public class SepayWebhookController {
         
         // Compare with configured API key
         return sepayApiKey.equals(providedKey);
+    }
+    
+    /**
+     * Convert form-urlencoded parameters to SepayWebhookRequest DTO
+     */
+    private SepayWebhookRequest convertParamsToWebhookRequest(java.util.Map<String, String> params) {
+        SepayWebhookRequest request = new SepayWebhookRequest();
+        
+        if (params.containsKey("id")) {
+            try {
+                request.setId(Long.parseLong(params.get("id")));
+            } catch (NumberFormatException e) {
+                // Ignore
+            }
+        }
+        request.setGateway(params.get("gateway"));
+        request.setTransactionDate(params.get("transactionDate"));
+        request.setAccountNumber(params.get("accountNumber"));
+        request.setCode(params.get("code"));
+        request.setContent(params.get("content"));
+        request.setTransferType(params.get("transferType"));
+        if (params.containsKey("transferAmount")) {
+            try {
+                request.setTransferAmount(Double.parseDouble(params.get("transferAmount")));
+            } catch (NumberFormatException e) {
+                // Ignore
+            }
+        }
+        if (params.containsKey("accumulated")) {
+            try {
+                request.setAccumulated(Double.parseDouble(params.get("accumulated")));
+            } catch (NumberFormatException e) {
+                // Ignore
+            }
+        }
+        request.setSubAccount(params.get("subAccount"));
+        request.setReferenceCode(params.get("referenceCode"));
+        request.setDescription(params.get("description"));
+        
+        return request;
     }
 
     /**

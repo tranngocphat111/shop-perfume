@@ -59,17 +59,20 @@ public class SecurityConfig {
             .exceptionHandling(exception ->
                 exception.authenticationEntryPoint(authenticationEntryPoint))
             .authorizeHttpRequests(auth -> auth
-                     // CRITICAL: Guest checkout endpoints MUST be FIRST to ensure they are matched
+                     // CRITICAL: Webhook endpoints MUST be FIRST (before any other rules)
+                    // Sepay webhook endpoint (must be public) - support all possible path formats
+                    .requestMatchers("/webhooks/**").permitAll()
+                    .requestMatchers("/api/webhooks/**").permitAll()
+                    
+                    // CRITICAL: Guest checkout endpoints MUST be SECOND to ensure they are matched
                     // Note: context-path=/api, Controller has @RequestMapping("/orders"), so servletPath is /orders/create
                     .requestMatchers("/orders/create").permitAll()
+                    .requestMatchers("/api/orders/create", "/api/orders/create/**").permitAll()
                     .requestMatchers("/payment/check-qr").permitAll()
+                    .requestMatchers("/api/payment/check-qr", "/api/payment/check-qr/**").permitAll()
                     .requestMatchers("/orders/*/cancel-timeout").permitAll()
                     // Allow guest users to search orders by email
                     .requestMatchers("/orders/my-orders").permitAll()
-                    // Sepay webhook endpoint (must be public)
-                    // Support both /webhooks/** (servletPath) and /api/webhooks/** (requestURI)
-                    .requestMatchers("/webhooks/**").permitAll()
-                    .requestMatchers("/api/webhooks/**").permitAll()
                     
                     // Other public endpoints
                     .requestMatchers("/auth/**").permitAll()
@@ -79,11 +82,6 @@ public class SecurityConfig {
                     .requestMatchers("/categories/**").permitAll()
                     .requestMatchers("/admin/suppliers/**").hasRole("ADMIN")
                     .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
-
-                    
-                    // Allow guest checkout (create order without login)
-                    .requestMatchers("/api/orders/create", "/api/orders/create/**").permitAll()
-                    .requestMatchers("/api/payment/check-qr", "/api/payment/check-qr/**").permitAll()
 
                     // Protected endpoints
                     .requestMatchers("/carts/**").authenticated()
