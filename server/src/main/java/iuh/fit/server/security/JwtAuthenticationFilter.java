@@ -62,15 +62,29 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
         String path = request.getRequestURI();
-        // Skip JWT filter for public endpoints
-        return path.startsWith("/api/auth/") ||
-               path.startsWith("/api/products/") ||
-               path.startsWith("/api/inventories/") ||
-               path.startsWith("/api/brands/") ||
-               path.startsWith("/api/categories/") ||
-               path.startsWith("/api/swagger-ui") ||
-                path.startsWith("/api/suppliers/") ||
-               path.startsWith("/api/v3/api-docs");
+        String method = request.getMethod();
+        
+        // Always skip JWT filter for auth endpoints
+        if (path.startsWith("/api/auth/")) {
+            return true;
+        }
+        
+        // Skip JWT filter for swagger/docs
+        if (path.startsWith("/api/swagger-ui") || path.startsWith("/api/v3/api-docs")) {
+            return true;
+        }
+        
+        // Skip JWT filter for GET requests on public endpoints (read-only)
+        if ("GET".equalsIgnoreCase(method)) {
+            return path.startsWith("/api/products/") ||
+                   path.startsWith("/api/inventories/") ||
+                   path.startsWith("/api/brands/") ||
+                   path.startsWith("/api/categories/") ||
+                   path.startsWith("/api/suppliers/");
+        }
+        
+        // For POST, PUT, DELETE - require authentication (don't skip filter)
+        return false;
     }
 
 
