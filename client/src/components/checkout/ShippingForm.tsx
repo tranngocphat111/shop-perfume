@@ -4,12 +4,13 @@ import type { CheckoutFormData, Province, District, Ward, ProvinceDetail, Distri
 interface ShippingFormProps {
   formData: CheckoutFormData;
   onUpdate: (data: Partial<CheckoutFormData>) => void;
+  validationErrors?: Record<string, string>;
 }
 
 const PROVINCES_API = 'https://provinces.open-api.vn/api/p/';
 const DISTRICTS_API = 'https://provinces.open-api.vn/api/d/';
 
-export const ShippingForm: React.FC<ShippingFormProps> = ({ formData, onUpdate }) => {
+export const ShippingForm: React.FC<ShippingFormProps> = ({ formData, onUpdate, validationErrors = {} }) => {
   const [provinces, setProvinces] = useState<Province[]>([]);
   const [districts, setDistricts] = useState<District[]>([]);
   const [wards, setWards] = useState<Ward[]>([]);
@@ -127,10 +128,15 @@ export const ShippingForm: React.FC<ShippingFormProps> = ({ formData, onUpdate }
               type="text"
               value={formData.fullName}
               onChange={(e) => onUpdate({ fullName: e.target.value })}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent transition-all"
+              className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-black focus:border-transparent transition-all ${
+                validationErrors.fullName ? 'border-red-500' : 'border-gray-300'
+              }`}
               placeholder="Nhập đầy đủ họ và tên của bạn"
               required
             />
+            {validationErrors.fullName && (
+              <p className="mt-1 text-sm text-red-600">{validationErrors.fullName}</p>
+            )}
           </div>
 
           <div>
@@ -141,10 +147,15 @@ export const ShippingForm: React.FC<ShippingFormProps> = ({ formData, onUpdate }
               type="tel"
               value={formData.phone}
               onChange={(e) => onUpdate({ phone: e.target.value })}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent transition-all"
+              className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-black focus:border-transparent transition-all ${
+                validationErrors.phone ? 'border-red-500' : 'border-gray-300'
+              }`}
               placeholder="Nhập số điện thoại"
               required
             />
+            {validationErrors.phone && (
+              <p className="mt-1 text-sm text-red-600">{validationErrors.phone}</p>
+            )}
           </div>
         </div>
 
@@ -157,10 +168,15 @@ export const ShippingForm: React.FC<ShippingFormProps> = ({ formData, onUpdate }
             type="email"
             value={formData.email}
             onChange={(e) => onUpdate({ email: e.target.value })}
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent transition-all"
+            className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-black focus:border-transparent transition-all ${
+              validationErrors.email ? 'border-red-500' : 'border-gray-300'
+            }`}
             placeholder="Nhập Email"
             required
           />
+          {validationErrors.email && (
+            <p className="mt-1 text-sm text-red-600">{validationErrors.email}</p>
+          )}
         </div>
 
         {/* Tỉnh/Thành phố & Quận/Huyện */}
@@ -260,10 +276,15 @@ export const ShippingForm: React.FC<ShippingFormProps> = ({ formData, onUpdate }
               type="text"
               value={formData.address}
               onChange={(e) => onUpdate({ address: e.target.value })}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent transition-all"
+              className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-black focus:border-transparent transition-all ${
+                validationErrors.address ? 'border-red-500' : 'border-gray-300'
+              }`}
               placeholder="Ví dụ: Số 18 Ngõ 86 Phú Kiều"
               required
             />
+            {validationErrors.address && (
+              <p className="mt-1 text-sm text-red-600">{validationErrors.address}</p>
+            )}
           </div>
         </div>
 

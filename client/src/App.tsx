@@ -6,34 +6,54 @@ import { Home } from "./pages/Home";
 import { Products as CustomerProducts } from "./pages/Products";
 import { Cart } from "./pages/Cart";
 import { Checkout } from "./pages/Checkout";
+import { Payment } from "./pages/Payment";
 import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
 import AdminLogin from "./pages/auth/AdminLogin";
+import Profile from "./pages/Profile";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import "./App.css";
 import { Dashboard } from "./pages/admin/Dashboard";
 import { StockAdjustments } from "./pages/admin/StockAdjustment";
 import { Products as AdminProducts } from "./pages/admin/Products";
+import { Footer } from "./components/Footer";
 import { Suppliers } from "./pages/admin/Suppliers";
+import Profile from "./pages/Profile";
 
 function AppContent() {
   const location = useLocation();
   const isHomePage = location.pathname === "/";
   const isAdminRoute = location.pathname.startsWith("/admin");
-  const isAuthRoute = location.pathname === "/login" || location.pathname === "/register" || location.pathname === "/admin/login";
+  const isAuthRoute =
+    location.pathname === "/login" ||
+    location.pathname === "/register" ||
+    location.pathname === "/admin/login";
 
   return (
     <div className="min-h-screen bg-gray-50">
       {!isAdminRoute && !isAuthRoute && <Header />}
-      <main className={`min-h-[calc(100vh-80px)] ${isHomePage || isAdminRoute || isAuthRoute ? "" : "pt-20"}`}>
+      <main
+        className={`min-h-[calc(100vh-80px)] ${
+          isHomePage || isAdminRoute || isAuthRoute ? "" : "pt-20"
+        }`}
+      >
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/products" element={<CustomerProducts />} />
           <Route path="/cart" element={<Cart />} />
           <Route path="/checkout" element={<Checkout />} />
+          <Route path="/payment" element={<Payment />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/admin/login" element={<AdminLogin />} />
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute>
+                <Profile />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/about"
             element={
@@ -86,6 +106,7 @@ function AppContent() {
           />
         </Routes>
       </main>
+      <Footer />
     </div>
   );
 }

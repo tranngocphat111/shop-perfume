@@ -1,8 +1,11 @@
-const API_BASE_URL = "http://localhost:8080/api";
+const API_BASE_URL = "http://13.251.125.90:8080/api";
 
 interface ApiError {
   message: string;
   status: number;
+  response?: {
+    data?: any;
+  };
 }
 
 // Helper function to get auth headers
@@ -28,7 +31,8 @@ export const apiService = {
           message:
             errorData.message || `HTTP error! status: ${response.status}`,
           status: response.status,
-        } as ApiError;
+          response: { data: errorData },
+        } as ApiError & { response?: { data?: any } };
       }
       return response.json();
     } catch (error) {
@@ -63,7 +67,8 @@ export const apiService = {
           message:
             errorData.message || `HTTP error! status: ${response.status}`,
           status: response.status,
-        } as ApiError;
+          response: { data: errorData },
+        } as ApiError & { response?: { data?: any } };
       }
       return response.json();
     } catch (error) {
@@ -99,7 +104,8 @@ export const apiService = {
           message:
             errorData.message || `HTTP error! status: ${response.status}`,
           status: response.status,
-        } as ApiError;
+          response: { data: errorData },
+        } as ApiError & { response?: { data?: any } };
       }
       return response.json();
     } catch (error) {
@@ -125,7 +131,8 @@ export const apiService = {
           message:
             errorData.message || `HTTP error! status: ${response.status}`,
           status: response.status,
-        } as ApiError;
+          response: { data: errorData },
+        } as ApiError & { response?: { data?: any } };
       }
       return response.json();
     } catch (error) {
