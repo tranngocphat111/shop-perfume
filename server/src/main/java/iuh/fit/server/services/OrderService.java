@@ -1,6 +1,7 @@
 package iuh.fit.server.services;
 
 import iuh.fit.server.dto.request.OrderCreateRequest;
+import iuh.fit.server.dto.request.SepayWebhookRequest;
 import iuh.fit.server.dto.response.OrderResponse;
 import iuh.fit.server.dto.response.PaymentCheckResponse;
 
@@ -18,5 +19,12 @@ public interface OrderService {
     List<OrderResponse> getOrdersByEmail(String email);
     
     List<OrderResponse> getOrdersByUserId(Integer userId);
+    
+    /**
+     * Process Sepay webhook callback and update payment status
+     * @param webhookRequest The webhook request from Sepay
+     * @return true if payment was successfully processed, false otherwise
+     */
+    boolean processSepayWebhook(SepayWebhookRequest webhookRequest);
 }
 

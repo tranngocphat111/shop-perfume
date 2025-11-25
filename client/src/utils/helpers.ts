@@ -81,6 +81,20 @@ export const getBrandLogoUrl = (brandUrl: string | undefined | null): string | n
 };
 
 /**
+ * Format date to Vietnamese locale
+ */
+export const formatDate = (dateString: string): string => {
+  const date = new Date(dateString);
+  return date.toLocaleDateString('vi-VN', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
+
+/**
  * Cloudinary base URL constant để export
  */
 export { CLOUDINARY_BASE_URL };

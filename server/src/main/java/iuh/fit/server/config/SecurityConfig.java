@@ -66,6 +66,8 @@ public class SecurityConfig {
                     .requestMatchers("/orders/*/cancel-timeout").permitAll()
                     // Allow guest users to search orders by email
                     .requestMatchers("/orders/my-orders").permitAll()
+                    // Sepay webhook endpoint (must be public)
+                    .requestMatchers("/webhooks/**").permitAll()
                     
                     // Other public endpoints
                     .requestMatchers("/auth/**").permitAll()

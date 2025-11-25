@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useCart } from '../contexts/CartContext';
 import { useAuth } from '../contexts/AuthContext';
 import { ShippingForm, PaymentMethodSelector, OrderSummary } from '../components/checkout';
+import { Breadcrumb, SuccessNotification } from '../components/common';
 import type { CheckoutFormData, OrderRequest, OrderResponse } from '../types';
 import { apiService } from '../services/api';
 
@@ -29,6 +30,8 @@ export const Checkout: React.FC = () => {
   const [formData, setFormData] = useState<CheckoutFormData>(initialFormData);
   const [isProcessing, setIsProcessing] = useState(false);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+  const [showSuccessNotification, setShowSuccessNotification] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<{ message: string; subMessage?: string } | null>(null);
 
   // Redirect if cart is empty
   useEffect(() => {
@@ -97,18 +100,40 @@ export const Checkout: React.FC = () => {
     const errors: Record<string, string> = {};
     let hasError = false;
 
+    // Validate fullName
     if (!formData.fullName.trim()) {
       errors.fullName = 'Họ và tên không được để trống';
       hasError = true;
+    } else if (formData.fullName.trim().length < 2 || formData.fullName.trim().length > 100) {
+      errors.fullName = 'Họ và tên phải từ 2-100 ký tự';
+      hasError = true;
+    } else if (!/^[\p{L}\s]+$/u.test(formData.fullName.trim())) {
+      errors.fullName = 'Họ và tên chỉ được chứa chữ cái và khoảng trắng';
+      hasError = true;
     }
+
+    // Validate phone
     if (!formData.phone.trim()) {
       errors.phone = 'Số điện thoại không được để trống';
       hasError = true;
+    } else if (!/^(\+84|0)[0-9]{9,10}$/.test(formData.phone.trim())) {
+      errors.phone = 'Số điện thoại không hợp lệ (VD: 0912345678 hoặc +84912345678)';
+      hasError = true;
     }
+
+    // Validate email
     if (!formData.email.trim()) {
       errors.email = 'Email không được để trống';
       hasError = true;
+    } else if (formData.email.trim().length > 100) {
+      errors.email = 'Email không được quá 100 ký tự';
+      hasError = true;
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
+      errors.email = 'Email không hợp lệ';
+      hasError = true;
     }
+
+    // Validate address fields
     if (!formData.cityCode) {
       errors.city = 'Vui lòng chọn tỉnh/thành phố';
       hasError = true;
@@ -123,6 +148,15 @@ export const Checkout: React.FC = () => {
     }
     if (!formData.address.trim()) {
       errors.address = 'Địa chỉ không được để trống';
+      hasError = true;
+    } else if (formData.address.trim().length > 255) {
+      errors.address = 'Địa chỉ không được quá 255 ký tự';
+      hasError = true;
+    }
+
+    // Validate note (optional but check max length)
+    if (formData.note && formData.note.length > 500) {
+      errors.note = 'Ghi chú không được quá 500 ký tự';
       hasError = true;
     }
 
@@ -180,27 +214,47 @@ export const Checkout: React.FC = () => {
         // Clear cart
         clearCart();
         
-        // Navigate to payment page with order information
-        navigate('/payment', {
-          state: {
-            order: response,
-            paymentMethod: formData.paymentMethod,
-            totalAmount: total,
-          },
+        // Show success notification
+        setSuccessMessage({
+          message: 'Đặt hàng thành công!',
+          subMessage: `Đơn hàng #${response.orderId} đã được tạo`,
         });
+        setShowSuccessNotification(true);
+        
+        // Navigate to payment page with order information
+        setTimeout(() => {
+          navigate('/payment', {
+            state: {
+              order: response,
+              paymentMethod: formData.paymentMethod,
+              totalAmount: total,
+            },
+          });
+        }, 1000);
       }
     } catch (err: any) {
       console.error('Error placing order:', err);
+      console.error('Error details:', {
+        status: err.status,
+        response: err.response,
+        errorData: err.response?.data,
+        errors: err.response?.data?.errors,
+      });
       
       // Handle validation errors from backend
       if (err.status === 400) {
         const errorData = err.response?.data || err;
+        console.log('Processing validation errors:', errorData);
+        
         if (errorData.errors && typeof errorData.errors === 'object') {
           // Map backend field names to frontend field names if needed
           const mappedErrors: Record<string, string> = {};
           const cartItemsErrors: string[] = [];
           
+          // Process all errors from backend
           Object.entries(errorData.errors).forEach(([field, message]) => {
+            const errorMessage = Array.isArray(message) ? message[0] : message;
+            
             // Handle nested errors from cartItems (e.g., cartItems[0].unitPrice)
             if (field.startsWith('cartItems')) {
               // Extract the actual field name from nested path (e.g., "unitPrice" from "cartItems[0].unitPrice")
@@ -213,25 +267,35 @@ export const Checkout: React.FC = () => {
                 imageUrl: 'Hình ảnh',
               };
               const fieldLabel = fieldLabels[nestedField || ''] || nestedField || 'Sản phẩm';
-              cartItemsErrors.push(`${fieldLabel}: ${message}`);
+              cartItemsErrors.push(`${fieldLabel}: ${errorMessage}`);
             } else {
-              mappedErrors[field] = message as string;
+              // Map field names from backend to frontend if needed
+              // Backend uses: fullName, phone, email, city, district, ward, address, note, paymentMethod
+              // Frontend uses the same names, so direct mapping
+              mappedErrors[field] = errorMessage as string;
             }
           });
           
+          console.log('Mapped errors:', mappedErrors);
+          
           // Store cartItems errors separately for better display
-          // Store as array in a special format for rendering
           if (cartItemsErrors.length > 0) {
-            // Use a special separator that we can split later
             mappedErrors._cartItemsArray = JSON.stringify(cartItemsErrors);
           }
           
           setValidationErrors(mappedErrors);
+        } else if (errorData.message) {
+          // If there's a general error message but no field-specific errors
+          console.log('General error message:', errorData.message);
+          // You might want to show this in a toast or alert
+          setValidationErrors({ _general: errorData.message });
         } else {
           setValidationErrors({});
         }
       } else {
-        setValidationErrors({});
+        // For non-400 errors, show general error
+        const errorMessage = err.response?.data?.message || err.message || 'Có lỗi xảy ra khi đặt hàng. Vui lòng thử lại.';
+        setValidationErrors({ _general: errorMessage });
       }
       
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -244,30 +308,13 @@ export const Checkout: React.FC = () => {
     <div className="min-h-screen bg-gray-50 pt-24 pb-8">
       <div className="container mx-auto px-4 max-w-7xl">
         {/* Breadcrumb */}
-        <nav className="mb-6 text-sm">
-          <ol className="flex items-center space-x-2 text-gray-600">
-            <li>
-              <button
-                onClick={() => navigate('/')}
-                className="hover:text-black transition-colors"
-              >
-                Trang chủ
-              </button>
-            </li>
-            <li>/</li>
-            <li>
-              <button
-                onClick={() => navigate('/cart')}
-                className="hover:text-black transition-colors"
-              >
-                Giỏ hàng
-              </button>
-            </li>
-            <li>/</li>
-            <li className="text-black font-medium">Thanh toán</li>
-          </ol>
-        </nav>
-
+        <Breadcrumb
+          items={[
+            { label: 'Trang chủ', path: '/' },
+            { label: 'Giỏ hàng', path: '/cart' },
+            { label: 'Thanh toán' },
+          ]}
+        />
 
         {/* Page Title */}
         <h1 className="text-3xl md:text-4xl font-bold mb-2">Thanh toán</h1>
@@ -286,6 +333,7 @@ export const Checkout: React.FC = () => {
             <PaymentMethodSelector
               selectedMethod={formData.paymentMethod}
               onSelect={handlePaymentMethodChange}
+              validationError={validationErrors.paymentMethod}
             />
           </div>
 
@@ -302,6 +350,15 @@ export const Checkout: React.FC = () => {
         </div>
       </div>
 
+      {/* Success Notification */}
+      {showSuccessNotification && successMessage && (
+        <SuccessNotification
+          message={successMessage.message}
+          subMessage={successMessage.subMessage}
+          onClose={() => setShowSuccessNotification(false)}
+        />
+      )}
+
       <style>{`
         @keyframes fadeIn {
           from {
@@ -313,7 +370,7 @@ export const Checkout: React.FC = () => {
             transform: translateY(0);
           }
         }
-        .animate-fadeIn {
+        .animate-fade-in {
           animation: fadeIn 0.3s ease-in-out;
         }
       `}</style>
@@ -322,4 +379,3 @@ export const Checkout: React.FC = () => {
 };
 
 export default Checkout;
-

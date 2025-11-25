@@ -1,6 +1,7 @@
 package iuh.fit.server.services.impl;
 
 import iuh.fit.server.dto.request.OrderCreateRequest;
+import iuh.fit.server.dto.request.SepayWebhookRequest;
 import iuh.fit.server.dto.response.OrderResponse;
 import iuh.fit.server.dto.response.PaymentCheckResponse;
 import iuh.fit.server.mapper.OrderMapper;
@@ -211,6 +212,113 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
         return orders.stream()
                 .map(orderMapper::toResponse)
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional
+    public boolean processSepayWebhook(SepayWebhookRequest webhookRequest) {
+        try {
+            log.info("Processing Sepay webhook: transactionId={}, amount={}, content={}, status={}", 
+                    webhookRequest.getId(), webhookRequest.getAmount(), webhookRequest.getContent(), webhookRequest.getStatus());
+            
+            // Only process successful transactions
+            if (webhookRequest.getStatus() == null || !webhookRequest.getStatus().equalsIgnoreCase("success")) {
+                log.info("Ignoring webhook with status: {}", webhookRequest.getStatus());
+                return false;
+            }
+            
+            // Extract order ID from content
+            // Format: "Thanh toan don hang #123" or "LAN_123"
+            Integer orderId = extractOrderIdFromContent(webhookRequest.getContent());
+            if (orderId == null) {
+                log.warn("Could not extract order ID from content: {}", webhookRequest.getContent());
+                return false;
+            }
+            
+            // Find the order
+            Optional<Order> orderOpt = orderRepository.findById(orderId);
+            if (orderOpt.isEmpty()) {
+                log.warn("Order not found: {}", orderId);
+                return false;
+            }
+            
+            Order order = orderOpt.get();
+            Payment payment = order.getPayment();
+            
+            if (payment == null) {
+                log.warn("Payment not found for order: {}", orderId);
+                return false;
+            }
+            
+            // Verify amount matches (allow small difference for rounding)
+            double amountDifference = Math.abs(payment.getAmount() - webhookRequest.getAmount());
+            if (amountDifference > 1000) { // Allow 1000 VND difference
+                log.warn("Amount mismatch for order {}: expected {}, received {}", 
+                        orderId, payment.getAmount(), webhookRequest.getAmount());
+                return false;
+            }
+            
+            // Only update if payment is still pending
+            if (payment.getStatus() == PaymentStatus.PENDING) {
+                payment.setStatus(PaymentStatus.PAID);
+                payment.setPaymentDate(new Date());
+                paymentRepository.save(payment);
+                
+                log.info("Successfully updated payment status to PAID for order: {}", orderId);
+                return true;
+            } else {
+                log.info("Payment for order {} already processed with status: {}", orderId, payment.getStatus());
+                return false;
+            }
+            
+        } catch (Exception e) {
+            log.error("Error processing Sepay webhook", e);
+            return false;
+        }
+    }
+    
+    /**
+     * Extract order ID from webhook content
+     * Supports formats: "Thanh toan don hang #123", "LAN_123", "123"
+     */
+    private Integer extractOrderIdFromContent(String content) {
+        if (content == null || content.trim().isEmpty()) {
+            return null;
+        }
+        
+        try {
+            // Try to find order ID pattern: #123, LAN_123, or just number
+            String trimmed = content.trim();
+            
+            // Pattern 1: "Thanh toan don hang #123"
+            if (trimmed.contains("#")) {
+                String[] parts = trimmed.split("#");
+                if (parts.length > 1) {
+                    String idStr = parts[1].trim().split("\\s+")[0]; // Get first word after #
+                    return Integer.parseInt(idStr);
+                }
+            }
+            
+            // Pattern 2: "LAN_123"
+            if (trimmed.contains("LAN_") || trimmed.contains("lan_")) {
+                String[] parts = trimmed.split("_");
+                if (parts.length > 1) {
+                    String idStr = parts[1].trim().split("\\s+")[0];
+                    return Integer.parseInt(idStr);
+                }
+            }
+            
+            // Pattern 3: Just a number
+            String numberOnly = trimmed.replaceAll("[^0-9]", "");
+            if (!numberOnly.isEmpty()) {
+                return Integer.parseInt(numberOnly);
+            }
+            
+        } catch (NumberFormatException e) {
+            log.warn("Could not parse order ID from content: {}", content);
+        }
+        
+        return null;
     }
 
 }

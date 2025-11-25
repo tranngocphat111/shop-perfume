@@ -84,7 +84,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                pathToCheck.equals("/orders/create") ||
                pathToCheck.startsWith("/payment/check-qr") ||
                pathToCheck.matches("/orders/\\d+/cancel-timeout") ||
-               pathToCheck.startsWith("/orders/my-orders");
+               pathToCheck.startsWith("/orders/my-orders") ||
+               pathToCheck.startsWith("/webhooks/"); // Sepay webhook endpoint
         
         if (pathToCheck.contains("orders/create")) {
             logger.info("JWT Filter: requestURI=" + requestURI + ", servletPath=" + servletPath + 
