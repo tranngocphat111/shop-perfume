@@ -24,8 +24,8 @@ public class SepayWebhookController {
 
     private final OrderService orderService;
 
-    @Value("${sepay.webhook.api-key:PASS_KEY}")
-    private String sepayApiKey;
+    
+    private String sepayApiKey = "Apikey PASS_KEY";
 
     /**
      * Handle Sepay webhook callback for payment verification
@@ -185,7 +185,7 @@ public class SepayWebhookController {
      * This endpoint bypasses API key check for manual processing
      * Supports both form-urlencoded and JSON
      */
-    @PostMapping(value = "/sepay/manual", consumes = {MediaType.APPLICATION_JSON_VALUE, MediaType.APPLICATION_FORM_URLENCODED_VALUE})
+    @PostMapping(value = "/sepay/manual", consumes = {MediaType.APPLICATION_JSON_VALUE, MediaType.APPLICATION_FORM_URLENCODED_VALUE, MediaType.ALL_VALUE})
     public ResponseEntity<?> manualWebhook(
             @RequestParam(required = false) Integer orderId,
             @RequestParam(required = false) Double amount,

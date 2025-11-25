@@ -75,6 +75,8 @@ public class SecurityConfig {
                     // Sepay webhook endpoint (must be public)
                     // Use custom matcher to handle both servletPath and requestURI
                     .requestMatchers(webhookMatcher).permitAll()
+                    // Explicit permit for manual endpoint (backup)
+                    .requestMatchers("/webhooks/sepay/manual", "/webhooks/sepay/test", "/webhooks/sepay/health").permitAll()
                     
                     // CRITICAL: Guest checkout endpoints MUST be SECOND to ensure they are matched
                     // Note: context-path=/api, Controller has @RequestMapping("/orders"), so servletPath is /orders/create
