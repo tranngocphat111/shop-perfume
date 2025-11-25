@@ -23,6 +23,8 @@ export const PerfumeCard = ({ inventory }: ProductCardProps) => {
   const [isAdding, setIsAdding] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const mouseDownPosRef = useState({ x: 0, y: 0 })[0];
+  const [mouseDownTime, setMouseDownTime] = useState(0);
+  const [mouseDownPos, setMouseDownPos] = useState({ x: 0, y: 0 });
 
   const imageUrl = getPrimaryImageUrl(product);
 
@@ -90,35 +92,41 @@ export const PerfumeCard = ({ inventory }: ProductCardProps) => {
 
   // Track mouse position to distinguish click from drag
   const handleMouseDown = (e: React.MouseEvent) => {
+    setMouseDownTime(Date.now());
+    setMouseDownPos({ x: e.clientX, y: e.clientY });
     mouseDownPosRef.x = e.clientX;
     mouseDownPosRef.y = e.clientY;
   };
 
   const handleClick = (e: React.MouseEvent) => {
     // Calculate distance moved since mousedown
-    const deltaX = Math.abs(e.clientX - mouseDownPosRef.x);
-    const deltaY = Math.abs(e.clientY - mouseDownPosRef.y);
+    const deltaX = Math.abs(e.clientX - mouseDownPos.x);
+    const deltaY = Math.abs(e.clientY - mouseDownPos.y);
     const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+    const timeDiff = Date.now() - mouseDownTime;
 
-    // If moved more than 5px, it was a drag, not a click
-    if (distance > 5) {
+    // If moved more than 15px or took more than 500ms, it was a drag, not a click
+    // Increased threshold to allow clicks in Swiper
+    if (distance > 15 || timeDiff > 500) {
       e.preventDefault();
       e.stopPropagation();
       return;
     }
 
+    // Only navigate if it's a genuine click
     handleViewDetails(e);
   };
 
   return (
     <div
-      className="product-box"
+      className="product-box cursor-pointer"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       onDragStart={(e) => e.preventDefault()}
-      onMouseDown={handleMouseDown}>
+      onMouseDown={handleMouseDown}
+      onClick={handleClick}>
       {/* Product Image Container */}
-      <div className="product-image-wrapper" onClick={handleClick}>
+      <div className="product-image-wrapper">
         {/* Brand Logo - Top Center - Larger and Better Positioned */}
         <div className="brand-logo">
           {brandLogoUrl ? (
@@ -218,7 +226,7 @@ export const PerfumeCard = ({ inventory }: ProductCardProps) => {
       </div>
 
       {/* Product Info */}
-      <div className="product-info space-y-1" onClick={handleClick}>
+      <div className="product-info space-y-1">
         <h3
           className={`text-[11px] sm:text-xs md:text-sm font-normal text-gray-900 line-clamp-2 min-h-[1.75rem] sm:min-h-[2rem] leading-relaxed transition-colors ${
             isHovered ? "text-gray-600" : ""
