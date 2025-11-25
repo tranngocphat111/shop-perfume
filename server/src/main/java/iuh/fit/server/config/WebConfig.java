@@ -28,7 +28,7 @@ public class WebConfig implements WebMvcConfigurer {
         // Parse and filter origins (same logic as corsConfigurationSource)
         List<String> origins = Arrays.stream(allowedOrigins.split(","))
                 .map(String::trim)
-                .filter(origin -> !origin.isEmpty() && !origin.equals("*"))
+                .filter(origin -> !origin.isEmpty())
                 .collect(Collectors.toList());
         
         if (origins.isEmpty()) {
@@ -36,7 +36,7 @@ public class WebConfig implements WebMvcConfigurer {
         }
         
         registry.addMapping("/**")
-                .allowedOrigins(origins.toArray(new String[0]))
+                .allowedOriginPatterns(origins.toArray(new String[0]))
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS")
                 .allowedHeaders("*")
                 .allowCredentials(true)
@@ -48,10 +48,10 @@ public class WebConfig implements WebMvcConfigurer {
         CorsConfiguration configuration = new CorsConfiguration();
         
         // Parse multiple origins from comma-separated string
-        // Filter out "*" and trim whitespace, as "*" cannot be used with allowCredentials(true)
+        // Use allowedOriginPatterns instead of allowedOrigins to support credentials
         List<String> origins = Arrays.stream(allowedOrigins.split(","))
                 .map(String::trim)
-                .filter(origin -> !origin.isEmpty() && !origin.equals("*"))
+                .filter(origin -> !origin.isEmpty())
                 .collect(Collectors.toList());
         
         if (origins.isEmpty()) {
@@ -59,9 +59,9 @@ public class WebConfig implements WebMvcConfigurer {
             origins = Arrays.asList("http://localhost:3000", "https://shop-perfume.vercel.app");
         }
         
-        configuration.setAllowedOrigins(origins);
+        configuration.setAllowedOriginPatterns(origins);
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
-        configuration.setAllowedHeaders(Arrays.asList("*"));
+        configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);
 
