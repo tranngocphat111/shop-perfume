@@ -26,5 +26,12 @@ public interface InventoryService {
      * Tìm sản phẩm theo ID
      */
 
+    /**
+     * Lấy danh sách sản phẩm bán chạy nhất dựa trên tổng quantity từ order_item
+     * @param limit Số lượng sản phẩm cần lấy (mặc định 20)
+     * @return Danh sách inventory của sản phẩm bán chạy nhất
+     */
+    List<InventoryResponse> findBestSellers(int limit);
+
 }
 
