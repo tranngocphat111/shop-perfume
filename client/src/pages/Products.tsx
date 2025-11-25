@@ -3,7 +3,8 @@ import { useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { PerfumeCard } from "../components/PerfumeCard";
 import { productService } from "../services/perfume.service";
-import type { Brand, Category, Product, PageResponse } from "../types";
+import { inventoryService, type InventoryItem } from "../services/inventory.service";
+import type { Brand, Category, Product, PageResponse, Inventory } from "../types";
 
 export const Products = () => {
   const [searchParams] = useSearchParams();
@@ -14,6 +15,7 @@ export const Products = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(0);
+  const [inventoryMap, setInventoryMap] = useState<Map<number, InventoryItem>>(new Map());
 
   // Filter states
   const [selectedBrand, setSelectedBrand] = useState<number | null>(null);
@@ -72,6 +74,25 @@ export const Products = () => {
       }
     };
     loadBrandsAndCategories();
+  }, []);
+
+  // Load inventories and create a map
+  useEffect(() => {
+    const loadInventories = async () => {
+      try {
+        // Fetch all inventories (with a reasonable page size)
+        const pageResponse = await inventoryService.getInventoryPage(0, 1000);
+        const map = new Map<number, InventoryItem>();
+        pageResponse.content.forEach((item) => {
+          map.set(item.product.productId, item);
+        });
+        setInventoryMap(map);
+      } catch (err) {
+        console.error("Failed to load inventories:", err);
+        // Continue with empty map if inventory fetch fails
+      }
+    };
+    loadInventories();
   }, []);
 
   // Update selected brand/category info when selection or data changes
@@ -327,12 +348,12 @@ export const Products = () => {
                 exit={{ opacity: 0 }}
                 className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                 {products.map((product, index) => {
-                  // Convert Product to Inventory format for PerfumeCard
-                  const inventory = {
-                    inventoryId: product.productId,
+                  // Get inventory data from map
+                  const inventoryItem = inventoryMap.get(product.productId);
+                  const inventory: Inventory = {
+                    inventoryId: inventoryItem?.inventoryId || product.productId,
                     product: product,
-                    quantity: 100, // Default quantity since we don't have inventory data
-                    quantityInStock: 100,
+                    quantity: inventoryItem?.quantity || 0,
                   };
 
                   return (

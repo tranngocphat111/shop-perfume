@@ -74,7 +74,6 @@ export interface Inventory {
   inventoryId: number;
   product: Product;
   quantity: number;
-  quantityInStock: number;
 }
 
 export interface CartItem {

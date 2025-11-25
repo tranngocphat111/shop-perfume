@@ -90,5 +90,17 @@ public class InventoryServiceImpl implements iuh.fit.server.services.InventorySe
         return responses;
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public InventoryResponse findByProductId(Integer productId) {
+        log.info("Finding inventory by productId: {}", productId);
+        Inventory inventory = inventoryRepository.findByProductId(productId);
+        if (inventory == null) {
+            log.warn("Inventory not found for productId: {}", productId);
+            return null;
+        }
+        return inventoryMapper.toResponse(inventory);
+    }
+
 }
 

@@ -4,6 +4,7 @@ import { AuthProvider } from "./contexts/AuthContext";
 import { Header } from "./components/Header";
 import { Home } from "./pages/Home";
 import { Products as CustomerProducts } from "./pages/Products";
+import { ProductDetail } from "./pages/ProductDetail";
 import { Cart } from "./pages/Cart";
 import { Checkout } from "./pages/Checkout";
 import { Payment } from "./pages/Payment";
@@ -19,6 +20,7 @@ import { StockAdjustments } from "./pages/admin/StockAdjustment";
 import { Products as AdminProducts } from "./pages/admin/Products";
 import { Footer } from "./components/Footer";
 import { Suppliers } from "./pages/admin/Suppliers";
+import { ScrollToTop } from "./components/ScrollToTop";
 
 
 function AppContent() {
@@ -41,6 +43,7 @@ function AppContent() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/products" element={<CustomerProducts />} />
+          <Route path="/products/:id" element={<ProductDetail />} />
           <Route path="/cart" element={<Cart />} />
           <Route path="/checkout" element={<Checkout />} />
           <Route path="/payment" element={<Payment />} />
@@ -109,6 +112,7 @@ function AppContent() {
         </Routes>
       </main>
       <Footer />
+      <ScrollToTop />
     </div>
   );
 }
