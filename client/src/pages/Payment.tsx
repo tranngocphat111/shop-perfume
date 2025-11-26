@@ -285,11 +285,19 @@ export const Payment: React.FC = () => {
               <h1 className="text-3xl font-bold text-slate-800 mb-2">Thanh toán đơn hàng</h1>
               <p className="text-sm text-slate-600">Mã đơn hàng: <span className="font-mono font-semibold text-slate-800">#{order.orderId}</span></p>
             </div>
-            <div className="flex items-center gap-3 px-4 py-2.5 bg-white rounded-lg border border-slate-200 shadow-sm">
-              <PaymentIcon className={`text-xl ${
-                state.paymentMethod === 'cod' ? 'text-green-600' : 'text-blue-600'
-              }`} />
-              <span className="text-sm font-semibold text-slate-700">{paymentMethodLabels[state.paymentMethod]}</span>
+            <div className={`flex items-center gap-3 px-5 py-3 bg-white rounded-xl border-2 shadow-sm ${
+              state.paymentMethod === 'cod' 
+                ? 'border-green-200 bg-green-50' 
+                : 'border-blue-200 bg-blue-50'
+            }`}>
+              <div className={`p-2 rounded-lg ${
+                state.paymentMethod === 'cod' ? 'bg-green-100' : 'bg-blue-100'
+              }`}>
+                <PaymentIcon className={`text-xl ${
+                  state.paymentMethod === 'cod' ? 'text-green-600' : 'text-blue-600'
+                }`} />
+              </div>
+              <span className="text-sm font-semibold text-slate-800">{paymentMethodLabels[state.paymentMethod]}</span>
             </div>
           </div>
         </div>

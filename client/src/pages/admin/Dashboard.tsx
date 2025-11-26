@@ -1,5 +1,5 @@
 import { AdminLayout } from "../../components/admin";
-import { Line } from  "react-chartjs-2";
+import { Line } from "react-chartjs-2";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -10,6 +10,11 @@ import {
   Tooltip,
   Legend,
 } from "chart.js";
+import { useEffect, useState } from "react";
+import { productService } from "@/services/product.service";
+import { orderService } from "@/services/order.service";
+import { formatCurrency } from "@/utils";
+import { inventoryService } from "@/services/inventory.service";
 
 ChartJS.register(
   CategoryScale,
@@ -21,16 +26,17 @@ ChartJS.register(
   Legend
 );
 
-export const Dashboard = () => {
-  const stats = {
-    totalProducts: 893,
-    totalOrders: 1234,
-    totalRevenue: 125000000,
-    lowStockItems: 23,
-    totalCustomers: 567,
-    pendingOrders: 45,
-  };
+interface statsProps {
+  totalProducts: number;
+  totalOrders: number;
+  totalRevenue: number;
+  lowStockItems: number;
+  totalCustomers: number;
+  pendingOrders: number;
+}
 
+export const Dashboard = () => {
+  const [stats, setStats] = useState<statsProps | null>(null);
   const chartData = {
     labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
     datasets: [
@@ -43,6 +49,25 @@ export const Dashboard = () => {
       },
     ],
   };
+  useEffect(() => {
+    const fetchStats = async () => {
+      const totalSizeProduct = await productService.getTotalSize();
+      const totalSizeOrder = await orderService.getTotalSize();
+      const totalRevenue = await orderService.getTotalRevenue();
+      const lowStockItems = await inventoryService.getLowStockItem();
+      setStats(() => {
+        return {
+          totalProducts: totalSizeProduct,
+          totalOrders: totalSizeOrder,
+          totalRevenue: totalRevenue,
+          lowStockItems: lowStockItems,
+          totalCustomers: 0,
+          pendingOrders: 0,
+        };
+      });
+    };
+    fetchStats();
+  }, []);
 
   const chartOptions = {
     responsive: true,
@@ -76,7 +101,7 @@ export const Dashboard = () => {
               <div>
                 <p className="text-gray-600 text-sm">Total Products</p>
                 <p className="text-3xl font-bold text-gray-800 mt-2">
-                  {stats.totalProducts}
+                  {stats?.totalProducts || 0}
                 </p>
               </div>
               <div className="bg-blue-100 p-4 rounded-full">
@@ -91,7 +116,7 @@ export const Dashboard = () => {
               <div>
                 <p className="text-gray-600 text-sm">Total Orders</p>
                 <p className="text-3xl font-bold text-gray-800 mt-2">
-                  {stats.totalOrders}
+                  {stats?.totalOrders || 0}
                 </p>
               </div>
               <div className="bg-green-100 p-4 rounded-full">
@@ -106,7 +131,7 @@ export const Dashboard = () => {
               <div>
                 <p className="text-gray-600 text-sm">Total Revenue</p>
                 <p className="text-3xl font-bold text-gray-800 mt-2">
-                  ${stats.totalRevenue.toLocaleString()}
+                  {formatCurrency(stats?.totalRevenue || 0)} VND
                 </p>
               </div>
               <div className="bg-yellow-100 p-4 rounded-full">
@@ -121,7 +146,7 @@ export const Dashboard = () => {
               <div>
                 <p className="text-gray-600 text-sm">Low Stock Items</p>
                 <p className="text-3xl font-bold text-red-600 mt-2">
-                  {stats.lowStockItems}
+                  {stats?.lowStockItems || 0}
                 </p>
               </div>
               <div className="bg-red-100 p-4 rounded-full">
@@ -136,7 +161,7 @@ export const Dashboard = () => {
               <div>
                 <p className="text-gray-600 text-sm">Total Customers</p>
                 <p className="text-3xl font-bold text-gray-800 mt-2">
-                  {stats.totalCustomers}
+                  {stats?.totalCustomers || 0}
                 </p>
               </div>
               <div className="bg-purple-100 p-4 rounded-full">
@@ -151,7 +176,7 @@ export const Dashboard = () => {
               <div>
                 <p className="text-gray-600 text-sm">Pending Orders</p>
                 <p className="text-3xl font-bold text-orange-600 mt-2">
-                  {stats.pendingOrders}
+                  {stats?.pendingOrders || 0}
                 </p>
               </div>
               <div className="bg-orange-100 p-4 rounded-full">

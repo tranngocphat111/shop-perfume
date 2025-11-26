@@ -398,5 +398,11 @@ public class ProductServiceImpl implements ProductService {
                 .collect(Collectors.toList());
     }
 
+    @Override
+    public Long getTotalSize() {
+        Long totalSize = productRepository.count();
+        log.info("Get total size: {}", totalSize);
+        return totalSize;
+    }
 }
 

@@ -9,7 +9,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isAdmin: boolean;
   isLoading: boolean;
-  login: (token: string, userData: AuthResponse) => void;
+  login: (token: string, userData: AuthResponse, mergeCart?: () => Promise<void>) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -17,7 +17,6 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<AuthResponse | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     // Load user info from localStorage on mount
@@ -48,9 +47,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     initAuth();
   }, []);
 
-  // Periodically check token expiration and refresh if needed
-  useEffect(() => {
-    if (!user) return;
+  // Removed periodic token refresh - let API handle 401 errors and refresh automatically
+  // This prevents race conditions and multiple refresh attempts
+  // The API will automatically refresh token when it expires and returns 401
 
     const intervalId = setInterval(async () => {
       try {
@@ -75,9 +74,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const login = (token: string, userData: AuthResponse) => {
     authService.setToken(token);
-    authService.setRefreshToken(userData.refreshToken);
+    // REFRESH TOKEN - COMMENTED OUT
+    // authService.setRefreshToken(userData.refreshToken);
     authService.setUser(userData);
     setUser(userData);
+    // REFRESH TOKEN - COMMENTED OUT
+    // Reset refresh attempts on successful login
+    // resetRefreshAttempts();
+    resetRefreshAttempts(); // No-op when refresh token is disabled
   };
 
   const logout = async () => {

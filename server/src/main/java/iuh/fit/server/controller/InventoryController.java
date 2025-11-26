@@ -37,6 +37,12 @@ public class InventoryController {
 
     private final InventoryService inventoryService;
 
+    @GetMapping("/lowStock")
+    @Operation(summary = "Get size of low stock items", description = "Retrieve number of low stock items from database")
+    public ResponseEntity<Long> getLowStockItem() {
+        return ResponseEntity.ok(inventoryService.getLowStockItem());
+    }
+
     /**
      * GET /api/products - Lấy tất cả sản phẩm
      */

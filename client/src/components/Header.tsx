@@ -138,14 +138,10 @@ export const Header = () => {
     }
   }, [isHomePage]);
 
-  const handleLogout = async () => {
+  const handleLogout = () => {
+    logout();
+    navigate("/");
     setShowUserMenu(false);
-    try {
-      await logout();
-      // Logout will handle navigation
-    } catch (error) {
-      console.error('Logout failed:', error);
-    }
   };
 
   // Close user menu when clicking outside

@@ -16,13 +16,10 @@ const clearAuthData = () => {
 };
 
 // Helper function to get auth headers
-const getAuthHeaders = (): Record<string, string> => {
+const getAuthHeaders = async (
+  debug: boolean = false
+): Promise<Record<string, string>> => {
   const token = localStorage.getItem("auth_token");
-  if (token) {
-    return { Authorization: `Bearer ${token}` };
-  }
-  return {};
-};
 
 // Handle 401 errors - redirect to login
 const handle401Error = async <T>(endpoint: string): Promise<T> => {
@@ -52,10 +49,10 @@ export const apiService = {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        console.error("[API] ❌ GET Error:", {
+        console.error('[API] ❌ GET Error:', {
           url: fullUrl,
           status: response.status,
-          error: errorData,
+          error: errorData
         });
 
         // Handle 401 Unauthorized
@@ -87,7 +84,7 @@ export const apiService = {
       if ((error as ApiError).status) {
         throw error;
       }
-      console.error("[API] ❌ GET Network Error:", error);
+      console.error('[API] ❌ GET Network Error:', error);
       throw new Error("Network error. Please check your connection.");
     }
   },
@@ -118,11 +115,11 @@ export const apiService = {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        console.error("[API] ❌ POST Error:", {
+        console.error('[API] ❌ POST Error:', {
           url: fullUrl,
           status: response.status,
           error: errorData,
-          requestData: isFormData ? "[FormData]" : data,
+          requestData: isFormData ? '[FormData]' : data
         });
 
         // Handle 401 Unauthorized
@@ -150,7 +147,7 @@ export const apiService = {
       if ((error as ApiError).status) {
         throw error;
       }
-      console.error("[API] ❌ POST Network Error:", error);
+      console.error('[API] ❌ POST Network Error:', error);
       throw new Error("Network error. Please check your connection.");
     }
   },
@@ -164,7 +161,7 @@ export const apiService = {
       const fullUrl = `${API_BASE_URL}${endpoint}`;
       const isFormData = data instanceof FormData;
       const headers: Record<string, string> = {
-        ...getAuthHeaders(),
+        ...(await getAuthHeaders()), // Await async call
         ...(isFormData ? {} : { "Content-Type": "application/json" }),
         ...options?.headers,
       };
@@ -204,7 +201,7 @@ export const apiService = {
       const response = await fetch(`${API_BASE_URL}${endpoint}`, {
         method: "DELETE",
         headers: {
-          ...getAuthHeaders(),
+          ...(await getAuthHeaders()), // Await async call
         },
       });
 
