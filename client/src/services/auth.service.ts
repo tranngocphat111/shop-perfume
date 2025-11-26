@@ -229,9 +229,9 @@ class AuthService {
       return false;
     }
 
-    // If token is expired or expiring soon, refresh it
-    if (this.isTokenExpired() || this.isTokenExpiringSoon()) {
-      return await this.refreshToken();
+    // If token is expired, it's invalid
+    if (this.isTokenExpired()) {
+      return false;
     }
 
     return true;

@@ -3,7 +3,6 @@ import { createContext, useContext, useState, useEffect } from "react";
 import type { ReactNode } from "react";
 import { authService } from "../services/auth.service";
 import type { AuthResponse } from "../services/auth.service";
-import { resetRefreshAttempts } from "../services/api";
 
 interface AuthContextType {
   user: AuthResponse | null;
@@ -21,14 +20,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Validate and potentially refresh token on mount
+    // Load user info from localStorage on mount
     const initAuth = async () => {
       try {
         const savedUser = authService.getUser();
         if (savedUser) {
           // Validate token and refresh if needed
           const isValid = await authService.validateAndRefreshToken();
-          
+
           if (isValid) {
             setUser(savedUser);
           } else {
@@ -38,7 +37,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           }
         }
       } catch (error) {
-        console.error('Auth initialization error:', error);
+        console.error("Auth initialization error:", error);
         authService.clearAuth();
         setUser(null);
       } finally {
@@ -66,7 +65,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           }
         }
       } catch (error) {
-        console.error('Token refresh error:', error);
+        console.error("Token refresh error:", error);
         await logout();
       }
     }, 5 * 60000); // Check every 5 minutes instead of every minute
@@ -86,19 +85,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       await authService.logout();
     } catch (error) {
-      console.error('Logout error:', error);
+      console.error("Logout error:", error);
     } finally {
       setUser(null);
       setIsLoading(false);
       // Redirect to login page
-      window.location.href = '/login';
+      window.location.href = "/login";
     }
   };
 
   const value = {
     user,
     isAuthenticated: !!user && !isLoading,
-    isAdmin: user?.role === 'ADMIN',
+    isAdmin: user?.role === "ADMIN",
     isLoading,
     login,
     logout,
@@ -110,8 +109,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 };
-
