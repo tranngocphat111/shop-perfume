@@ -1,7 +1,8 @@
-import { createContext, useContext, useState, useEffect } from 'react';
-import type { ReactNode } from 'react';
-import { authService } from '../services/auth.service';
-import type { AuthResponse } from '../services/auth.service';
+import { createContext, useContext, useState, useEffect } from "react";
+import type { ReactNode } from "react";
+import { authService } from "../services/auth.service";
+import type { AuthResponse } from "../services/auth.service";
+import { resetRefreshAttempts } from "../services/api";
 
 interface AuthContextType {
   user: AuthResponse | null;
@@ -17,28 +18,84 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<AuthResponse | null>(null);
 
   useEffect(() => {
-    // Load user info from localStorage on mount
-    const savedUser = authService.getUser();
-    if (savedUser && authService.isAuthenticated()) {
-      setUser(savedUser);
-    }
+    // Validate and potentially refresh token on mount
+    const initAuth = async () => {
+      try {
+        const savedUser = authService.getUser();
+        if (savedUser) {
+          // Validate token and refresh if needed
+          const isValid = await authService.validateAndRefreshToken();
+
+          if (isValid) {
+            setUser(savedUser);
+          } else {
+            // Token is invalid and couldn't be refreshed
+            authService.clearAuth();
+            setUser(null);
+          }
+        }
+      } catch (error) {
+        console.error("Auth initialization error:", error);
+        authService.clearAuth();
+        setUser(null);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    initAuth();
   }, []);
+
+  // Periodically check token expiration and refresh if needed
+  useEffect(() => {
+    if (!user) return;
+
+    const intervalId = setInterval(async () => {
+      try {
+        if (authService.isTokenExpiringSoon()) {
+          console.log("Token expiring soon, refreshing...");
+          const success = await authService.refreshToken();
+          if (!success) {
+            console.error("Failed to refresh token");
+            await logout();
+          }
+        }
+      } catch (error) {
+        console.error("Token refresh error:", error);
+        await logout();
+      }
+    }, 60000); // Check every minute
+
+    return () => clearInterval(intervalId);
+  }, [user]);
 
   const login = (token: string, userData: AuthResponse) => {
     authService.setToken(token);
     authService.setUser(userData);
     setUser(userData);
+    // Reset refresh attempts on successful login
+    resetRefreshAttempts();
   };
 
-  const logout = () => {
-    authService.logout();
-    setUser(null);
+  const logout = async () => {
+    setIsLoading(true);
+    try {
+      await authService.logout();
+    } catch (error) {
+      console.error("Logout error:", error);
+    } finally {
+      setUser(null);
+      setIsLoading(false);
+      // Redirect to login page
+      window.location.href = "/login";
+    }
   };
 
   const value = {
     user,
-    isAuthenticated: !!user,
-    isAdmin: user?.role === 'ADMIN',
+    isAuthenticated: !!user && !isLoading,
+    isAdmin: user?.role === "ADMIN",
+    isLoading,
     login,
     logout,
   };
@@ -49,8 +106,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 };
-
