@@ -1,5 +1,5 @@
-const API_BASE_URL = "http://13.251.125.90:8080/api";
-// const API_BASE_URL = "http://localhost:8080/api";
+// const API_BASE_URL = "http://13.251.125.90:8080/api";
+const API_BASE_URL = "http://localhost:8080/api";
 
 interface ApiError {
   message: string;
@@ -36,6 +36,16 @@ const getAuthHeaders = (): Record<string, string> => {
   return {};
 };
 
+// Helper function to determine correct login page based on current route
+const getLoginPath = (): string => {
+  const currentPath = window.location.pathname;
+  // If we're on an admin route, redirect to admin login
+  if (currentPath.startsWith("/admin")) {
+    return "/admin/login";
+  }
+  return "/login";
+};
+
 // Handle 401 errors and token refresh
 const handle401Error = async (
   originalRequest: () => Promise<any>
@@ -55,8 +65,17 @@ const handle401Error = async (
   if (!refreshToken) {
     processQueue(new Error("No refresh token"));
     isRefreshing = false;
-    // Redirect to login
-    window.location.href = "/login";
+    // Clear auth and redirect to appropriate login page
+    try {
+      const { authService } = await import("./auth.service");
+      authService.clearAuth();
+    } catch (e) {
+      // If import fails, manually clear localStorage
+      localStorage.removeItem("auth_token");
+      localStorage.removeItem("refresh_token");
+      localStorage.removeItem("user_info");
+    }
+    window.location.href = getLoginPath();
     return Promise.reject(new Error("No refresh token"));
   }
 
@@ -75,8 +94,21 @@ const handle401Error = async (
   } catch (error) {
     processQueue(error);
     isRefreshing = false;
-    // Redirect to login
-    window.location.href = "/login";
+    // Clear auth and redirect to appropriate login page
+    // authService.refreshToken() already clears auth on failure, but ensure it's cleared
+    try {
+      const { authService } = await import("./auth.service");
+      // refreshToken() already clears auth, but ensure it's cleared
+      if (!authService.getToken()) {
+        authService.clearAuth();
+      }
+    } catch (e) {
+      // If import fails, manually clear localStorage
+      localStorage.removeItem("auth_token");
+      localStorage.removeItem("refresh_token");
+      localStorage.removeItem("user_info");
+    }
+    window.location.href = getLoginPath();
     return Promise.reject(error);
   }
 };
@@ -121,7 +153,7 @@ export const apiService = {
       const data = await response.json();
 
       // Only log non-polling requests or if payment status changed
-      if (!isPollingRequest || (data.paid || data.cancelled)) {
+      if (!isPollingRequest || data.paid || data.cancelled) {
         console.log("[API] ✅ GET Response:", {
           url: fullUrl,
           status: response.status,
