@@ -384,7 +384,11 @@ public class ProductServiceImpl implements ProductService {
         log.info("Filtering products with brandIds: {}, categoryIds: {}, minPrice: {}, maxPrice: {}, searchTerm: '{}', pageable: {}", 
                 brandIds, categoryIds, minPrice, maxPrice, searchTerm, pageable);
         
-        Page<Product> products = productRepository.filterProductsMultiple(brandIds, categoryIds, minPrice, maxPrice, searchTerm, pageable);
+        // Normalize empty lists to null for JPQL query
+        List<Integer> normalizedBrandIds = (brandIds == null || brandIds.isEmpty()) ? null : brandIds;
+        List<Integer> normalizedCategoryIds = (categoryIds == null || categoryIds.isEmpty()) ? null : categoryIds;
+        
+        Page<Product> products = productRepository.filterProductsMultiple(normalizedBrandIds, normalizedCategoryIds, minPrice, maxPrice, searchTerm, pageable);
         return products.map(productMapper::toResponse);
     }
 

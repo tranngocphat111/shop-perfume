@@ -46,32 +46,43 @@ jobs:
     
     - name: Deploy and restart on EC2
       run: |
-        ssh ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+        ssh ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << EOF
           set -e
           
+          # Get current user
+          CURRENT_USER=\$(whoami)
+          USER_HOME=\$(eval echo ~\$CURRENT_USER)
+          
+          echo "Current user: \$CURRENT_USER"
+          echo "User home: \$USER_HOME"
+          
           # Tạo thư mục nếu chưa có
-          mkdir -p ~/app
+          mkdir -p \$USER_HOME/app
+          
+          # Update service file với user đúng
+          echo "Updating systemd service file with correct user..."
+          sed "s|User=ubuntu|User=\$CURRENT_USER|g; s|/home/ubuntu|$USER_HOME|g" /tmp/shop-perfume-backend.service > /tmp/shop-perfume-backend-updated.service
           
           # Setup systemd service nếu chưa có
           if [ ! -f /etc/systemd/system/shop-perfume-backend.service ]; then
             echo "Setting up systemd service..."
-            sudo cp /tmp/shop-perfume-backend.service /etc/systemd/system/shop-perfume-backend.service
+            sudo cp /tmp/shop-perfume-backend-updated.service /etc/systemd/system/shop-perfume-backend.service
             sudo systemctl daemon-reload
             sudo systemctl enable shop-perfume-backend
           else
             # Update service file nếu có thay đổi
             echo "Updating systemd service..."
-            sudo cp /tmp/shop-perfume-backend.service /etc/systemd/system/shop-perfume-backend.service
+            sudo cp /tmp/shop-perfume-backend-updated.service /etc/systemd/system/shop-perfume-backend.service
             sudo systemctl daemon-reload
           fi
           
           # Backup JAR cũ
-          if [ -f ~/app/backend.jar ]; then
-            mv ~/app/backend.jar ~/app/backend.jar.backup
+          if [ -f \$USER_HOME/app/backend.jar ]; then
+            mv \$USER_HOME/app/backend.jar \$USER_HOME/app/backend.jar.backup
           fi
           
           # Copy JAR mới
-          mv ~/backend.jar ~/app/backend.jar
+          mv \$USER_HOME/backend.jar \$USER_HOME/app/backend.jar
           
           # Dừng service cũ (nếu đang chạy)
           echo "Stopping service..."

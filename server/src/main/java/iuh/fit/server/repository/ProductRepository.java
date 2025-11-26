@@ -75,10 +75,11 @@ public interface ProductRepository extends JpaRepository<Product, Integer> {
 
     /**
      * Lọc sản phẩm với nhiều brands và categories
+     * Note: brandIds và categoryIds đã được normalize ở service layer (null nếu empty)
      */
     @Query("SELECT p FROM Product p WHERE " +
-           "(:brandIds IS NULL OR SIZE(:brandIds) = 0 OR p.brand.brandId IN :brandIds) AND " +
-           "(:categoryIds IS NULL OR SIZE(:categoryIds) = 0 OR p.category.categoryId IN :categoryIds) AND " +
+           "(:brandIds IS NULL OR p.brand.brandId IN :brandIds) AND " +
+           "(:categoryIds IS NULL OR p.category.categoryId IN :categoryIds) AND " +
            "(:minPrice IS NULL OR p.unitPrice >= :minPrice) AND " +
            "(:maxPrice IS NULL OR p.unitPrice <= :maxPrice) AND " +
            "(:searchTerm IS NULL OR :searchTerm = '' OR " +
