@@ -33,7 +33,8 @@ class AuthService {
   private readonly TOKEN_KEY = "auth_token";
   private readonly REFRESH_TOKEN_KEY = "refresh_token";
   private readonly USER_KEY = "user_info";
-  private refreshPromise: Promise<TokenRefreshResponse> | null = null;
+  // REFRESH TOKEN - COMMENTED OUT
+  // private refreshPromise: Promise<TokenRefreshResponse> | null = null;
 
   async login(credentials: LoginRequest): Promise<AuthResponse> {
     const response = await apiService.post<AuthResponse>(
@@ -126,6 +127,7 @@ class AuthService {
   }
 
   isAdmin(): boolean {
+    const user = this.getUser(); // Get user from localStorage
     return user?.role === "ADMIN";
   }
 
@@ -177,75 +179,86 @@ class AuthService {
     return token;
   }
 
+  // REFRESH TOKEN - COMMENTED OUT
   // Refresh access token using refresh token
-  async refreshToken(delayClear: boolean = false): Promise<boolean> {
-    // If there's already a refresh in progress, wait for it
-    if (this.refreshPromise) {
-      try {
-        await this.refreshPromise;
-        return true;
-      } catch {
-        return false;
-      }
-    }
+  async refreshToken(_delayClear: boolean = false): Promise<boolean> {
+    // REFRESH TOKEN DISABLED
+    return false;
 
-    const refreshToken = this.getRefreshToken();
-    if (!refreshToken) {
-      // If delayClear is true, don't clear auth here - let handle401Error do it
-      // This allows the delay to work properly
-      if (!delayClear) {
-        this.clearAuth();
-      }
-      return false;
-    }
+    // REFRESH TOKEN CODE - COMMENTED OUT
+    // // If there's already a refresh in progress, wait for it
+    // if (this.refreshPromise) {
+    //   try {
+    //     await this.refreshPromise;
+    //     // Check if token was actually refreshed
+    //     const newToken = this.getToken();
+    //     return newToken !== null;
+    //   } catch {
+    //     // Clear promise on error so next attempt can proceed
+    //     this.refreshPromise = null;
+    //     return false;
+    //   }
+    // }
 
-    try {
-      // Create a promise for this refresh attempt
-      this.refreshPromise = apiService.post<TokenRefreshResponse>(
-        "/auth/refresh",
-        { refreshToken }
-      );
+    // const refreshToken = this.getRefreshToken();
+    // if (!refreshToken) {
+    //   // If delayClear is true, don't clear auth here - let handle401Error do it
+    //   // This allows the delay to work properly
+    //   if (!delayClear) {
+    //     this.clearAuth();
+    //   }
+    //   return false;
+    // }
 
-      const response = await this.refreshPromise;
+    // try {
+    //   // Create a promise for this refresh attempt
+    //   this.refreshPromise = apiService.post<TokenRefreshResponse>(
+    //     "/auth/refresh",
+    //     { refreshToken }
+    //   );
 
-      // Update tokens
-      this.setToken(response.accessToken);
-      this.setRefreshToken(response.refreshToken);
+    //   const response = await this.refreshPromise;
 
-      // Log token preview to verify it's saved
-      const tokenPreview =
-        response.accessToken.length > 30
-          ? `${response.accessToken.substring(
-              0,
-              20
-            )}...${response.accessToken.substring(
-              response.accessToken.length - 10
-            )}`
-          : response.accessToken.substring(0, 30);
-      console.log("Token refreshed successfully. New token:", tokenPreview);
+    //   // Update tokens
+    //   this.setToken(response.accessToken);
+    //   this.setRefreshToken(response.refreshToken);
 
-      // Verify token is saved
-      const savedToken = this.getToken();
-      const savedTokenPreview =
-        savedToken && savedToken.length > 30
-          ? `${savedToken.substring(0, 20)}...${savedToken.substring(
-              savedToken.length - 10
-            )}`
-          : savedToken?.substring(0, 30);
-      console.log("Saved token in localStorage:", savedTokenPreview);
+    //   // Log token preview to verify it's saved
+    //   const tokenPreview =
+    //     response.accessToken.length > 30
+    //       ? `${response.accessToken.substring(
+    //           0,
+    //           20
+    //         )}...${response.accessToken.substring(
+    //           response.accessToken.length - 10
+    //         )}`
+    //       : response.accessToken.substring(0, 30);
+    //   console.log("Token refreshed successfully. New token:", tokenPreview);
 
-      return true;
-    } catch (error) {
-      console.error("Token refresh failed:", error);
-      // If delayClear is true, don't clear auth here - let handle401Error do it
-      // This allows the delay to work properly
-      if (!delayClear) {
-        this.clearAuth();
-      }
-      return false;
-    } finally {
-      this.refreshPromise = null;
-    }
+    //   // Verify token is saved
+    //   const savedToken = this.getToken();
+    //   const savedTokenPreview =
+    //     savedToken && savedToken.length > 30
+    //       ? `${savedToken.substring(0, 20)}...${savedToken.substring(
+    //           savedToken.length - 10
+    //         )}`
+    //       : savedToken?.substring(0, 30);
+    //   console.log("Saved token in localStorage:", savedTokenPreview);
+
+    //   // Clear promise on success
+    //   this.refreshPromise = null;
+    //   return true;
+    // } catch (error) {
+    //   console.error("Token refresh failed:", error);
+    //   // Clear promise on error
+    //   this.refreshPromise = null;
+    //   // If delayClear is true, don't clear auth here - let handle401Error do it
+    //   // This allows the delay to work properly
+    //   if (!delayClear) {
+    //     this.clearAuth();
+    //   }
+    //   return false;
+    // }
   }
 
   // Validate token on app load
