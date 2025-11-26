@@ -33,9 +33,11 @@ export const Checkout: React.FC = () => {
   const [showSuccessNotification, setShowSuccessNotification] = useState(false);
   const [successMessage, setSuccessMessage] = useState<{ message: string; subMessage?: string } | null>(null);
 
-  // Redirect if cart is empty
+  // Redirect if cart is empty (but allow navigation to payment page first)
   useEffect(() => {
-    if (cartItems.length === 0) {
+    // Only redirect if we're still on checkout page and cart is empty
+    // This prevents redirect when navigating to payment page
+    if (cartItems.length === 0 && window.location.pathname === '/checkout') {
       navigate('/cart');
     }
   }, [cartItems, navigate]);
@@ -211,9 +213,6 @@ export const Checkout: React.FC = () => {
       const response = await apiService.post<OrderResponse>('/orders/create', orderRequest);
 
       if (response) {
-        // Clear cart
-        clearCart();
-        
         // Show success notification
         setSuccessMessage({
           message: 'Đặt hàng thành công!',
@@ -221,16 +220,21 @@ export const Checkout: React.FC = () => {
         });
         setShowSuccessNotification(true);
         
-        // Navigate to payment page with order information
+        // Navigate to payment page immediately with order information
+        // Clear cart after navigation to avoid redirect to empty cart
+        navigate('/payment', {
+          state: {
+            order: response,
+            paymentMethod: formData.paymentMethod,
+            totalAmount: total,
+          },
+          replace: true, // Replace current history to prevent back button issues
+        });
+        
+        // Clear cart after navigation
         setTimeout(() => {
-          navigate('/payment', {
-            state: {
-              order: response,
-              paymentMethod: formData.paymentMethod,
-              totalAmount: total,
-            },
-          });
-        }, 1000);
+          clearCart();
+        }, 100);
       }
     } catch (err: any) {
       console.error('Error placing order:', err);

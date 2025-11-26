@@ -50,8 +50,7 @@ public class AdminInitializer implements CommandLineRunner {
         admin.setName("Administrator");
         admin.setEmail("shopperfume.admin@gmail.com");
         admin.setPasswordHash(passwordEncoder.encode("Admin@123"));
-        admin.setPhone("0901234567");
-        admin.setAddress("IUH");
+        // Phone and address removed - use Address entity instead
         admin.setStatus(UserStatus.ACTIVE);
         admin.setRoles(Set.of(adminRole));
 

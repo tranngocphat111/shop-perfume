@@ -104,6 +104,7 @@ public class SecurityConfig {
                     // Protected endpoints
                     .requestMatchers("/carts/**").authenticated()
                     .requestMatchers("/orders/**").authenticated()
+                    .requestMatchers("/addresses/**").authenticated()
                     .requestMatchers("/users/me").authenticated()
 
                     // Admin endpoints

@@ -31,7 +31,7 @@ export const OrderSearchForm: React.FC<OrderSearchFormProps> = ({
             id="email"
             value={email}
             onChange={(e) => onEmailChange(e.target.value)}
-            placeholder="Nhập email bạn đã dùng khi đặt hàng"
+            placeholder={isAuthenticated ? "Email của bạn đã được điền sẵn. Nhập email khác để tra cứu đơn hàng khác." : "Nhập email bạn đã dùng khi đặt hàng"}
             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
             required
           />

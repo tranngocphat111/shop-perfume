@@ -179,7 +179,7 @@ export interface CheckoutFormData {
   wardCode: string;
   address: string;
   note?: string;
-  paymentMethod: 'cod' | 'qr-payment' | 'bank-transfer';
+  paymentMethod: 'cod' | 'qr-payment';
 }
 
 export interface Province {
