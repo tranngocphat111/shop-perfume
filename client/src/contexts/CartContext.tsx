@@ -111,7 +111,8 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const getCartCount = () => {
-    return cart.totalItems;
+    // Return number of unique products (items.length) instead of total quantity
+    return cart.items.length;
   };
 
   return (

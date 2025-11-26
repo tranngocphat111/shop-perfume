@@ -10,6 +10,7 @@ import java.util.Date;
 @NoArgsConstructor
 @AllArgsConstructor
 public class InventoryResponse {
+    private int inventoryId;
     private int quantity;
     private Date lastUpdated;
     private ProductResponse product;

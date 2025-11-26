@@ -115,6 +115,7 @@ a {
 
 .btn-slide-overlay {
     overflow: hidden;
+    -webkit-mask-image: -webkit-radial-gradient(white, black);
 }
 
 /* Button slide overlay animation */
@@ -139,6 +140,11 @@ a {
   z-index: 2;
   position: relative;
   color: white;
+}
+
+.btn-slide-overlay:hover .btn-slide-overlay-icon {
+  color: white;
+  stroke: white;
 }
 
 .btn-slide-overlay:not(:hover)::before {

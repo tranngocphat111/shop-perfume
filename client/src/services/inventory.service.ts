@@ -23,6 +23,9 @@ export interface InventoryItem {
 }
 
 export const inventoryService = {
+    async getLowStockItem(): Promise<number> {
+        return apiService.get<number>('/inventories/lowStock');
+    },
     async getInventoryPage(
         page: number,
         size: number
@@ -41,5 +44,14 @@ export const inventoryService = {
         quantity: number
     ): Promise<InventoryItem> {
         return apiService.put<InventoryItem>(`/inventories/${id}`, { quantity });
+    },
+
+    async getInventoryByProductId(productId: number): Promise<InventoryItem | null> {
+        try {
+            return await apiService.get<InventoryItem>(`/inventories/product/${productId}`);
+        } catch (error) {
+            // Return null if inventory not found (404)
+            return null;
+        }
     },
 };

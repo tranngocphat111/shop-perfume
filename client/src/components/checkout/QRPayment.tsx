@@ -6,11 +6,13 @@ interface QRPaymentProps {
   onPaymentConfirmed?: () => void;
 }
 
+import { generateOrderQRCode, DEFAULT_SEPAY_CONFIG } from '../../services/sepay';
+
 const BANK_INFO = {
-  accountName: 'NGUYEN NGOC LAN',
-  accountNo: '0359234689',
+  accountName: 'TRẦN NGỌC PHÁT',
+  accountNo: DEFAULT_SEPAY_CONFIG.account,
   bankCode: '970422',
-  bankName: 'MB Bank',
+  bankName: DEFAULT_SEPAY_CONFIG.bank,
 };
 
 export const QRPayment: React.FC<QRPaymentProps> = ({ amount, onPaymentConfirmed }) => {
@@ -30,10 +32,8 @@ export const QRPayment: React.FC<QRPaymentProps> = ({ amount, onPaymentConfirmed
 
   const generateQRCode = (orderId: string) => {
     setIsLoading(true);
-    const amountRounded = Math.floor(amount);
-    const content = `LAN${orderId}`;
-    
-    const url = `https://img.vietqr.io/image/${BANK_INFO.bankCode}-${BANK_INFO.accountNo}-compact2.jpg?amount=${amountRounded}&addInfo=${encodeURIComponent(content)}&accountName=${encodeURIComponent(BANK_INFO.accountName)}`;
+    // Use Sepay QR code generation
+    const url = generateOrderQRCode(orderId, amount);
     
     // Simulate loading image
     const img = new Image();
@@ -164,7 +164,7 @@ export const QRPayment: React.FC<QRPaymentProps> = ({ amount, onPaymentConfirmed
             </div>
             <div className="flex justify-between py-2">
               <span className="text-gray-600 font-medium">Nội dung:</span>
-              <span className="font-semibold text-blue-600">LAN_{orderId}</span>
+              <span className="font-semibold text-blue-600">STNP_{orderId}</span>
             </div>
           </div>
         </div>

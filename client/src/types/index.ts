@@ -1,3 +1,4 @@
+
 export interface PageResponse<T> {
   content: T[];
   totalPages: number;
@@ -43,12 +44,25 @@ export interface Brand {
   brandId: number;
   name: string;
   description?: string;
+  url?: string;
 }
 
 export interface Category {
   categoryId: number;
   name: string;
   description?: string;
+}
+
+export interface Supplier {
+  supplierId: number;
+  name: string;
+  email: string;
+  phone: string;
+  address: string;
+  createdAt: string;
+  lastUpdated: string;
+  createdBy?: string;
+  lastUpdatedBy?: string;
 }
 
 export interface ProductImage {
@@ -61,7 +75,54 @@ export interface Inventory {
   inventoryId: number;
   product: Product;
   quantity: number;
-  quantityInStock: number;
+}
+
+export interface PurchaseInvoice {
+  purchaseInvoiceId: number;
+  totalAmount: number;
+  email: string;
+  status: "PENDING" | "COMPLETED" | "CANCELLED";
+  createdAt: string;
+  lastUpdated: string;
+  createdBy?: string;
+  lastUpdatedBy?: string;
+  supplier: {
+    supplierId: number;
+    name: string;
+    email: string;
+    phone: string;
+  };
+  details: PurchaseInvoiceDetail[];
+}
+
+export interface PurchaseInvoiceDetail {
+  purchaseInvoiceDetailId: number;
+  quantity: number;
+  importPrice: number;
+  subTotal: number;
+  product: {
+    productId: number;
+    name: string;
+    brand: {
+      brandId: number;
+      name: string;
+    };
+    category: {
+      categoryId: number;
+      name: string;
+    };
+  };
+}
+
+export interface PurchaseInvoiceFormData {
+  supplierId: number;
+  email: string;
+  status: "PENDING" | "COMPLETED" | "CANCELLED";
+  details: {
+    productId: number;
+    quantity: number;
+    importPrice: number;
+  }[];
 }
 
 export interface CartItem {
@@ -119,7 +180,7 @@ export interface CheckoutFormData {
   wardCode: string;
   address: string;
   note?: string;
-  paymentMethod: 'cod' | 'qr-payment' | 'bank-transfer';
+  paymentMethod: 'cod' | 'qr-payment';
 }
 
 export interface Province {
@@ -146,6 +207,14 @@ export interface DistrictDetail extends District {
 }
 
 // Order types
+export interface OrderItemRequest {
+  productId: number;
+  productName: string;
+  unitPrice: number;
+  imageUrl: string;
+  quantity: number;
+}
+
 export interface OrderRequest {
   fullName: string;
   phone: string;
@@ -156,7 +225,7 @@ export interface OrderRequest {
   address: string;
   note?: string;
   paymentMethod: string;
-  cartItems: CartItem[];
+  cartItems: OrderItemRequest[];
   totalAmount: number;
 }
 
@@ -180,10 +249,26 @@ export interface OrderResponse {
     productId: number;
     productName: string;
     quantity: number;
-    price: number;
+    unitPrice: number;
     subTotal: number;
   }>;
 }
+
+// 
+export interface UserResponse {
+  userId: string;
+  name: string;
+  email: string;
+  status: "CUSTOMER" | "ADMIN";
+  avatar?: string;
+  createdAt: string;
+  lastUpdated: string;
+  orders?: Order[];
+  // reviews?: Review[];
+  cart?: Cart;
+  // roles?: Role[];
+}
+
 
 // QR Payment types
 export interface QRPaymentInfo {
@@ -203,3 +288,12 @@ export interface PaymentCheckResponse {
   amount?: number;
   paymentDate?: string;
 }
+
+// Re-export home types for convenience
+export type {
+  HeroSlide,
+  HeroCarouselProps,
+  HomeCategory,
+  CategoriesSectionProps,
+  BestSellersSectionProps,
+} from "./home";

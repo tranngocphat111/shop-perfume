@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import { AdminLayout, DataTable, type Column } from "../../components/admin";
 import {
   inventoryService,
   type InventoryItem,
 } from "@/services/inventory.service";
+import { StockAdjustmentModal } from "../../components/admin/StockAdjustmentModal";
+import { InventoryDetailModal } from "../../components/admin/InventoryDetailModal";
 
 interface StockAdjustment extends Record<string, unknown> {
   id: number;
@@ -21,13 +22,24 @@ interface StockAdjustment extends Record<string, unknown> {
 }
 
 export const StockAdjustments = () => {
-  const navigate = useNavigate();
   const [adjustments, setAdjustments] = useState<StockAdjustment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [totalElements, setTotalElements] = useState(0);
   const [currentPage, setCurrentPage] = useState(0);
   const [pageSize, setPageSize] = useState(25);
+
+  // Search state
+  const [searchQuery, setSearchQuery] = useState<string>("");
+
+  // Modal states
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [selectedInventory, setSelectedInventory] =
+    useState<InventoryItem | null>(null);
+  const [editInventoryId, setEditInventoryId] = useState<number>(0);
+  const [editProductName, setEditProductName] = useState<string>("");
+  const [editCurrentQuantity, setEditCurrentQuantity] = useState<number>(0);
 
   const fetchInventory = async (page: number, size: number) => {
     try {
@@ -40,7 +52,7 @@ export const StockAdjustments = () => {
       // Transform InventoryItem to StockAdjustment from content array
       const transformedData: StockAdjustment[] = pageResponse.content.map(
         (item: InventoryItem) => ({
-          id: item.inventoryId || item.product.productId,
+          id: item.inventoryId,
           productId: item.product.productId,
           productName: item.product.name,
           brand: item.product.brand.name,
@@ -71,7 +83,7 @@ export const StockAdjustments = () => {
 
   useEffect(() => {
     fetchInventory(currentPage, pageSize);
-  }, [currentPage, pageSize]);
+  }, [currentPage, pageSize, searchQuery]);
 
   const handlePageChange = (page: number, size: number) => {
     // Nếu size thay đổi, reset về trang đầu
@@ -82,6 +94,11 @@ export const StockAdjustments = () => {
       // Chỉ thay đổi page
       setCurrentPage(page);
     }
+  };
+
+  const handleSearch = (query: string) => {
+    setSearchQuery(query);
+    setCurrentPage(0); // Reset to first page when searching
   };
 
   const columns: Column[] = [
@@ -160,24 +177,74 @@ export const StockAdjustments = () => {
     },
   ];
 
-  const handleView = (item: StockAdjustment) => {
-    console.log("View:", item);
-    // Navigate to view page or show modal
+  const handleView = async (item: StockAdjustment) => {
+    try {
+      console.log("handleView called with item:", item);
+      console.log("Fetching inventory with ID:", item.id);
+
+      // Set modal open first to show loading state
+      setIsDetailModalOpen(true);
+
+      // Now id is inventoryId, so we can directly use it
+      const inventoryData = await inventoryService.getInventoryById(item.id);
+      console.log("Inventory data received:", inventoryData);
+
+      if (!inventoryData) {
+        throw new Error("No data returned from API");
+      }
+
+      setSelectedInventory(inventoryData);
+    } catch (err) {
+      console.error("Error fetching inventory details:", err);
+      setIsDetailModalOpen(false); // Close modal on error
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      alert(`❌ Không thể tải thông tin chi tiết.\n\nLỗi: ${errorMessage}`);
+    }
   };
 
-  const handleEdit = (item: StockAdjustment) => {
-    console.log("Edit:", item);
-    navigate(`/admin/stock-adjustments/edit/${item.id}`);
-  };
+  // const handleEdit = (item: StockAdjustment) => {
+  //   setEditInventoryId(item.id);
+  //   setEditProductName(item.productName);
+  //   setEditCurrentQuantity(item.quantity);
+  //   setIsEditModalOpen(true);
+  // };
 
-  const handleDelete = (item: StockAdjustment) => {
-    console.log("Delete:", item);
-    // Call API to delete
-    setAdjustments(adjustments.filter((adj) => adj.id !== item.id));
-  };
+  const handleModalSubmit = async (inventoryId: number, quantity: number) => {
+    try {
+      await inventoryService.updateInventory(inventoryId, quantity);
 
-  const handleAdd = () => {
-    navigate("/admin/stock-adjustments/add");
+      alert(
+        `✅ Cập nhật số lượng tồn kho thành công!\n\nSản phẩm: ${editProductName}\nSố lượng mới: ${quantity}`
+      );
+
+      setIsEditModalOpen(false);
+      setEditInventoryId(0);
+      setEditProductName("");
+      setEditCurrentQuantity(0);
+
+      // Refresh data
+      await fetchInventory(currentPage, pageSize);
+    } catch (err) {
+      console.error("Error updating inventory:", err);
+      const errorMessage = err instanceof Error ? err.message : "Unknown error";
+
+      let userMessage = `❌ Không thể cập nhật số lượng tồn kho!\n\n`;
+
+      if (errorMessage.includes("404")) {
+        userMessage += `Lỗi: Không tìm thấy inventory với ID ${inventoryId}\n`;
+        userMessage += `Có thể đã bị xóa trước đó.`;
+      } else if (
+        errorMessage.includes("400") ||
+        errorMessage.includes("Bad Request")
+      ) {
+        userMessage += `Lỗi: Dữ liệu không hợp lệ\n`;
+        userMessage += `Chi tiết: ${errorMessage}`;
+      } else {
+        userMessage += `Chi tiết lỗi: ${errorMessage}`;
+      }
+
+      alert(userMessage);
+    }
   };
 
   if (loading && adjustments.length === 0) {
@@ -227,16 +294,40 @@ export const StockAdjustments = () => {
           data={adjustments}
           pageSize={pageSize}
           title="Stock Adjustments"
-          onAdd={handleAdd}
           onView={handleView}
-          onEdit={handleEdit}
-          onDelete={handleDelete}
-          searchPlaceholder="Search products..."
+          // onEdit={handleEdit}
+          searchPlaceholder="Search by product name, brand, category..."
+          onSearch={handleSearch}
           serverSide={true}
           totalElements={totalElements}
           currentPage={currentPage}
           onPageChange={handlePageChange}
           loading={loading}
+        />
+
+        {/* Edit Modal */}
+        <StockAdjustmentModal
+          isOpen={isEditModalOpen}
+          onClose={() => {
+            setIsEditModalOpen(false);
+            setEditInventoryId(0);
+            setEditProductName("");
+            setEditCurrentQuantity(0);
+          }}
+          onSubmit={handleModalSubmit}
+          inventoryId={editInventoryId}
+          productName={editProductName}
+          currentQuantity={editCurrentQuantity}
+        />
+
+        {/* Detail Modal */}
+        <InventoryDetailModal
+          isOpen={isDetailModalOpen}
+          onClose={() => {
+            setIsDetailModalOpen(false);
+            setSelectedInventory(null);
+          }}
+          inventory={selectedInventory}
         />
       </div>
     </AdminLayout>

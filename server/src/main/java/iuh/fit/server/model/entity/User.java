@@ -30,8 +30,6 @@ public class User {
     private String email;
 
     private String passwordHash;
-    private String phone;
-    private String address;
 
     @Enumerated(EnumType.STRING)
     private UserStatus status;

@@ -27,7 +27,10 @@ export interface UpdateProductRequest {
     categoryId: number;
 }
 
-export const productAdminService = {
+export const productService = {
+    async getTotalSize(): Promise<number> {
+        return apiService.get('/products/size');
+    },
     async getProductPage(
         page: number,
         size: number,

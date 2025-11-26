@@ -4,6 +4,8 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import iuh.fit.server.dto.request.ProductRequest;
 import iuh.fit.server.dto.response.ProductResponse;
+import iuh.fit.server.mapper.ProductMapper;
+import iuh.fit.server.model.entity.Inventory;
 import iuh.fit.server.services.ProductService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -32,6 +34,7 @@ import java.util.List;
 public class ProductController {
 
     private final ProductService productService;
+    private final ProductMapper productMapper;
 
     /**
      * GET /api/products - Lấy tất cả sản phẩm
@@ -44,6 +47,14 @@ public class ProductController {
         return ResponseEntity.ok(products);
     }
 
+    @GetMapping("/size")
+    @Operation(summary = "Get total size of products", description = "Retrieve total size of products from database")
+    public ResponseEntity<Long> getTotalSize() {
+        log.info("REST request to get total size of products");
+        Long totalSize = productService.getTotalSize();
+        return ResponseEntity.ok(totalSize);
+    }
+
     /**
      * GET /api/products/page OR /api/products/paginated - Lấy sản phẩm có phân trang
      * Supports both formats:
@@ -54,13 +65,16 @@ public class ProductController {
     @GetMapping({"/page", "/paginated"})
     public ResponseEntity<Page<ProductResponse>> getProductsPaginated(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "12") int size,
             @RequestParam(required = false) String sort,
+            @RequestParam(required = false) Integer brandId,
+            @RequestParam(required = false) Integer categoryId,
             @RequestParam(required = false) String sortBy,
             @RequestParam(required = false) String direction,
             @RequestParam(required = false) String search
     ) {
-        log.info("REST request to get products with pagination - page: {}, size: {}, search: {}", page, size, search);
+        log.info("REST request to get products with pagination - page: {}, size: {}, brandId: {}, categoryId: {}, search: {}", 
+                page, size, brandId, categoryId, search);
 
         // Parse sort parameter (format: "field,direction" or just "field")
         String fieldName = "productId";
@@ -81,15 +95,24 @@ public class ProductController {
 
         Pageable pageable = PageRequest.of(page, size, Sort.by(sortDirection, fieldName));
         
-        // If search term provided, use search method
-        Page<ProductResponse> products;
-        if (search != null && !search.trim().isEmpty()) {
-            products = productService.searchProducts(search.trim(), pageable);
-        } else {
-            products = productService.findAllPaginated(pageable);
-        }
+        // Use filter method to support brandId, categoryId and search
+        Page<ProductResponse> products = productService.filterProducts(brandId, categoryId, search, pageable);
         
         return ResponseEntity.ok(products);
+    }
+
+    /**
+     * GET /api/products/best-sellers - Lấy danh sách sản phẩm bán chạy nhất
+     * Dựa trên tổng quantity từ order_item table
+     */
+    @GetMapping("/best-sellers")
+    @Operation(summary = "Get best selling products", description = "Retrieve best selling products based on total quantity sold from order_item")
+    public ResponseEntity<List<ProductResponse>> getBestSellers(
+            @RequestParam(defaultValue = "20") int limit
+    ) {
+        log.info("REST request to get best sellers with limit: {}", limit);
+        List<ProductResponse> bestSellers = productService.findBestSellers(limit);
+        return ResponseEntity.ok(bestSellers);
     }
 
     /**
@@ -126,6 +149,7 @@ public class ProductController {
         }
         
         ProductResponse product = productService.createWithImages(request, images, primaryImageIndex);
+
         return ResponseEntity.status(HttpStatus.CREATED).body(product);
     }
 
@@ -169,6 +193,28 @@ public class ProductController {
         log.info("REST request to delete product: {}", id);
         productService.delete(id);
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * GET /api/products/brand/{brandId} - Lấy danh sách sản phẩm theo brandId
+     */
+    @GetMapping("/brand/{brandId}")
+    @Operation(summary = "Get products by brand ID", description = "Retrieve all products for a specific brand")
+    public ResponseEntity<List<ProductResponse>> getProductsByBrand(@PathVariable Integer brandId) {
+        log.info("REST request to get products by brandId: {}", brandId);
+        List<ProductResponse> products = productService.findByBrandId(brandId);
+        return ResponseEntity.ok(products);
+    }
+
+    /**
+     * GET /api/products/category/{categoryId} - Lấy danh sách sản phẩm theo categoryId
+     */
+    @GetMapping("/category/{categoryId}")
+    @Operation(summary = "Get products by category ID", description = "Retrieve all products for a specific category")
+    public ResponseEntity<List<ProductResponse>> getProductsByCategory(@PathVariable Integer categoryId) {
+        log.info("REST request to get products by categoryId: {}", categoryId);
+        List<ProductResponse> products = productService.findByCategoryId(categoryId);
+        return ResponseEntity.ok(products);
     }
 
 }

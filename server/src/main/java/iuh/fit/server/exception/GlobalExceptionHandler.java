@@ -50,23 +50,27 @@ public class GlobalExceptionHandler {
             MethodArgumentNotValidException ex,
             WebRequest request
     ) {
-        log.error("Validation error: {}", ex.getMessage());
-
         Map<String, String> errors = new HashMap<>();
         ex.getBindingResult().getAllErrors().forEach((error) -> {
             String fieldName = ((FieldError) error).getField();
             String errorMessage = error.getDefaultMessage();
             errors.put(fieldName, errorMessage);
+            log.error("Validation error - Field: {}, Message: {}", fieldName, errorMessage);
         });
+
+        // Tạo thông báo tổng hợp
+        String firstError = errors.values().iterator().next();
+        String message = "Dữ liệu không hợp lệ: " + firstError;
 
         ErrorResponse errorResponse = new ErrorResponse(
                 HttpStatus.BAD_REQUEST.value(),
-                "Validation failed",
+                message,
                 LocalDateTime.now(),
                 request.getDescription(false).replace("uri=", "")
         );
         errorResponse.setErrors(errors);
 
+        log.error("Validation failed with {} errors. First error: {}", errors.size(), firstError);
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
     }
 
@@ -176,6 +180,26 @@ public class GlobalExceptionHandler {
         );
 
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+    }
+
+    /**
+     * Xử lý TokenRefreshException
+     */
+    @ExceptionHandler(TokenRefreshException.class)
+    public ResponseEntity<ErrorResponse> handleTokenRefreshException(
+            TokenRefreshException ex,
+            WebRequest request
+    ) {
+        log.error("TokenRefreshException: {}", ex.getMessage());
+
+        ErrorResponse errorResponse = new ErrorResponse(
+                HttpStatus.UNAUTHORIZED.value(),
+                ex.getMessage(),
+                LocalDateTime.now(),
+                request.getDescription(false).replace("uri=", "")
+        );
+
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorResponse);
     }
 
     /**

@@ -59,6 +59,42 @@ export const calculateSubtotal = (unitPrice: number, quantity: number): number =
 };
 
 /**
+ * Get brand logo URL from brand object
+ * Handles both full URLs and relative paths
+ */
+export const getBrandLogoUrl = (brandUrl: string | undefined | null): string | null => {
+  if (!brandUrl) return null;
+  
+  const url = brandUrl.trim();
+  if (!url) return null;
+  
+  // If it's already a full URL, return as is
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return url;
+  }
+  
+  // Remove leading slash if present
+  const cleanUrl = url.startsWith('/') ? url.substring(1) : url;
+  
+  // Prepend Cloudinary base URL
+  return `${CLOUDINARY_BASE_URL}${cleanUrl}`;
+};
+
+/**
+ * Format date to Vietnamese locale
+ */
+export const formatDate = (dateString: string): string => {
+  const date = new Date(dateString);
+  return date.toLocaleDateString('vi-VN', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
+
+/**
  * Cloudinary base URL constant để export
  */
 export { CLOUDINARY_BASE_URL };
