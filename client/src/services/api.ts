@@ -13,6 +13,8 @@ interface ApiError {
 let isRefreshing = false;
 let refreshAttempts = 0; // Track number of refresh attempts to prevent infinite loops
 const MAX_REFRESH_ATTEMPTS = 1; // Only allow 1 refresh attempt per session
+const retryAttempts = new Map<string, number>(); // Track retry attempts per endpoint to prevent infinite loops
+const MAX_RETRY_ATTEMPTS = 1; // Only allow 1 retry per endpoint after refresh
 let failedQueue: Array<{
   resolve: (value?: unknown) => void;
   reject: (reason?: unknown) => void;
@@ -21,6 +23,7 @@ let failedQueue: Array<{
 // Reset refresh attempts (useful after successful login)
 export const resetRefreshAttempts = () => {
   refreshAttempts = 0;
+  retryAttempts.clear(); // Also clear retry attempts
 };
 
 const processQueue = (error: unknown = null) => {
@@ -60,8 +63,9 @@ const getAuthHeaders = async (
     const expirationTime = payload.exp * 1000;
     const now = Date.now();
 
-    // If token is expired or will expire in next 30 seconds, try to refresh
-    if (now >= expirationTime - 30000) {
+    // If token is expired or will expire in next 2 minutes, try to refresh
+    // Increased buffer to avoid refreshing too frequently
+    if (now >= expirationTime - 120000) {
       if (debug) {
         console.log(
           "[API] 🔄 Token expired or expiring soon, attempting refresh..."
@@ -72,7 +76,9 @@ const getAuthHeaders = async (
       if (refreshToken) {
         try {
           const { authService } = await import("./auth.service");
-          const refreshed = await authService.refreshToken();
+          // Pass delayClear=true to prevent clearing auth on failure
+          // Let handle401Error handle the error properly
+          const refreshed = await authService.refreshToken(true);
           if (refreshed) {
             token = localStorage.getItem("auth_token");
             if (debug) {
@@ -80,13 +86,14 @@ const getAuthHeaders = async (
             }
           } else {
             if (debug) {
-              console.warn("[API] ⚠️ Token refresh failed");
+              console.warn("[API] ⚠️ Token refresh failed, but not clearing auth");
             }
           }
         } catch (error) {
           if (debug) {
             console.error("[API] ❌ Error refreshing token:", error);
           }
+          // Don't clear auth here - let handle401Error handle it
         }
       }
     }
@@ -210,7 +217,21 @@ const handle401Error = async <T>(
       );
 
       // Retry request với token mới (không dùng originalRequest vì nó có closure với token cũ)
-      // Only retry once - if it fails again, we'll redirect
+      // Check if we've already retried this endpoint to prevent infinite loops
+      const retryCount = retryAttempts.get(endpoint) || 0;
+      if (retryCount >= MAX_RETRY_ATTEMPTS) {
+        console.error(
+          "[API] ❌ Max retry attempts reached for endpoint:",
+          endpoint
+        );
+        console.log("[API] 🔄 Reloading page...");
+        window.location.reload();
+        return Promise.reject(new Error("Max retry attempts reached"));
+      }
+
+      // Increment retry count for this endpoint
+      retryAttempts.set(endpoint, retryCount + 1);
+
       try {
         if (method === "GET") {
           return await apiService.get<T>(endpoint);
@@ -241,6 +262,9 @@ const handle401Error = async <T>(
           return Promise.reject(retryError);
         }
         throw retryError;
+      } finally {
+        // Clear retry count on success (will be cleared when request succeeds)
+        // But keep it if failed to prevent infinite retries
       }
     } else {
       throw new Error("Token refresh failed");
@@ -248,7 +272,24 @@ const handle401Error = async <T>(
   } catch (error) {
     processQueue(error);
     isRefreshing = false;
-    // Clear auth but don't redirect
+
+    // Check if error is 500 from refresh endpoint - this indicates backend issue
+    const apiError = error as ApiError;
+    if (apiError.status === 500) {
+      console.error(
+        "[API] ❌ Backend error during token refresh (500). This may indicate:"
+      );
+      console.error("- Database connection issue");
+      console.error("- Hibernate session issue");
+      console.error("- Server internal error");
+      console.error("[API] 🔄 Clearing auth and redirecting to login...");
+      clearAuthData();
+      // Redirect to login page
+      window.location.href = "/admin/login";
+      return Promise.reject(error);
+    }
+
+    // Clear auth but don't redirect for other errors
     console.error("[API] ❌ Token refresh failed:", error);
     console.error(
       "[API] 🔄 Token refresh failed. Auth cleared but not redirecting."
@@ -264,14 +305,9 @@ export const apiService = {
   async get<T>(endpoint: string): Promise<T> {
     const makeRequest = async (): Promise<T> => {
       const fullUrl = `${API_BASE_URL}${endpoint}`;
-      const headers = { ...(await getAuthHeaders(true)) }; // Enable debug logging and await async call
+      const headers = { ...(await getAuthHeaders()) }; // Get auth headers
 
-      // Only log non-polling requests (payment check is called frequently)
-      const isPollingRequest = endpoint.includes("/payment/check-qr");
-      if (!isPollingRequest) {
-        console.log("[API] 🔵 GET Request:", fullUrl);
-        console.log("[API] 🔵 Headers:", headers);
-      }
+      // Reduced logging - only log errors, not every request
 
       const response = await fetch(fullUrl, {
         headers,
@@ -300,12 +336,12 @@ export const apiService = {
 
       const data = await response.json();
 
-      // Only log non-polling requests or if payment status changed
-      if (!isPollingRequest || data.paid || data.cancelled) {
-        console.log("[API] ✅ GET Response:", {
+      // Only log important responses (payment status changes)
+      const isPollingRequest = endpoint.includes("/payment/check-qr");
+      if (isPollingRequest && (data.paid || data.cancelled)) {
+        console.log("[API] ✅ Payment status changed:", {
           url: fullUrl,
           status: response.status,
-          data: data,
         });
       }
 
@@ -332,14 +368,13 @@ export const apiService = {
       const fullUrl = `${API_BASE_URL}${endpoint}`;
       const isFormData = data instanceof FormData;
       const headers: Record<string, string> = {
-        ...(await getAuthHeaders(true)), // Enable debug logging and await async call
+        ...(await getAuthHeaders()), // Get auth headers
         ...(isFormData ? {} : { "Content-Type": "application/json" }),
         ...options?.headers,
       };
 
-      console.log("[API] 🔵 POST Request:", fullUrl);
-      console.log("[API] 🔵 Request Data:", isFormData ? "[FormData]" : data);
-      console.log("[API] 🔵 Headers:", headers);
+      // Reduced logging to avoid noise
+      // console.log("[API] 🔵 POST Request:", fullUrl);
 
       const response = await fetch(fullUrl, {
         method: "POST",
@@ -370,11 +405,8 @@ export const apiService = {
       }
 
       const responseData = await response.json();
-      console.log("[API] ✅ POST Response:", {
-        url: fullUrl,
-        status: response.status,
-        data: responseData,
-      });
+      // Reduced logging - only log errors or important responses
+      // console.log("[API] ✅ POST Response:", { url: fullUrl, status: response.status });
 
       return responseData;
     };
