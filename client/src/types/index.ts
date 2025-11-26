@@ -92,7 +92,7 @@ export interface PurchaseInvoice {
     email: string;
     phone: string;
   };
-  details: PurchaseInvoiceDetail[];
+  details?: PurchaseInvoiceDetail[];
 }
 
 export interface PurchaseInvoiceDetail {
@@ -115,6 +115,7 @@ export interface PurchaseInvoiceDetail {
 }
 
 export interface PurchaseInvoiceFormData {
+  purchaseInvoiceId?: number;
   supplierId: number;
   email: string;
   status: "PENDING" | "COMPLETED" | "CANCELLED";

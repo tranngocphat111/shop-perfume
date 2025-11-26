@@ -1,5 +1,5 @@
 import { apiService } from './api';
-import type { PurchaseInvoice, PurchaseInvoiceFormData, PageResponse } from '../types';
+import type { PurchaseInvoice, PurchaseInvoiceFormData, PageResponse, PurchaseInvoiceDetail } from '../types';
 
 const PURCHASE_INVOICES_API = '/admin/purchase-invoices';
 
@@ -48,6 +48,10 @@ export const purchaseInvoiceService = {
     deleteInvoice: async (id: number): Promise<void> => {
         await apiService.delete(`${PURCHASE_INVOICES_API}/${id}`);
     },
+
+    getInvoiceDetailById: async (id: number): Promise<PurchaseInvoiceDetail[]> => {
+        return await apiService.get<PurchaseInvoiceDetail[]>(`${PURCHASE_INVOICES_API}/${id}/details`);
+    }
 };
 
 export default purchaseInvoiceService;
