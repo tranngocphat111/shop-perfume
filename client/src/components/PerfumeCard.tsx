@@ -32,19 +32,6 @@ export const PerfumeCard = ({ inventory }: ProductCardProps) => {
   const brand = brands.find((b) => b.brandId === product.brand.brandId);
   const brandLogoUrl = getBrandLogoUrl(brand?.url);
 
-  // Debug logging
-  console.log(`🔍 Brand Logo Debug for "${product.brand.name}":`, {
-    brandId: product.brand.brandId,
-    brandFound: !!brand,
-    brandName: brand?.name,
-    urlFromServer: brand?.url,
-    brandLogoUrl: brandLogoUrl,
-    brandsCount: brands.length,
-  });
-
-  if (brand && !brandLogoUrl) {
-    console.warn(`⚠️ Brand "${brand.name}" has no valid URL:`, brand.url);
-  }
 
   // Show "Liên hệ" if price is 0, otherwise show price
   const showPrice = product.unitPrice > 0;
@@ -135,10 +122,6 @@ export const PerfumeCard = ({ inventory }: ProductCardProps) => {
               alt={product.brand.name}
               loading="lazy"
               onError={(e) => {
-                console.error(
-                  `❌ Failed to load brand image for "${product.brand.name}":`,
-                  brandLogoUrl
-                );
                 const target = e.currentTarget;
                 target.style.display = "none";
                 const parent = target.parentElement;
@@ -147,10 +130,7 @@ export const PerfumeCard = ({ inventory }: ProductCardProps) => {
                 }
               }}
               onLoad={() => {
-                console.log(
-                  `✅ Successfully loaded brand image for "${product.brand.name}":`,
-                  brandLogoUrl
-                );
+                // Image loaded successfully
               }}
             />
           ) : (
