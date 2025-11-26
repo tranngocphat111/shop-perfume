@@ -37,6 +37,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         try {
             String jwt = getJwtFromRequest(request);
+            String requestURI = request.getRequestURI();
+            
+            // Log for admin endpoints to debug 401 errors
+            if (requestURI != null && requestURI.contains("/admin/")) {
+                logger.info("Processing admin request: " + request.getMethod() + " " + requestURI);
+                logger.info("JWT token present: " + (jwt != null && !jwt.isEmpty()));
+            }
             
             if (StringUtils.hasText(jwt)) {
                 logger.debug("JWT token found in request");
@@ -48,6 +55,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     
                     UserDetails userDetails = userDetailsService.loadUserByUsername(email);
                     logger.debug("User loaded: " + userDetails.getUsername() + ", Authorities: " + userDetails.getAuthorities());
+                    
+                    // Log for admin endpoints
+                    if (requestURI != null && requestURI.contains("/admin/")) {
+                        logger.info("User: " + userDetails.getUsername() + ", Authorities: " + userDetails.getAuthorities());
+                        boolean hasAdminRole = userDetails.getAuthorities().stream()
+                                .anyMatch(auth -> auth.getAuthority().equals("ROLE_ADMIN"));
+                        logger.info("Has ADMIN role: " + hasAdminRole);
+                    }
 
                     UsernamePasswordAuthenticationToken authentication =
                             new UsernamePasswordAuthenticationToken(
@@ -60,13 +75,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     SecurityContextHolder.getContext().setAuthentication(authentication);
                     logger.debug("Authentication set in SecurityContext for user: " + email);
                 } else {
-                    logger.warn("JWT token validation failed");
+                    logger.warn("JWT token validation failed for request: " + requestURI);
                 }
             } else {
-                logger.debug("No JWT token found in request");
+                logger.debug("No JWT token found in request: " + requestURI);
+                if (requestURI != null && requestURI.contains("/admin/")) {
+                    logger.warn("No JWT token found for admin request: " + requestURI);
+                }
             }
         } catch (Exception ex) {
-            logger.error("Không thể set user authentication", ex);
+            logger.error("Không thể set user authentication for request: " + request.getRequestURI(), ex);
             logger.error("Exception details: " + ex.getMessage(), ex);
         }
 

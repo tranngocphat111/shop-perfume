@@ -47,43 +47,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     initAuth();
   }, []);
 
-  // Periodically check token expiration and refresh if needed
-  // Note: We don't auto-logout on refresh failure - let the API handle 401 errors
-  useEffect(() => {
-    if (!user) return;
-
-    const intervalId = setInterval(async () => {
-      try {
-        // Only refresh if token is expiring soon (within 2 minutes)
-        if (authService.isTokenExpiringSoon()) {
-          console.log("Token expiring soon, attempting refresh...");
-          const success = await authService.refreshToken();
-          if (success) {
-            // Update user state with new token info
-            const updatedUser = authService.getUser();
-            if (updatedUser) {
-              setUser(updatedUser);
-            }
-          } else {
-            // Don't auto-logout - let API 401 handler deal with it
-            console.warn("Token refresh failed, but not logging out. Will retry on next API call.");
-          }
-        }
-      } catch (error) {
-        // Don't auto-logout on error - let API 401 handler deal with it
-        console.error("Token refresh error (non-fatal):", error);
-      }
-    }, 5 * 60000); // Check every 5 minutes instead of every minute
-
-    return () => clearInterval(intervalId);
-  }, [user]);
+  // Removed periodic token refresh - let API handle 401 errors and refresh automatically
+  // This prevents race conditions and multiple refresh attempts
+  // The API will automatically refresh token when it expires and returns 401
 
   const login = (token: string, userData: AuthResponse) => {
     authService.setToken(token);
+    // REFRESH TOKEN - COMMENTED OUT
+    // authService.setRefreshToken(userData.refreshToken);
     authService.setUser(userData);
     setUser(userData);
+    // REFRESH TOKEN - COMMENTED OUT
     // Reset refresh attempts on successful login
-    resetRefreshAttempts();
+    // resetRefreshAttempts();
+    resetRefreshAttempts(); // No-op when refresh token is disabled
   };
 
   const logout = async () => {
