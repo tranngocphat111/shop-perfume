@@ -25,17 +25,27 @@ const AdminLogin: React.FC = () => {
   const [error, setError] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const { login, isAuthenticated, isAdmin } = useAuth();
+  const { login, isAuthenticated, isAdmin, isLoading } = useAuth();
+
+  // Đợi auth context load xong trước khi check redirect
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-800 via-slate-900 to-black">
+        <div className="text-center text-white">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
+          <p className="mt-4">Đang kiểm tra đăng nhập...</p>
+        </div>
+      </div>
+    );
+  }
 
   // Nếu đã đăng nhập và là admin, redirect về admin dashboard
   if (isAuthenticated && isAdmin) {
     return <Navigate to="/admin" replace />;
   }
 
-  // Nếu đã đăng nhập nhưng không phải admin, redirect về home
-  if (isAuthenticated && !isAdmin) {
-    return <Navigate to="/" replace />;
-  }
+  // Nếu đã đăng nhập nhưng không phải admin, không redirect
+  // Cho phép user xem trang login và hiển thị error khi submit
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
