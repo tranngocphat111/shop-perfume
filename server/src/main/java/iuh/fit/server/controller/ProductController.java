@@ -47,6 +47,14 @@ public class ProductController {
         return ResponseEntity.ok(products);
     }
 
+    @GetMapping("/size")
+    @Operation(summary = "Get total size of products", description = "Retrieve total size of products from database")
+    public ResponseEntity<Long> getTotalSize() {
+        log.info("REST request to get total size of products");
+        Long totalSize = productService.getTotalSize();
+        return ResponseEntity.ok(totalSize);
+    }
+
     /**
      * GET /api/products/page OR /api/products/paginated - Lấy sản phẩm có phân trang
      * Supports both formats:

@@ -1,3 +1,4 @@
+
 export interface PageResponse<T> {
   content: T[];
   totalPages: number;
@@ -252,6 +253,22 @@ export interface OrderResponse {
     subTotal: number;
   }>;
 }
+
+// 
+export interface UserResponse {
+  userId: string;
+  name: string;
+  email: string;
+  status: "CUSTOMER" | "ADMIN";
+  avatar?: string;
+  createdAt: string;
+  lastUpdated: string;
+  orders?: Order[];
+  // reviews?: Review[];
+  cart?: Cart;
+  // roles?: Role[];
+}
+
 
 // QR Payment types
 export interface QRPaymentInfo {
