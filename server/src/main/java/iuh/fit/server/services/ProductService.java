@@ -80,5 +80,6 @@ public interface ProductService {
      */
     List<ProductResponse> findByCategoryId(int categoryId);
 
+    Long getTotalSize();
 }
 

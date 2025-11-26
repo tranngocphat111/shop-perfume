@@ -30,5 +30,8 @@ public interface InventoryRepository extends JpaRepository<Inventory, Integer> {
     // Lấy inventory theo productId
     @Query("SELECT i FROM Inventory i WHERE i.product.productId = :productId")
     Inventory findByProductId(@Param("productId") Integer productId);
+
+    @Query("SELECT COUNT(i.inventoryId) FROM Inventory i WHERE i.quantity < 20")
+    Long getLowStockItem();
 }
 

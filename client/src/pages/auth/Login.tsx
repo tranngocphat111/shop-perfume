@@ -49,7 +49,7 @@ const Login: React.FC = () => {
       // Chỉ customer mới đăng nhập qua trang này
       if (response.role === "ADMIN") {
         setError("Vui lòng sử dụng trang đăng nhập dành cho quản trị viên.");
-        authService.logout();
+        await authService.logout();
         setLoading(false);
         return;
       }
@@ -57,7 +57,7 @@ const Login: React.FC = () => {
       // Merge cart before navigating
       await login(response.token, response, () => mergeCartOnLogin(response.userId));
       navigate("/");
-    } catch (err) {
+    } catch (err: any) {
       console.error("Login error:", err);
       setError(getErrorMessage(err));
     } finally {

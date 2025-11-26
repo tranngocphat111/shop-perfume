@@ -1,5 +1,6 @@
 package iuh.fit.server.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
 import iuh.fit.server.dto.request.OrderCreateRequest;
 import iuh.fit.server.dto.response.OrderResponse;
 import iuh.fit.server.services.OrderService;
@@ -23,6 +24,22 @@ import java.util.List;
 public class OrderController {
 
     private final OrderService orderService;
+
+    @GetMapping("/size")
+    @Operation(summary = "Get total size of orders", description = "Retrieve total size of orders from database")
+    public ResponseEntity<Long> getTotalSize() {
+        log.info("REST request to get total size of orders");
+        Long totalSize = orderService.getTotalSize();
+        return ResponseEntity.ok(totalSize);
+    }
+
+    @GetMapping("/totalRevenue")
+    @Operation(summary = "Get total revenue", description = "Retrieve total revenue from database")
+    public ResponseEntity<Double> getTotalRevenue() {
+        log.info("REST request to total revenue");
+        double totalSize = orderService.getTotalRevenue();
+        return ResponseEntity.ok(totalSize);
+    }
 
     /**
      * Create a new order
