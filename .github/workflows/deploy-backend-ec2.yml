@@ -63,7 +63,8 @@ jobs:
             HOME_DIR=$(eval echo ~$CURRENT_USER)
             JAVA_PATH=$(which java)
             
-            cat << 'SERVICEEOF' | sudo tee /etc/systemd/system/shop-perfume-backend.service > /dev/null
+            sudo bash << 'SCRIPTEOF'
+cat > /etc/systemd/system/shop-perfume-backend.service << 'SERVICEEOF'
 [Unit]
 Description=Shop Perfume Backend Service
 After=network.target
@@ -83,6 +84,7 @@ Environment="SPRING_PROFILES_ACTIVE=prod"
 [Install]
 WantedBy=multi-user.target
 SERVICEEOF
+SCRIPTEOF
             sudo systemctl daemon-reload
             sudo systemctl enable shop-perfume-backend
             echo "✅ Service file created"
