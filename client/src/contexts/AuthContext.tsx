@@ -55,18 +55,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const intervalId = setInterval(async () => {
       try {
         if (authService.getToken() && authService.getRefreshToken()) {
-          console.log("Token expiring soon, refreshing...");
-          const success = await authService.refreshToken();
-          if (!success) {
-            console.error("Failed to refresh token");
-            await logout();
+          // Only refresh if token is actually expiring soon
+          if (authService.isTokenExpiringSoon()) {
+            const success = await authService.refreshToken();
+            if (!success) {
+              console.error("Failed to refresh token");
+              await logout();
+            }
           }
         }
       } catch (error) {
         console.error("Token refresh error:", error);
         await logout();
       }
-    }, 60000); // Check every minute
+    }, 5 * 60000); // Check every 5 minutes instead of every minute
 
     return () => clearInterval(intervalId);
   }, [user]);
