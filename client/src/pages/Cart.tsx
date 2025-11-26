@@ -23,7 +23,7 @@ export const Cart = () => {
   };
 
   return (
-    <div className="bg-white min-h-screen">
+    <div className="bg-white min-h-screen pt-20">
       {/* Breadcrumb */}
       <div className="bg-gray-100 py-3 md:py-4">
         <div className="w-11/12 lg:w-4/5 mx-auto px-2 md:px-0">

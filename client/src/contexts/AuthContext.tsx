@@ -7,7 +7,7 @@ interface AuthContextType {
   user: AuthResponse | null;
   isAuthenticated: boolean;
   isAdmin: boolean;
-  login: (token: string, userData: AuthResponse) => void;
+  login: (token: string, userData: AuthResponse, mergeCart?: () => Promise<void>) => void;
   logout: () => void;
 }
 
@@ -24,15 +24,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   }, []);
 
-  const login = (token: string, userData: AuthResponse) => {
+  const login = async (token: string, userData: AuthResponse, mergeCart?: () => Promise<void>) => {
     authService.setToken(token);
     authService.setUser(userData);
     setUser(userData);
+    
+    // Merge cart after login if mergeCart function is provided
+    if (mergeCart) {
+      try {
+        await mergeCart();
+      } catch (error) {
+        console.error('Error merging cart on login:', error);
+      }
+    }
   };
 
   const logout = () => {
     authService.logout();
     setUser(null);
+    // Clear sessionStorage cart on logout
+    sessionStorage.removeItem('perfume_shop_cart');
   };
 
   const value = {

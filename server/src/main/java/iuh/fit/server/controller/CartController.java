@@ -28,6 +28,32 @@ public class CartController {
 
 
     /**
+     * Get or create cart by user ID
+     * URL: http://localhost:8080/api/carts/user/{userId}
+     */
+    @GetMapping("/user/{userId:\\d+}")
+    @Operation(summary = "Get or create cart", description = "Get existing cart or create new cart for user")
+    public ResponseEntity<CartResponse> getOrCreateCartByUserId(@PathVariable int userId) {
+        log.info("REST request to get or create cart for user: {}", userId);
+        CartResponse cart = cartService.getOrCreateCartByUserId(userId);
+        return ResponseEntity.ok(cart);
+    }
+
+    /**
+     * Merge session cart items with user's cart
+     * URL: http://localhost:8080/api/carts/user/{userId}/merge
+     */
+    @PostMapping("/user/{userId:\\d+}/merge")
+    @Operation(summary = "Merge cart items", description = "Merge session cart items with user's cart in database")
+    public ResponseEntity<CartResponse> mergeCartItems(
+            @PathVariable int userId,
+            @RequestBody List<CartItemRequest> sessionCartItems) {
+        log.info("REST request to merge cart items for user: {} with {} items", userId, sessionCartItems.size());
+        CartResponse cart = cartService.mergeCartItems(userId, sessionCartItems);
+        return ResponseEntity.ok(cart);
+    }
+
+    /**
      * Clear cart (remove all items)
      * URL: http://localhost:8080/api/carts/{cartId}/clear
      */
