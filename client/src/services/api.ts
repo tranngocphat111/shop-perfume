@@ -105,10 +105,7 @@ const getAuthHeaders = async (
 
 // REFRESH TOKEN - COMMENTED OUT
 // Handle 401 errors and token refresh
-const handle401Error = async <T>(
-  _originalRequest: () => Promise<T>,
-  endpoint: string
-): Promise<T> => {
+const handle401Error = async <T>(endpoint: string): Promise<T> => {
   // REFRESH TOKEN DISABLED - Just redirect to login on 401
   console.error("[API] ❌ Unauthorized (401). Redirecting to login...");
   clearAuthData();
@@ -302,15 +299,15 @@ export const apiService = {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        console.error('[API] ❌ GET Error:', {
+        console.error("[API] ❌ GET Error:", {
           url: fullUrl,
           status: response.status,
-          error: errorData
+          error: errorData,
         });
 
         // Handle 401 Unauthorized
         if (response.status === 401 && !endpoint.includes("/auth/")) {
-          return handle401Error(makeRequest, endpoint);
+          return handle401Error(endpoint);
         }
 
         throw {
@@ -323,12 +320,13 @@ export const apiService = {
 
       const data = await response.json();
 
-      // Only log non-polling requests or if payment status changed
-      if (!isPollingRequest || (data.paid || data.cancelled)) {
-        console.log('[API] ✅ GET Response:', {
+      // Only log non-polling requests (payment check is called frequently)
+      const isPollingRequest = endpoint.includes("/payment/check-qr");
+      if (!isPollingRequest || data.paid || data.cancelled) {
+        console.log("[API] ✅ GET Response:", {
           url: fullUrl,
           status: response.status,
-          data: data
+          data: data,
         });
       }
 
@@ -337,7 +335,7 @@ export const apiService = {
       if ((error as ApiError).status) {
         throw error;
       }
-      console.error('[API] ❌ GET Network Error:', error);
+      console.error("[API] ❌ GET Network Error:", error);
       throw new Error("Network error. Please check your connection.");
     }
   },
@@ -351,14 +349,14 @@ export const apiService = {
       const fullUrl = `${API_BASE_URL}${endpoint}`;
       const isFormData = data instanceof FormData;
       const headers: Record<string, string> = {
-        ...getAuthHeaders(),
+        ...(await getAuthHeaders()),
         ...(isFormData ? {} : { "Content-Type": "application/json" }),
         ...options?.headers,
       };
 
-      console.log('[API] 🔵 POST Request:', fullUrl);
-      console.log('[API] 🔵 Request Data:', isFormData ? '[FormData]' : data);
-      console.log('[API] 🔵 Headers:', headers);
+      console.log("[API] 🔵 POST Request:", fullUrl);
+      console.log("[API] 🔵 Request Data:", isFormData ? "[FormData]" : data);
+      console.log("[API] 🔵 Headers:", headers);
 
       const response = await fetch(fullUrl, {
         method: "POST",
@@ -368,16 +366,16 @@ export const apiService = {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        console.error('[API] ❌ POST Error:', {
+        console.error("[API] ❌ POST Error:", {
           url: fullUrl,
           status: response.status,
           error: errorData,
-          requestData: isFormData ? '[FormData]' : data
+          requestData: isFormData ? "[FormData]" : data,
         });
 
         // Handle 401 Unauthorized
         if (response.status === 401 && !endpoint.includes("/auth/")) {
-          return handle401Error(makeRequest, endpoint);
+          return handle401Error(endpoint);
         }
 
         throw {
@@ -389,10 +387,10 @@ export const apiService = {
       }
 
       const responseData = await response.json();
-      console.log('[API] ✅ POST Response:', {
+      console.log("[API] ✅ POST Response:", {
         url: fullUrl,
         status: response.status,
-        data: responseData
+        data: responseData,
       });
 
       return responseData;
@@ -400,7 +398,7 @@ export const apiService = {
       if ((error as ApiError).status) {
         throw error;
       }
-      console.error('[API] ❌ POST Network Error:', error);
+      console.error("[API] ❌ POST Network Error:", error);
       throw new Error("Network error. Please check your connection.");
     }
   },
@@ -429,7 +427,7 @@ export const apiService = {
 
         // Handle 401 Unauthorized
         if (response.status === 401 && !endpoint.includes("/auth/")) {
-          return handle401Error(makeRequest, endpoint);
+          return handle401Error(endpoint);
         }
 
         throw {
@@ -462,7 +460,7 @@ export const apiService = {
 
         // Handle 401 Unauthorized
         if (response.status === 401 && !endpoint.includes("/auth/")) {
-          return handle401Error(makeRequest, endpoint);
+          return handle401Error(endpoint);
         }
 
         throw {
