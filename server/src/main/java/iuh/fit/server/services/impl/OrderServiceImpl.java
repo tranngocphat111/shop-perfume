@@ -238,37 +238,57 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
     @Override
     @Transactional
     public boolean processSepayWebhook(SepayWebhookRequest webhookRequest) {
+        log.info("=== Processing Sepay Webhook ===");
         try {
             // Only process "in" transactions (money in = payment received)
             // "out" = money out (withdrawal), we ignore these
             if (webhookRequest.getTransferType() == null || !webhookRequest.getTransferType().equalsIgnoreCase("in")) {
+                log.info("⏭️ Skipping webhook: Transfer type is not 'in'. Type: {}", webhookRequest.getTransferType());
                 return false;
             }
+            
+            log.info("✅ Transfer type is 'in' - processing payment");
             
             // Extract order ID from content
             // Format: "STNP_123", "STNP123", "Thanh toan don hang #123", "LAN_123", or "123"
             Integer orderId = extractOrderIdFromContent(webhookRequest.getContent());
+            log.info("Extracted order ID from content '{}': {}", webhookRequest.getContent(), orderId);
+            
             if (orderId == null) {
                 // Try to extract from referenceCode if content fails
                 if (webhookRequest.getReferenceCode() != null) {
+                    log.info("Trying to extract from referenceCode: {}", webhookRequest.getReferenceCode());
                     orderId = extractOrderIdFromContent(webhookRequest.getReferenceCode());
+                    log.info("Extracted order ID from referenceCode: {}", orderId);
                 }
                 // Also try code field (Sepay auto-recognized payment code)
                 if (orderId == null && webhookRequest.getCode() != null) {
+                    log.info("Trying to extract from code: {}", webhookRequest.getCode());
                     orderId = extractOrderIdFromContent(webhookRequest.getCode());
+                    log.info("Extracted order ID from code: {}", orderId);
                 }
                 // Also try description field (full SMS content)
                 if (orderId == null && webhookRequest.getDescription() != null) {
+                    log.info("Trying to extract from description: {}", webhookRequest.getDescription());
                     orderId = extractOrderIdFromContent(webhookRequest.getDescription());
+                    log.info("Extracted order ID from description: {}", orderId);
                 }
                 if (orderId == null) {
+                    log.error("❌ Could not extract order ID from any field!");
+                    log.error("  Content: {}", webhookRequest.getContent());
+                    log.error("  ReferenceCode: {}", webhookRequest.getReferenceCode());
+                    log.error("  Code: {}", webhookRequest.getCode());
+                    log.error("  Description: {}", webhookRequest.getDescription());
                     return false;
                 }
             }
             
+            log.info("🔍 Looking for order ID: {}", orderId);
+            
             // Find the order
             Optional<Order> orderOpt = orderRepository.findById(orderId);
             if (orderOpt.isEmpty()) {
+                log.error("❌ Order not found: {}", orderId);
                 return false;
             }
             
@@ -276,29 +296,86 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
             Payment payment = order.getPayment();
             
             if (payment == null) {
+                log.error("❌ Payment not found for order: {}", orderId);
                 return false;
             }
+            
+            log.info("📊 Order found: ID={}, Payment Status={}, Payment Amount={}", 
+                    orderId, payment.getStatus(), payment.getAmount());
+            log.info("💰 Webhook Amount: {}", webhookRequest.getTransferAmount());
             
             // Verify amount matches (allow small difference for rounding)
             double amountDifference = Math.abs(payment.getAmount() - webhookRequest.getTransferAmount());
+            log.info("💵 Amount difference: {} VND", amountDifference);
+            
             if (amountDifference > 1000) { // Allow 1000 VND difference
+                log.error("❌ Amount mismatch! Order amount: {}, Webhook amount: {}, Difference: {}", 
+                        payment.getAmount(), webhookRequest.getTransferAmount(), amountDifference);
                 return false;
             }
             
+            log.info("✅ Amount matches (difference: {} VND)", amountDifference);
+            
             // Only update if payment is still pending
             if (payment.getStatus() == PaymentStatus.PENDING) {
+                log.info("✅ Payment is PENDING - updating to PAID");
                 payment.setStatus(PaymentStatus.PAID);
                 payment.setPaymentDate(new Date());
                 paymentRepository.save(payment);
+                log.info("🎉 Payment status updated successfully! Order ID: {}", orderId);
                 return true;
+            } else {
+                log.warn("⚠️ Payment status is not PENDING. Current status: {}. Order ID: {}", 
+                        payment.getStatus(), orderId);
+                return false;
             }
             
-            return false;
-            
         } catch (Exception e) {
-            log.error("Error processing Sepay webhook", e);
+            log.error("❌ Error processing Sepay webhook", e);
+            log.error("Exception: {}", e.getMessage(), e);
             return false;
+        } finally {
+            log.info("=== End Processing Sepay Webhook ===");
         }
+    }
+    
+    @Override
+    public Integer extractOrderIdFromWebhook(SepayWebhookRequest webhookRequest) {
+        if (webhookRequest == null) {
+            return null;
+        }
+        
+        // Try to extract from content first
+        Integer orderId = extractOrderIdFromContent(webhookRequest.getContent());
+        if (orderId != null) {
+            return orderId;
+        }
+        
+        // Try referenceCode
+        if (webhookRequest.getReferenceCode() != null) {
+            orderId = extractOrderIdFromContent(webhookRequest.getReferenceCode());
+            if (orderId != null) {
+                return orderId;
+            }
+        }
+        
+        // Try code field
+        if (webhookRequest.getCode() != null) {
+            orderId = extractOrderIdFromContent(webhookRequest.getCode());
+            if (orderId != null) {
+                return orderId;
+            }
+        }
+        
+        // Try description field
+        if (webhookRequest.getDescription() != null) {
+            orderId = extractOrderIdFromContent(webhookRequest.getDescription());
+            if (orderId != null) {
+                return orderId;
+            }
+        }
+        
+        return null;
     }
     
     /**

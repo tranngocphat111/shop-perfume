@@ -77,6 +77,8 @@ public class SecurityConfig {
                     .requestMatchers(webhookMatcher).permitAll()
                     // Explicit permit for manual endpoint (backup)
                     .requestMatchers("/webhooks/sepay/manual", "/webhooks/sepay/test", "/webhooks/sepay/health").permitAll()
+                    // Webhook logs endpoint - public for debugging (can be restricted later)
+                    .requestMatchers("/webhooks/sepay/logs", "/webhooks/sepay/logs/**").permitAll()
                     
                     // CRITICAL: Guest checkout endpoints MUST be SECOND to ensure they are matched
                     // Note: context-path=/api, Controller has @RequestMapping("/orders"), so servletPath is /orders/create
