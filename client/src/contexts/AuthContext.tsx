@@ -80,8 +80,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setUser(userData);
     // REFRESH TOKEN - COMMENTED OUT
     // Reset refresh attempts on successful login
-    // resetRefreshAttempts();
-    resetRefreshAttempts(); // No-op when refresh token is disabled
+    resetRefreshAttempts();
+    // Merge cart if callback provided
+    if (mergeCart) {
+      try {
+        await mergeCart();
+      } catch (error) {
+        console.error('Error merging cart on login:', error);
+      }
+    }
   };
 
   const logout = async () => {

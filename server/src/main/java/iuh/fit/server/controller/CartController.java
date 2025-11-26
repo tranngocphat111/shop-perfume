@@ -3,7 +3,6 @@ package iuh.fit.server.controller;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import iuh.fit.server.dto.request.CartItemRequest;
-import iuh.fit.server.dto.request.CartRequest;
 import iuh.fit.server.dto.response.CartItemResponse;
 import iuh.fit.server.dto.response.CartResponse;
 import iuh.fit.server.services.CartItemService;
@@ -50,6 +49,20 @@ public class CartController {
             @RequestBody List<CartItemRequest> sessionCartItems) {
         log.info("REST request to merge cart items for user: {} with {} items", userId, sessionCartItems.size());
         CartResponse cart = cartService.mergeCartItems(userId, sessionCartItems);
+        return ResponseEntity.ok(cart);
+    }
+
+    /**
+     * Sync cart items (replace all items in cart)
+     * URL: http://localhost:8080/api/carts/user/{userId}/sync
+     */
+    @PostMapping("/user/{userId:\\d+}/sync")
+    @Operation(summary = "Sync cart items", description = "Replace all items in user's cart with provided items")
+    public ResponseEntity<CartResponse> syncCartItems(
+            @PathVariable int userId,
+            @RequestBody List<CartItemRequest> cartItems) {
+        log.info("REST request to sync cart items for user: {} with {} items", userId, cartItems.size());
+        CartResponse cart = cartService.syncCartItems(userId, cartItems);
         return ResponseEntity.ok(cart);
     }
 

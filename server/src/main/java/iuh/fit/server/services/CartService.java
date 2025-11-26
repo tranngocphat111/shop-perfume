@@ -9,4 +9,6 @@ public interface CartService {
     CartResponse getOrCreateCartByUserId(int userId);
     
     CartResponse mergeCartItems(int userId, java.util.List<iuh.fit.server.dto.request.CartItemRequest> sessionCartItems);
+    
+    CartResponse syncCartItems(int userId, java.util.List<iuh.fit.server.dto.request.CartItemRequest> cartItems);
 }
