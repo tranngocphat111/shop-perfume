@@ -93,74 +93,44 @@ export const CartSummary = ({ total, itemCount, discount = 0, onCouponApply }: C
       <div ref={normalSummaryRef} className="bg-white p-4 md:p-8 rounded-lg shadow-[0_2px_8px_rgba(0,0,0,0.2)]">
         <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4 lg:gap-6">
           {/* Left: Coupon Section */}
-          <div className="flex flex-col gap-3 flex-shrink-0">
-            <label className="font-semibold text-slate-700 text-sm md:text-base">Mã khuyến mãi:</label>
-            
-            {/* Input section - hiển thị cho tất cả người dùng */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
-              <div className="relative w-full sm:w-auto flex-1 sm:flex-initial">
-                <input
-                  type="text"
-                  value={couponCode}
-                  onChange={(e) => {
-                    setCouponCode(e.target.value);
-                    setErrorMessage('');
-                  }}
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter') {
-                      handleApplyCoupon();
-                    }
-                  }}
-                  placeholder="Nhập mã khuyến mãi"
-                  className="w-full sm:w-[240px] md:w-[280px] py-2.5 md:py-3 pl-4 md:pl-5 pr-24 md:pr-28 border border-slate-300 rounded-full text-sm outline-none transition-all focus:border-black focus:ring-2 focus:ring-slate-200"
-                />
-                {selectedCoupon ? (
-                  <button
-                    onClick={handleRemoveCoupon}
-                    className="absolute right-1.5 top-1/2 -translate-y-1/2 py-1.5 md:py-[6px] px-3 md:px-5 rounded-full border border-red-500 text-red-500 transition-all duration-200 text-xs md:text-sm whitespace-nowrap hover:bg-red-50"
-                  >
-                    <span>Hủy</span>
-                  </button>
-                ) : (
-                  <button
-                    onClick={handleApplyCoupon}
-                    disabled={isLoading}
-                    className="absolute right-1.5 top-1/2 -translate-y-1/2 py-1.5 md:py-[6px] px-3 md:px-5 rounded-full border border-slate-800 text-slate-800 transition-all duration-200 text-xs md:text-sm whitespace-nowrap hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <span>{isLoading ? '...' : 'Xác nhận'}</span>
-                  </button>
-                )}
-              </div>
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 flex-shrink-0">
+            <label className="font-semibold text-gray-700 text-sm md:text-base whitespace-nowrap">Mã khuyến mãi:</label>
+            <div className="relative w-full sm:w-auto">
+              <input
+                type="text"
+                value={couponCode}
+                onChange={(e) => {
+                  setCouponCode(e.target.value);
+                  setErrorMessage('');
+                }}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    handleApplyCoupon();
+                  }
+                }}
+                placeholder="Nhập mã khuyến mãi"
+                className="w-full sm:w-[220px] md:w-[280px] py-2.5 md:py-3 pl-4 md:pl-5 pr-24 md:pr-28 border border-gray-300 rounded-full text-sm outline-none transition-all"
+              />
+              {selectedCoupon ? (
+                <button
+                  onClick={handleRemoveCoupon}
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 py-1.5 md:py-[6px] px-3 md:px-5 rounded-full border border-gray-800 text-gray-800 transition-all duration-200 text-xs md:text-sm whitespace-nowrap btn-slide-overlay"
+                >
+                  <span>Hủy</span>
+                </button>
+              ) : (
+                <button
+                  onClick={handleApplyCoupon}
+                  disabled={isLoading}
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 py-1.5 md:py-[6px] px-3 md:px-5 rounded-full border border-gray-800 text-gray-800 transition-all duration-200 text-xs md:text-sm whitespace-nowrap btn-slide-overlay disabled:opacity-50"
+                >
+                  <span>{isLoading ? '...' : 'Xác nhận'}</span>
+                </button>
+              )}
             </div>
-
             {/* Error message */}
             {errorMessage && (
-              <p className="text-xs text-red-600">{errorMessage}</p>
-            )}
-
-            {/* Selected coupon info */}
-            {selectedCoupon && (
-              <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-semibold text-green-800">
-                      <span className="font-bold">{selectedCoupon.code}</span> - Giảm {selectedCoupon.discountPercent}%
-                    </p>
-                    <p className="text-xs text-green-700 mt-0.5">
-                      Đã áp dụng thành công
-                    </p>
-                  </div>
-                  <button
-                    onClick={handleRemoveCoupon}
-                    className="text-green-600 hover:text-green-800 transition-colors"
-                    title="Hủy mã giảm giá"
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
-              </div>
+              <p className="text-xs text-red-600 absolute top-full mt-1 left-0 sm:left-[120px]">{errorMessage}</p>
             )}
           </div>
 
@@ -219,50 +189,41 @@ export const CartSummary = ({ total, itemCount, discount = 0, onCouponApply }: C
           <div className="w-11/12 lg:w-4/5 mx-auto py-4 md:py-6">
             <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4 lg:gap-6">
               {/* Left: Coupon Section - Sticky */}
-              <div className="flex flex-col gap-2 flex-shrink-0">
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
-                  <label className="font-semibold text-slate-700 text-sm md:text-base whitespace-nowrap">Mã khuyến mãi:</label>
-                  <div className="relative w-full sm:w-auto">
-                    <input
-                      type="text"
-                      value={couponCode}
-                      onChange={(e) => {
-                        setCouponCode(e.target.value);
-                        setErrorMessage('');
-                      }}
-                      onKeyPress={(e) => {
-                        if (e.key === 'Enter') {
-                          handleApplyCoupon();
-                        }
-                      }}
-                      placeholder="Nhập mã khuyến mãi"
-                      className="w-full sm:w-[240px] md:w-[280px] py-2.5 md:py-3 pl-4 md:pl-5 pr-24 md:pr-28 border border-slate-300 rounded-full text-sm outline-none transition-all focus:border-black"
-                    />
-                    {selectedCoupon ? (
-                      <button
-                        onClick={handleRemoveCoupon}
-                        className="absolute right-1.5 top-1/2 -translate-y-1/2 py-1.5 md:py-[6px] px-3 md:px-5 rounded-full border border-red-500 text-red-500 transition-all duration-200 text-xs md:text-sm whitespace-nowrap hover:bg-red-50"
-                      >
-                        <span>Hủy</span>
-                      </button>
-                    ) : (
-                      <button
-                        onClick={handleApplyCoupon}
-                        disabled={isLoading}
-                        className="absolute right-1.5 top-1/2 -translate-y-1/2 py-1.5 md:py-[6px] px-3 md:px-5 rounded-full border border-slate-800 text-slate-800 transition-all duration-200 text-xs md:text-sm whitespace-nowrap hover:bg-slate-50 disabled:opacity-50"
-                      >
-                        <span>{isLoading ? '...' : 'Xác nhận'}</span>
-                      </button>
-                    )}
-                  </div>
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 flex-shrink-0">
+                <label className="font-semibold text-gray-700 text-sm md:text-base whitespace-nowrap">Mã khuyến mãi:</label>
+                <div className="relative w-full sm:w-auto">
+                  <input
+                    type="text"
+                    value={couponCode}
+                    onChange={(e) => {
+                      setCouponCode(e.target.value);
+                      setErrorMessage('');
+                    }}
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter') {
+                        handleApplyCoupon();
+                      }
+                    }}
+                    placeholder="Nhập mã khuyến mãi"
+                    className="w-full sm:w-[220px] md:w-[280px] py-2.5 md:py-3 pl-4 md:pl-5 pr-24 md:pr-28 border border-gray-300 rounded-full text-sm outline-none transition-all"
+                  />
+                  {selectedCoupon ? (
+                    <button
+                      onClick={handleRemoveCoupon}
+                      className="absolute right-1.5 top-1/2 -translate-y-1/2 py-1.5 md:py-[6px] px-3 md:px-5 rounded-full border border-gray-800 text-gray-800 transition-all duration-200 text-xs md:text-sm whitespace-nowrap btn-slide-overlay"
+                    >
+                      <span>Hủy</span>
+                    </button>
+                  ) : (
+                    <button
+                      onClick={handleApplyCoupon}
+                      disabled={isLoading}
+                      className="absolute right-1.5 top-1/2 -translate-y-1/2 py-1.5 md:py-[6px] px-3 md:px-5 rounded-full border border-gray-800 text-gray-800 transition-all duration-200 text-xs md:text-sm whitespace-nowrap btn-slide-overlay disabled:opacity-50"
+                    >
+                      <span>{isLoading ? '...' : 'Xác nhận'}</span>
+                    </button>
+                  )}
                 </div>
-                {selectedCoupon && (
-                  <div className="p-2 bg-green-50 border border-green-200 rounded-lg">
-                    <p className="text-xs text-green-800">
-                      <span className="font-semibold">{selectedCoupon.code}</span> - Giảm {selectedCoupon.discountPercent}%
-                    </p>
-                  </div>
-                )}
               </div>
 
               {/* Center: Summary Info */}
