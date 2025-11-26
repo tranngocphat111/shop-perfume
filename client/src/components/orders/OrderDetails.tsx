@@ -18,7 +18,7 @@ export const OrderDetails: React.FC<OrderDetailsProps> = ({
     <div className="mt-4 pt-4 border-t border-gray-200 space-y-4 animate-fadeIn">
       {/* QR Payment Section - Show if PENDING and QR payment */}
       {order.payment?.status === 'PENDING' &&
-       (order.payment?.method === 'E_WALLET' || order.payment?.method === 'QR_PAYMENT') && (
+       (order.payment?.method === 'QR_CODE' || order.payment?.method === 'E_WALLET' || order.payment?.method === 'QR_PAYMENT') && (
         <QRPaymentSection
           orderId={order.orderId}
           amount={order.totalAmount}

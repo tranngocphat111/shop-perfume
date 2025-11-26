@@ -47,7 +47,7 @@ public class OrderCreateRequest {
     private String note;
     
     @NotBlank(message = "Phương thức thanh toán không được để trống")
-    @Pattern(regexp = "^(cod|qr-payment|bank-transfer)$", message = "Phương thức thanh toán không hợp lệ. Chỉ chấp nhận: cod, qr-payment, bank-transfer")
+    @Pattern(regexp = "^(cod|qr-payment|qr_code)$", message = "Phương thức thanh toán không hợp lệ. Chỉ chấp nhận: cod, qr-payment, qr_code")
     private String paymentMethod;
     
     @NotNull(message = "Danh sách sản phẩm không được để trống")

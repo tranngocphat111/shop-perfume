@@ -81,12 +81,9 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
                 payment.setStatus(PaymentStatus.PENDING);
                 break;
             case "qr-payment":
-                payment.setMethod(Method.E_WALLET);
+            case "qr_code":
+                payment.setMethod(Method.QR_CODE);
                 payment.setStatus(PaymentStatus.PENDING); // QR payment starts as PENDING until verified
-                break;
-            case "bank-transfer":
-                payment.setMethod(Method.BANK_TRANSFER);
-                payment.setStatus(PaymentStatus.PENDING);
                 break;
             default:
                 payment.setMethod(Method.COD);
@@ -242,8 +239,8 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
             return;
         }
         
-        // Check if payment method is QR payment (E_WALLET)
-        if (payment.getMethod() != Method.E_WALLET) {
+        // Check if payment method is QR payment (QR_CODE)
+        if (payment.getMethod() != Method.QR_CODE) {
             return;
         }
         

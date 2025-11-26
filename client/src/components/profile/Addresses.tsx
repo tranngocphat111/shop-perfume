@@ -1,19 +1,13 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@contexts/AuthContext";
+import { addressService, type Address } from "../../services/address.service";
+import type { Province, District, Ward, ProvinceDetail, DistrictDetail } from "../../types";
 
-interface Address {
-  id: number;
-  recipientName: string;
-  phone: string;
-  addressLine: string;
-  ward: string;
-  district: string;
-  city: string;
-  isDefault: boolean;
-}
+const PROVINCES_API = 'https://provinces.open-api.vn/api/p/';
+const DISTRICTS_API = 'https://provinces.open-api.vn/api/d/';
 
 export const Addresses = () => {
-  const { user } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<Address | null>(null);
@@ -28,23 +22,120 @@ export const Addresses = () => {
   });
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  
+  // For dropdowns
+  const [provinces, setProvinces] = useState<Province[]>([]);
+  const [districts, setDistricts] = useState<District[]>([]);
+  const [wards, setWards] = useState<Ward[]>([]);
+  const [loading, setLoading] = useState({
+    provinces: false,
+    districts: false,
+    wards: false,
+  });
 
   useEffect(() => {
-    if (user) {
-      setAddresses([
-        {
-          id: 1,
-          recipientName: user.name,
-          phone: "0912345678",
-          addressLine: "123 Đường ABC",
-          ward: "Phường 1",
-          district: "Quận 1",
-          city: "TP. Hồ Chí Minh",
-          isDefault: true,
-        },
-      ]);
+    if (user && isAuthenticated) {
+      loadAddresses();
     }
-  }, [user]);
+  }, [user, isAuthenticated]);
+
+  const loadAddresses = async () => {
+    try {
+      const savedAddresses = await addressService.getAddresses();
+      setAddresses(savedAddresses);
+    } catch (error) {
+      console.error('Error loading addresses:', error);
+      setError('Không thể tải danh sách địa chỉ');
+    }
+  };
+
+  // Load provinces when modal opens
+  useEffect(() => {
+    if (showModal && provinces.length === 0) {
+      loadProvinces();
+    }
+  }, [showModal]);
+
+  // Auto-load districts when editing address with city
+  useEffect(() => {
+    if (showModal && editing && form.city && provinces.length > 0 && districts.length === 0) {
+      const normalizedCity = normalizeName(form.city);
+      const province = provinces.find(p => {
+        const normalizedP = normalizeName(p.name);
+        return normalizedP === normalizedCity ||
+               p.name === form.city ||
+               p.name.includes(form.city) || 
+               form.city.includes(p.name) ||
+               normalizedP.includes(normalizedCity) ||
+               normalizedCity.includes(normalizedP);
+      });
+      
+      if (province) {
+        loadDistricts(province.code.toString());
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showModal, editing, form.city, provinces.length]);
+
+  // Auto-load wards when editing address with district
+  useEffect(() => {
+    if (showModal && editing && form.district && districts.length > 0 && wards.length === 0) {
+      const normalizedDistrict = normalizeName(form.district);
+      const district = districts.find(d => {
+        const normalizedD = normalizeName(d.name);
+        return normalizedD === normalizedDistrict ||
+               d.name === form.district ||
+               d.name.includes(form.district) ||
+               form.district.includes(d.name) ||
+               normalizedD.includes(normalizedDistrict) ||
+               normalizedDistrict.includes(normalizedD);
+      });
+      
+      if (district) {
+        loadWards(district.code.toString());
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showModal, editing, form.district, districts.length]);
+
+  const loadProvinces = async () => {
+    try {
+      setLoading(prev => ({ ...prev, provinces: true }));
+      const response = await fetch(PROVINCES_API);
+      const data: Province[] = await response.json();
+      setProvinces(data);
+    } catch (error) {
+      console.error('Error loading provinces:', error);
+    } finally {
+      setLoading(prev => ({ ...prev, provinces: false }));
+    }
+  };
+
+  const loadDistricts = async (provinceCode: string) => {
+    try {
+      setLoading(prev => ({ ...prev, districts: true }));
+      const response = await fetch(`${PROVINCES_API}${provinceCode}?depth=2`);
+      const data: ProvinceDetail = await response.json();
+      setDistricts(data.districts || []);
+    } catch (error) {
+      console.error('Error loading districts:', error);
+    } finally {
+      setLoading(prev => ({ ...prev, districts: false }));
+    }
+  };
+
+  const loadWards = async (districtCode: string) => {
+    try {
+      setLoading(prev => ({ ...prev, wards: true }));
+      const response = await fetch(`${DISTRICTS_API}${districtCode}?depth=2`);
+      const data: DistrictDetail = await response.json();
+      setWards(data.wards || []);
+    } catch (error) {
+      console.error('Error loading wards:', error);
+    } finally {
+      setLoading(prev => ({ ...prev, wards: false }));
+    }
+  };
 
   const openAdd = () => {
     setEditing(null);
@@ -60,6 +151,18 @@ export const Addresses = () => {
     setShowModal(true);
   };
 
+  const normalizeName = (name: string): string => {
+    return name
+      .toLowerCase()
+      .replace(/^(thành phố|tp\.?|tỉnh|t\.?)\s*/i, '')
+      .replace(/\s*(thành phố|tp\.?|tỉnh|t\.?)$/i, '')
+      .replace(/^(quận|huyện|q\.?|h\.?)\s*/i, '')
+      .replace(/\s*(quận|huyện|q\.?|h\.?)$/i, '')
+      .replace(/^(phường|xã|thị trấn|p\.?|x\.?|tt\.?)\s*/i, '')
+      .replace(/\s*(phường|xã|thị trấn|p\.?|x\.?|tt\.?)$/i, '')
+      .trim();
+  };
+
   const openEdit = (a: Address) => {
     setEditing(a);
     setForm({
@@ -72,9 +175,12 @@ export const Addresses = () => {
       isDefault: a.isDefault,
     });
     setShowModal(true);
+    // Reset districts and wards when opening edit
+    setDistricts([]);
+    setWards([]);
   };
 
-  const save = () => {
+  const save = async () => {
     if (
       !form.recipientName ||
       !form.phone ||
@@ -91,41 +197,50 @@ export const Addresses = () => {
       return;
     }
 
-    if (editing) {
-      setAddresses(
-        addresses.map((x) =>
-          x.id === editing.id
-            ? { ...form, id: editing.id }
-            : form.isDefault
-            ? { ...x, isDefault: false }
-            : x
-        )
-      );
-      setSuccess("Cập nhật địa chỉ thành công!");
-    } else {
-      const updated = form.isDefault
-        ? addresses.map((x) => ({ ...x, isDefault: false }))
-        : addresses;
-      setAddresses([...updated, { ...form, id: Date.now() }]);
-      setSuccess("Thêm địa chỉ mới thành công!");
-    }
-    setShowModal(false);
-    setError("");
-    setTimeout(() => setSuccess(""), 2000);
-  };
-
-  const remove = (id: number) => {
-    if (window.confirm("Bạn có chắc chắn muốn xóa địa chỉ này?")) {
-      setAddresses(addresses.filter((x) => x.id !== id));
-      setSuccess("Xóa địa chỉ thành công!");
+    try {
+      if (editing) {
+        await addressService.updateAddress(editing.id, form);
+        setSuccess("Cập nhật địa chỉ thành công!");
+      } else {
+        await addressService.createAddress(form);
+        setSuccess("Thêm địa chỉ mới thành công!");
+      }
+      
+      // Reload addresses
+      await loadAddresses();
+      
+      setShowModal(false);
+      setError("");
       setTimeout(() => setSuccess(""), 2000);
+    } catch (error: any) {
+      setError(error.message || "Có lỗi xảy ra khi lưu địa chỉ");
     }
   };
 
-  const setDefault = (id: number) => {
-    setAddresses(addresses.map((x) => ({ ...x, isDefault: x.id === id })));
-    setSuccess("Đã đặt làm địa chỉ mặc định!");
-    setTimeout(() => setSuccess(""), 2000);
+  const remove = async (id: number) => {
+    if (window.confirm("Bạn có chắc chắn muốn xóa địa chỉ này?")) {
+      try {
+        await addressService.deleteAddress(id);
+        setSuccess("Xóa địa chỉ thành công!");
+        // Reload addresses
+        await loadAddresses();
+        setTimeout(() => setSuccess(""), 2000);
+      } catch (error: any) {
+        setError(error.message || "Có lỗi xảy ra khi xóa địa chỉ");
+      }
+    }
+  };
+
+  const setDefault = async (id: number) => {
+    try {
+      await addressService.setDefaultAddress(id);
+      setSuccess("Đã đặt làm địa chỉ mặc định!");
+      // Reload addresses
+      await loadAddresses();
+      setTimeout(() => setSuccess(""), 2000);
+    } catch (error: any) {
+      setError(error.message || "Có lỗi xảy ra khi đặt địa chỉ mặc định");
+    }
   };
 
   return (
@@ -226,24 +341,90 @@ export const Addresses = () => {
                 value={form.addressLine}
                 onChange={(e) => setForm({ ...form, addressLine: e.target.value })}
               />
-              <input
-                className="px-4 py-3 border rounded"
-                placeholder="Phường/Xã"
-                value={form.ward}
-                onChange={(e) => setForm({ ...form, ward: e.target.value })}
-              />
-              <input
-                className="px-4 py-3 border rounded"
-                placeholder="Quận/Huyện"
-                value={form.district}
-                onChange={(e) => setForm({ ...form, district: e.target.value })}
-              />
-              <input
-                className="px-4 py-3 border rounded"
-                placeholder="Tỉnh/Thành phố"
-                value={form.city}
-                onChange={(e) => setForm({ ...form, city: e.target.value })}
-              />
+              
+              {/* Province/City Dropdown */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Tỉnh/Thành phố <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={provinces.find(p => p.name === form.city)?.code.toString() || ''}
+                  onChange={async (e) => {
+                    const code = e.target.value;
+                    const selected = provinces.find(p => p.code.toString() === code);
+                    if (selected) {
+                      setForm({ ...form, city: selected.name, district: '', ward: '' });
+                      setDistricts([]);
+                      setWards([]);
+                      await loadDistricts(code);
+                    }
+                  }}
+                  className="w-full px-4 py-3 border rounded"
+                  disabled={loading.provinces}
+                >
+                  <option value="">Chọn tỉnh/thành phố</option>
+                  {provinces.map(province => (
+                    <option key={province.code} value={province.code}>
+                      {province.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* District Dropdown */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Quận/Huyện <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={districts.find(d => d.name === form.district)?.code.toString() || ''}
+                  onChange={async (e) => {
+                    const code = e.target.value;
+                    const selected = districts.find(d => d.code.toString() === code);
+                    if (selected) {
+                      setForm({ ...form, district: selected.name, ward: '' });
+                      setWards([]);
+                      await loadWards(code);
+                    }
+                  }}
+                  className="w-full px-4 py-3 border rounded"
+                  disabled={!form.city || loading.districts}
+                >
+                  <option value="">Chọn quận/huyện</option>
+                  {districts.map(district => (
+                    <option key={district.code} value={district.code}>
+                      {district.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Ward Dropdown */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Xã/Phường/Thị trấn <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={wards.find(w => w.name === form.ward)?.code.toString() || ''}
+                  onChange={(e) => {
+                    const code = e.target.value;
+                    const selected = wards.find(w => w.code.toString() === code);
+                    if (selected) {
+                      setForm({ ...form, ward: selected.name });
+                    }
+                  }}
+                  className="w-full px-4 py-3 border rounded"
+                  disabled={!form.district || loading.wards}
+                >
+                  <option value="">Chọn xã/phường/thị trấn</option>
+                  {wards.map(ward => (
+                    <option key={ward.code} value={ward.code}>
+                      {ward.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               <label className="flex items-center gap-2 md:col-span-2">
                 <input
                   type="checkbox"

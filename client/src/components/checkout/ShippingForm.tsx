@@ -1,4 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '../../contexts/AuthContext';
+import { AddressSelector } from './AddressSelector';
+import { addressService, type Address } from '../../services/address.service';
 import type { CheckoutFormData, Province, District, Ward, ProvinceDetail, DistrictDetail } from '../../types';
 
 interface ShippingFormProps {
@@ -11,6 +14,7 @@ const PROVINCES_API = 'https://provinces.open-api.vn/api/p/';
 const DISTRICTS_API = 'https://provinces.open-api.vn/api/d/';
 
 export const ShippingForm: React.FC<ShippingFormProps> = ({ formData, onUpdate, validationErrors = {} }) => {
+  const { user, isAuthenticated } = useAuth();
   const [provinces, setProvinces] = useState<Province[]>([]);
   const [districts, setDistricts] = useState<District[]>([]);
   const [wards, setWards] = useState<Ward[]>([]);
@@ -111,11 +115,134 @@ export const ShippingForm: React.FC<ShippingFormProps> = ({ formData, onUpdate, 
     }
   };
 
+  // Normalize name for better matching
+  const normalizeName = (name: string): string => {
+    return name
+      .toLowerCase()
+      .replace(/^(thành phố|tp\.?|tỉnh|t\.?)\s*/i, '')
+      .replace(/\s*(thành phố|tp\.?|tỉnh|t\.?)$/i, '')
+      .replace(/^(quận|huyện|q\.?|h\.?)\s*/i, '')
+      .replace(/\s*(quận|huyện|q\.?|h\.?)$/i, '')
+      .replace(/^(phường|xã|thị trấn|p\.?|x\.?|tt\.?)\s*/i, '')
+      .replace(/\s*(phường|xã|thị trấn|p\.?|x\.?|tt\.?)$/i, '')
+      .trim();
+  };
+
+  // Handle address selection from AddressSelector
+  const handleSelectAddress = (address: Address, loadedProvinces: Province[], loadedDistricts: District[], loadedWards: Ward[]) => {
+    console.log('[ShippingForm] Handling address selection:', address);
+    console.log('[ShippingForm] Loaded provinces:', loadedProvinces.length);
+    console.log('[ShippingForm] Loaded districts:', loadedDistricts.length);
+    console.log('[ShippingForm] Loaded wards:', loadedWards.length);
+
+    // Update provinces, districts, wards
+    setProvinces(loadedProvinces);
+    setDistricts(loadedDistricts);
+    setWards(loadedWards);
+
+    // Normalize names for matching
+    const normalizedCity = normalizeName(address.city);
+    const normalizedDistrict = normalizeName(address.district);
+    const normalizedWard = normalizeName(address.ward || '');
+
+    // Find matching codes (try multiple strategies)
+    let province = loadedProvinces.find(p => {
+      const normalizedP = normalizeName(p.name);
+      return normalizedP === normalizedCity || 
+             p.name === address.city ||
+             p.name.includes(address.city) || 
+             address.city.includes(p.name) ||
+             normalizedP.includes(normalizedCity) ||
+             normalizedCity.includes(normalizedP);
+    });
+
+    let district: District | undefined;
+    if (province && address.district) {
+      district = loadedDistricts.find(d => {
+        const normalizedD = normalizeName(d.name);
+        return normalizedD === normalizedDistrict ||
+               d.name === address.district ||
+               d.name.includes(address.district) || 
+               address.district.includes(d.name) ||
+               normalizedD.includes(normalizedDistrict) ||
+               normalizedDistrict.includes(normalizedD);
+      });
+    }
+
+    let ward: Ward | undefined;
+    if (district && address.ward) {
+      ward = loadedWards.find(w => {
+        const normalizedW = normalizeName(w.name);
+        return normalizedW === normalizedWard ||
+               w.name === address.ward ||
+               w.name.includes(address.ward) || 
+               address.ward.includes(w.name) ||
+               normalizedW.includes(normalizedWard) ||
+               normalizedWard.includes(normalizedW);
+      });
+    }
+
+    console.log('[ShippingForm] Matched province:', province?.name, 'code:', province?.code);
+    console.log('[ShippingForm] Matched district:', district?.name, 'code:', district?.code);
+    console.log('[ShippingForm] Matched ward:', ward?.name, 'code:', ward?.code);
+
+    // Update form data - always fill all fields from address
+    onUpdate({
+      fullName: address.recipientName || '',
+      phone: address.phone || '',
+      city: province?.name || address.city || '',
+      cityCode: province?.code.toString() || '',
+      district: district?.name || address.district || '',
+      districtCode: district?.code.toString() || '',
+      ward: ward?.name || address.ward || '',
+      wardCode: ward?.code.toString() || '',
+      address: address.addressLine || '',
+    });
+
+    console.log('[ShippingForm] Form updated with address data');
+  };
+
+  // Wrapper functions for AddressSelector
+  const loadProvincesForSelector = async (): Promise<Province[]> => {
+    if (provinces.length > 0) return provinces;
+    const response = await fetch(PROVINCES_API);
+    const data: Province[] = await response.json();
+    setProvinces(data);
+    return data;
+  };
+
+  const loadDistrictsForSelector = async (provinceCode: string): Promise<District[]> => {
+    const response = await fetch(`${PROVINCES_API}${provinceCode}?depth=2`);
+    const data: ProvinceDetail = await response.json();
+    const loadedDistricts = data.districts || [];
+    setDistricts(loadedDistricts);
+    return loadedDistricts;
+  };
+
+  const loadWardsForSelector = async (districtCode: string): Promise<Ward[]> => {
+    const response = await fetch(`${DISTRICTS_API}${districtCode}?depth=2`);
+    const data: DistrictDetail = await response.json();
+    const loadedWards = data.wards || [];
+    setWards(loadedWards);
+    return loadedWards;
+  };
+
   return (
     <div className="bg-white p-6 md:p-8 rounded-xl shadow-sm">
       <h2 className="text-xl md:text-2xl font-semibold mb-6 pb-3 border-b-2 border-gray-100">
         Thông tin giao hàng
       </h2>
+
+      {/* Address Selector - only show if user is authenticated */}
+      {isAuthenticated && (
+        <AddressSelector
+          formData={formData}
+          onSelectAddress={handleSelectAddress}
+          onLoadProvinces={loadProvincesForSelector}
+          onLoadDistricts={loadDistrictsForSelector}
+          onLoadWards={loadWardsForSelector}
+        />
+      )}
 
       <div className="space-y-4">
         {/* Họ và tên & Số điện thoại */}

@@ -108,9 +108,11 @@ export const MyOrders: React.FC = () => {
   const getPaymentMethodLabel = (method: string) => {
     const methodMap: Record<string, string> = {
       'COD': 'Trả tiền mặt khi nhận hàng',
+      'QR_CODE': 'Thanh toán QR Code',
+      // Keep backward compatibility with old values
       'QR_PAYMENT': 'Thanh toán QR Code',
-      'BANK_TRANSFER': 'Chuyển khoản ngân hàng',
       'E_WALLET': 'Thanh toán QR Code',
+      'BANK_TRANSFER': 'Thanh toán QR Code',
     };
     return methodMap[method] || method;
   };
@@ -129,7 +131,7 @@ export const MyOrders: React.FC = () => {
       
       orders.forEach(order => {
         if (order.payment?.status === 'PENDING' && 
-            (order.payment?.method === 'E_WALLET' || order.payment?.method === 'QR_PAYMENT')) {
+            (order.payment?.method === 'QR_CODE' || order.payment?.method === 'E_WALLET' || order.payment?.method === 'QR_PAYMENT')) {
           const orderDate = new Date(order.orderDate);
           const timeoutMs = 30 * 60 * 1000; // 30 minutes
           const elapsed = now - orderDate.getTime();
@@ -166,7 +168,7 @@ export const MyOrders: React.FC = () => {
   useEffect(() => {
     orders.forEach(order => {
       if (order.payment?.status === 'PENDING' && 
-          (order.payment?.method === 'E_WALLET' || order.payment?.method === 'QR_PAYMENT') &&
+          (order.payment?.method === 'QR_CODE' || order.payment?.method === 'E_WALLET' || order.payment?.method === 'QR_PAYMENT') &&
           !qrUrls[order.orderId]) {
         generateQRCode(order.orderId, order.totalAmount);
       }
@@ -219,7 +221,7 @@ export const MyOrders: React.FC = () => {
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Tra cứu đơn hàng</h1>
           <p className="text-gray-600">
             {isAuthenticated 
-              ? 'Xem lịch sử và trạng thái các đơn hàng của bạn' 
+              ? 'Xem lịch sử và trạng thái các đơn hàng của bạn. Bạn cũng có thể tra cứu đơn hàng bằng email khác.' 
               : 'Nhập email để tra cứu đơn hàng của bạn (không cần đăng nhập)'}
           </p>
         </div>

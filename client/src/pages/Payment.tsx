@@ -15,7 +15,7 @@ const BANK_INFO = {
 
 interface PaymentLocationState {
   order: OrderResponse;
-  paymentMethod: 'cod' | 'qr-payment' | 'bank-transfer';
+  paymentMethod: 'cod' | 'qr-payment';
   totalAmount: number;
 }
 
@@ -130,8 +130,8 @@ export const Payment: React.FC = () => {
     setIsLoading(false);
 
     // Generate QR code if needed
-    if (state.paymentMethod === 'qr-payment' || state.paymentMethod === 'bank-transfer') {
-      console.log('[Payment] 🔵 QR/Bank transfer payment detected, generating QR code');
+    if (state.paymentMethod === 'qr-payment') {
+      console.log('[Payment] 🔵 QR payment detected, generating QR code');
       generateQRCode(state.order.orderId.toString(), state.totalAmount);
     }
     
@@ -218,10 +218,10 @@ export const Payment: React.FC = () => {
     }
   }, [order, isPaid, isChecking, isCancelled, navigate]);
 
-  // Auto check payment status for QR and Bank Transfer
+  // Auto check payment status for QR payment
   useEffect(() => {
     if (!order || isPaid) return;
-    if (state?.paymentMethod !== 'qr-payment' && state?.paymentMethod !== 'bank-transfer') return;
+    if (state?.paymentMethod !== 'qr-payment') return;
 
     const countdownInterval = setInterval(() => {
       setCountdown(prev => {
@@ -266,13 +266,11 @@ export const Payment: React.FC = () => {
   const paymentMethodLabels = {
     'cod': 'Trả tiền mặt khi nhận hàng',
     'qr-payment': 'Thanh toán QR Code',
-    'bank-transfer': 'Chuyển khoản ngân hàng',
   };
 
   const paymentMethodIcons = {
     'cod': FaMoneyBillWave,
     'qr-payment': FaQrcode,
-    'bank-transfer': FaUniversity,
   };
 
   const PaymentIcon = paymentMethodIcons[state.paymentMethod];
@@ -289,9 +287,7 @@ export const Payment: React.FC = () => {
             </div>
             <div className="flex items-center gap-3 px-4 py-2.5 bg-white rounded-lg border border-slate-200 shadow-sm">
               <PaymentIcon className={`text-xl ${
-                state.paymentMethod === 'cod' ? 'text-green-600' :
-                state.paymentMethod === 'qr-payment' ? 'text-blue-600' :
-                'text-purple-600'
+                state.paymentMethod === 'cod' ? 'text-green-600' : 'text-blue-600'
               }`} />
               <span className="text-sm font-semibold text-slate-700">{paymentMethodLabels[state.paymentMethod]}</span>
             </div>
@@ -303,8 +299,8 @@ export const Payment: React.FC = () => {
           {/* Left Column - Payment Content */}
           <div className="lg:col-span-2 space-y-6">
 
-            {/* Payment Instructions for QR and Bank Transfer */}
-            {(state.paymentMethod === 'qr-payment' || state.paymentMethod === 'bank-transfer') && (
+            {/* Payment Instructions for QR Payment */}
+            {state.paymentMethod === 'qr-payment' && (
               <>
                 {/* Instructions */}
                 <div className="bg-white rounded-lg border border-slate-200 p-5 shadow-sm">

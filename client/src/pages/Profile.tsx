@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useAuth } from "../contexts/AuthContext";
 import { ProfileSidebar } from "@components/profile/ProfileSidebar";
 import { AccountInfo } from "@components/profile/AccountInfo";
 import { Addresses } from "@components/profile/Addresses";
@@ -6,7 +7,16 @@ import { Orders } from "@components/profile/Orders";
 import { ChangePassword } from "@components/profile/ChangePassword";
 
 const Profile: React.FC = () => {
-  const [active, setActive] = useState<string>("account");
+  const { isAuthenticated } = useAuth();
+  // Default to "orders" if authenticated, otherwise "account"
+  const [active, setActive] = useState<string>(isAuthenticated ? "orders" : "account");
+  
+  // Update active tab when authentication status changes
+  useEffect(() => {
+    if (isAuthenticated && active === "account") {
+      setActive("orders");
+    }
+  }, [isAuthenticated]);
   return (
     <div className="px-4 py-12 min-h-screen bg-gray-50 sm:px-6 lg:px-8">
       <div className="grid grid-cols-1 gap-6 mx-auto max-w-6xl md:grid-cols-3">
