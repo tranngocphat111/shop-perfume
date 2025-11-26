@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { AdminLayout, DataTable, type Column } from "../../components/admin";
 import { productAdminService } from "../../services/product.service";
-import { productService } from "../../services/perfume.service";
-import type { Brand, Category, Product } from "../../types";
+// import { productService } from "../../services/perfume.service";
+import type { Product } from "../../types";
 import {
   ProductModal,
   type ProductFormData,
@@ -28,9 +28,6 @@ export const Products = () => {
   const [totalElements, setTotalElements] = useState(0);
   const [currentPage, setCurrentPage] = useState(0);
   const [pageSize, setPageSize] = useState(25);
-  const [brands, setBrands] = useState<Brand[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-
   // Sort and search states
   const [sortField, setSortField] = useState<string>("productId");
   const [sortDirection, setSortDirection] = useState<"ASC" | "DESC">("ASC");
@@ -64,7 +61,6 @@ export const Products = () => {
         direction,
         search
       );
-
       const transformedData: ProductData[] = pageResponse.content.map(
         (item: Product) => ({
           id: item.productId,
@@ -92,23 +88,6 @@ export const Products = () => {
   useEffect(() => {
     fetchProducts(currentPage, pageSize, sortField, sortDirection, searchQuery);
   }, [currentPage, pageSize, sortField, sortDirection, searchQuery]);
-
-  // Fetch brands and categories
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [brandsData, categoriesData] = await Promise.all([
-          productService.getAllBrands(),
-          productService.getAllCategories(),
-        ]);
-        setBrands(brandsData);
-        setCategories(categoriesData);
-      } catch (err) {
-        console.error("Error fetching brands/categories:", err);
-      }
-    };
-    fetchData();
-  }, []);
 
   const handlePageChange = (page: number, size: number) => {
     if (size !== pageSize) {
@@ -547,18 +526,18 @@ export const Products = () => {
         />
 
         {/* Add/Edit Modal */}
-        <ProductModal
-          isOpen={isModalOpen}
-          onClose={() => {
-            setIsModalOpen(false);
-            setSelectedProduct(null);
-          }}
-          onSubmit={handleModalSubmit}
-          mode={modalMode}
-          brands={brands}
-          categories={categories}
-          initialData={selectedProduct || undefined}
-        />
+        {isModalOpen && (
+          <ProductModal
+            isOpen={isModalOpen}
+            onClose={() => {
+              setIsModalOpen(false);
+              setSelectedProduct(null);
+            }}
+            onSubmit={handleModalSubmit}
+            mode={modalMode}
+            initialData={selectedProduct || undefined}
+          />
+        )}
 
         {/* Detail Modal */}
         <ProductDetailModal
