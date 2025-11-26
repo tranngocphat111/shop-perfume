@@ -3,6 +3,7 @@ package iuh.fit.server.controller;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import iuh.fit.server.dto.request.PurchaseInvoiceRequest;
+import iuh.fit.server.dto.response.PurchaseInvoiceDetailResponse;
 import iuh.fit.server.dto.response.PurchaseInvoiceResponse;
 import iuh.fit.server.services.PurchaseInvoiceService;
 import lombok.RequiredArgsConstructor;
@@ -25,7 +26,15 @@ import java.util.List;
 public class PurchaseInvoiceController {
     
     private final PurchaseInvoiceService purchaseInvoiceService;
-    
+
+    @GetMapping("{id}/details")
+    @Operation(summary = "Get all purchase details of invoice's id")
+    public ResponseEntity<List<PurchaseInvoiceDetailResponse>> getPurchaseInvoiceDetailById(@PathVariable int id) {
+        log.info("REST request to get details's purchase invoice having id : {}", id);
+        List<PurchaseInvoiceDetailResponse> responseList = purchaseInvoiceService.findByPurchaseDetail_PurchaseInvoiceId(id);
+        return ResponseEntity.ok(responseList);
+    }
+
     @GetMapping
     @Operation(summary = "Get all purchase invoices")
     public ResponseEntity<List<PurchaseInvoiceResponse>> getAllInvoices() {

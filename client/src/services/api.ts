@@ -192,8 +192,8 @@ const handle401Error = async <T>(
       const tokenPreview =
         newToken.length > 30
           ? `${newToken.substring(0, 20)}...${newToken.substring(
-              newToken.length - 10
-            )}`
+            newToken.length - 10
+          )}`
           : newToken.substring(0, 30);
       console.log("[API] 🔄 Retrying request with new token:", tokenPreview);
 
@@ -204,8 +204,8 @@ const handle401Error = async <T>(
         "[API] 🔑 Fresh token from localStorage:",
         freshToken
           ? `${freshToken.substring(0, 20)}...${freshToken.substring(
-              freshToken.length - 10
-            )}`
+            freshToken.length - 10
+          )}`
           : "NOT FOUND"
       );
 
