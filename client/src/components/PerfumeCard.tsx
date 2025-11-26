@@ -57,7 +57,7 @@ export const PerfumeCard = ({ inventory }: ProductCardProps) => {
 
     try {
       setIsAdding(true);
-      addToCart(product, 1);
+      await addToCart(product, 1);
 
       // Trigger header to show (white background) without scrolling
       const currentScrollY = window.scrollY;

@@ -15,6 +15,22 @@ export const CartItem = ({
   onQuantityChange, 
   onRemove 
 }: CartItemProps) => {
+  const maxQuantity = item.stockQuantity ?? Infinity;
+  const isMaxQuantity = item.quantity >= maxQuantity;
+  const isMinQuantity = item.quantity <= 1;
+
+  const handleQuantityChange = (newQuantity: number) => {
+    if (newQuantity < 1) {
+      onQuantityChange(item.product.productId, 1);
+      return;
+    }
+    if (maxQuantity !== undefined && newQuantity > maxQuantity) {
+      onQuantityChange(item.product.productId, maxQuantity);
+      return;
+    }
+    onQuantityChange(item.product.productId, newQuantity);
+  };
+
   return (
     <>
       {/* Desktop Table Row - Hidden on mobile */}
@@ -56,44 +72,63 @@ export const CartItem = ({
 
         {/* Quantity Control */}
         <td className="text-center py-6 px-4">
-          <div className="inline-flex items-center gap-1 border-2 border-gray-300 rounded-full py-1.5 px-3 bg-white shadow-sm">
-            <button
-              onClick={() => onQuantityChange(item.product.productId, item.quantity - 1)}
-              className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-gray-100 transition-all active:scale-95"
-              type="button"
-            >
-              <svg 
-                className="w-4 h-4 text-gray-700" 
-                fill="none" 
-                stroke="currentColor" 
-                viewBox="0 0 24 24"
+          <div className="inline-flex flex-col items-center gap-1">
+            <div className="inline-flex items-center gap-1 border-2 border-gray-300 rounded-full py-1.5 px-3 bg-white shadow-sm">
+              <button
+                onClick={() => handleQuantityChange(item.quantity - 1)}
+                disabled={isMinQuantity}
+                className={`w-8 h-8 rounded-full flex items-center justify-center transition-all active:scale-95 ${
+                  isMinQuantity 
+                    ? 'opacity-50 cursor-not-allowed' 
+                    : 'hover:bg-gray-100'
+                }`}
+                type="button"
               >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
-              </svg>
-            </button>
-            <input
-              type="number"
-              value={item.quantity}
-              onChange={(e) =>
-                onQuantityChange(item.product.productId, parseInt(e.target.value) || 1)
-              }
-              className="w-12 text-center border-none outline-none text-base font-semibold bg-transparent [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-              min="1"
-            />
-            <button
-              onClick={() => onQuantityChange(item.product.productId, item.quantity + 1)}
-              className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-gray-100 transition-all active:scale-95"
-              type="button"
-            >
-              <svg 
-                className="w-4 h-4 text-gray-700" 
-                fill="none" 
-                stroke="currentColor" 
-                viewBox="0 0 24 24"
+                <svg 
+                  className="w-4 h-4 text-gray-700" 
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+                </svg>
+              </button>
+              <input
+                type="number"
+                value={item.quantity}
+                onChange={(e) => {
+                  const value = parseInt(e.target.value) || 1;
+                  handleQuantityChange(value);
+                }}
+                className="w-12 text-center border-none outline-none text-base font-semibold bg-transparent [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                min="1"
+                max={maxQuantity !== Infinity ? maxQuantity : undefined}
+              />
+              <button
+                onClick={() => handleQuantityChange(item.quantity + 1)}
+                disabled={isMaxQuantity}
+                className={`w-8 h-8 rounded-full flex items-center justify-center transition-all active:scale-95 ${
+                  isMaxQuantity 
+                    ? 'opacity-50 cursor-not-allowed' 
+                    : 'hover:bg-gray-100'
+                }`}
+                type="button"
               >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-            </button>
+                <svg 
+                  className="w-4 h-4 text-gray-700" 
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+              </button>
+            </div>
+            {item.stockQuantity !== undefined && (
+              <span className="text-xs text-gray-500">
+                Còn {item.stockQuantity} sản phẩm
+              </span>
+            )}
           </div>
         </td>
 
@@ -152,44 +187,63 @@ export const CartItem = ({
 
             {/* Quantity Control & Total */}
             <div className="flex items-center justify-between">
-              <div className="inline-flex items-center gap-1 border-2 border-gray-300 rounded-full py-1 px-2 bg-white shadow-sm">
-                <button
-                  onClick={() => onQuantityChange(item.product.productId, item.quantity - 1)}
-                  className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-gray-100 transition-all active:scale-95"
-                  type="button"
-                >
-                  <svg 
-                    className="w-3 h-3 text-gray-700" 
-                    fill="none" 
-                    stroke="currentColor" 
-                    viewBox="0 0 24 24"
+              <div className="inline-flex flex-col items-start gap-1">
+                <div className="inline-flex items-center gap-1 border-2 border-gray-300 rounded-full py-1 px-2 bg-white shadow-sm">
+                  <button
+                    onClick={() => handleQuantityChange(item.quantity - 1)}
+                    disabled={isMinQuantity}
+                    className={`w-7 h-7 rounded-full flex items-center justify-center transition-all active:scale-95 ${
+                      isMinQuantity 
+                        ? 'opacity-50 cursor-not-allowed' 
+                        : 'hover:bg-gray-100'
+                    }`}
+                    type="button"
                   >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
-                  </svg>
-                </button>
-                <input
-                  type="number"
-                  value={item.quantity}
-                  onChange={(e) =>
-                    onQuantityChange(item.product.productId, parseInt(e.target.value) || 1)
-                  }
-                  className="w-10 text-center border-none outline-none text-sm font-semibold bg-transparent [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                  min="1"
-                />
-                <button
-                  onClick={() => onQuantityChange(item.product.productId, item.quantity + 1)}
-                  className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-gray-100 transition-all active:scale-95"
-                  type="button"
-                >
-                  <svg 
-                    className="w-3 h-3 text-gray-700" 
-                    fill="none" 
-                    stroke="currentColor" 
-                    viewBox="0 0 24 24"
+                    <svg 
+                      className="w-3 h-3 text-gray-700" 
+                      fill="none" 
+                      stroke="currentColor" 
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+                    </svg>
+                  </button>
+                  <input
+                    type="number"
+                    value={item.quantity}
+                    onChange={(e) => {
+                      const value = parseInt(e.target.value) || 1;
+                      handleQuantityChange(value);
+                    }}
+                    className="w-10 text-center border-none outline-none text-sm font-semibold bg-transparent [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    min="1"
+                    max={maxQuantity !== Infinity ? maxQuantity : undefined}
+                  />
+                  <button
+                    onClick={() => handleQuantityChange(item.quantity + 1)}
+                    disabled={isMaxQuantity}
+                    className={`w-7 h-7 rounded-full flex items-center justify-center transition-all active:scale-95 ${
+                      isMaxQuantity 
+                        ? 'opacity-50 cursor-not-allowed' 
+                        : 'hover:bg-gray-100'
+                    }`}
+                    type="button"
                   >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                  </svg>
-                </button>
+                    <svg 
+                      className="w-3 h-3 text-gray-700" 
+                      fill="none" 
+                      stroke="currentColor" 
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                  </button>
+                </div>
+                {item.stockQuantity !== undefined && (
+                  <span className="text-xs text-gray-500">
+                    Còn {item.stockQuantity} sp
+                  </span>
+                )}
               </div>
 
               <div className="text-right">

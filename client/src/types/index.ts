@@ -128,6 +128,7 @@ export interface PurchaseInvoiceFormData {
 export interface CartItem {
   product: Product;
   quantity: number;
+  stockQuantity?: number; // Số lượng tồn kho
 }
 
 export interface Cart {
