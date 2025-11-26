@@ -14,9 +14,7 @@ interface CartSummaryProps {
 export const CartSummary = ({ total, itemCount, discount = 0, onCouponApply }: CartSummaryProps) => {
   const [couponCode, setCouponCode] = useState('');
   const [isSticky, setIsSticky] = useState(false);
-  const [availableCoupons, setAvailableCoupons] = useState<Coupon[]>([]);
   const [selectedCoupon, setSelectedCoupon] = useState<Coupon | null>(null);
-  const [showCouponList, setShowCouponList] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const normalSummaryRef = useRef<HTMLDivElement>(null);
@@ -44,18 +42,6 @@ export const CartSummary = ({ total, itemCount, discount = 0, onCouponApply }: C
     };
   }, []);
 
-  // Load available coupons
-  useEffect(() => {
-    const loadCoupons = async () => {
-      try {
-        const coupons = await couponService.getAvailableCoupons();
-        setAvailableCoupons(coupons);
-      } catch (error) {
-        console.error('Error loading coupons:', error);
-      }
-    };
-    loadCoupons();
-  }, []);
 
   const handleApplyCoupon = async () => {
     if (!couponCode.trim()) {
@@ -89,32 +75,6 @@ export const CartSummary = ({ total, itemCount, discount = 0, onCouponApply }: C
     }
   };
 
-  const handleSelectCoupon = async (coupon: Coupon) => {
-    setCouponCode(coupon.code);
-    setShowCouponList(false);
-    setIsLoading(true);
-    setErrorMessage('');
-
-    try {
-      const validation = await couponService.validateCoupon(coupon.code, total);
-      
-      if (validation.valid && validation.coupon) {
-        setSelectedCoupon(validation.coupon);
-        const discountAmount = validation.discountAmount || (total * validation.coupon.discountPercent) / 100;
-        onCouponApply?.(validation.coupon, discountAmount);
-      } else {
-        setErrorMessage(validation.message || 'Mã giảm giá không hợp lệ');
-        setSelectedCoupon(null);
-        onCouponApply?.(null, 0);
-      }
-    } catch (error) {
-      setErrorMessage('Có lỗi xảy ra khi áp dụng mã giảm giá');
-      setSelectedCoupon(null);
-      onCouponApply?.(null, 0);
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const handleRemoveCoupon = () => {
     setCouponCode('');
@@ -134,10 +94,12 @@ export const CartSummary = ({ total, itemCount, discount = 0, onCouponApply }: C
       <div ref={normalSummaryRef} className="bg-white p-4 md:p-8 rounded-lg shadow-[0_2px_8px_rgba(0,0,0,0.2)]">
         <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4 lg:gap-6">
           {/* Left: Coupon Section */}
-          <div className="flex flex-col gap-2 flex-shrink-0">
+          <div className="flex flex-col gap-3 flex-shrink-0">
+            <label className="font-semibold text-slate-700 text-sm md:text-base">Mã khuyến mãi:</label>
+            
+            {/* Input section - hiển thị cho tất cả người dùng */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
-              <label className="font-semibold text-gray-700 text-sm md:text-base whitespace-nowrap">Mã khuyến mãi:</label>
-              <div className="relative w-full sm:w-auto">
+              <div className="relative w-full sm:w-auto flex-1 sm:flex-initial">
                 <input
                   type="text"
                   value={couponCode}
@@ -145,9 +107,13 @@ export const CartSummary = ({ total, itemCount, discount = 0, onCouponApply }: C
                     setCouponCode(e.target.value);
                     setErrorMessage('');
                   }}
-                  onFocus={() => setShowCouponList(true)}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter') {
+                      handleApplyCoupon();
+                    }
+                  }}
                   placeholder="Nhập mã khuyến mãi"
-                  className="w-full sm:w-[220px] md:w-[280px] py-2.5 md:py-3 pl-4 md:pl-5 pr-24 md:pr-28 border border-gray-300 rounded-full text-sm outline-none transition-all"
+                  className="w-full sm:w-[240px] md:w-[280px] py-2.5 md:py-3 pl-4 md:pl-5 pr-24 md:pr-28 border border-slate-300 rounded-full text-sm outline-none transition-all focus:border-black focus:ring-2 focus:ring-slate-200"
                 />
                 {selectedCoupon ? (
                   <button
@@ -160,55 +126,41 @@ export const CartSummary = ({ total, itemCount, discount = 0, onCouponApply }: C
                   <button
                     onClick={handleApplyCoupon}
                     disabled={isLoading}
-                    className="absolute right-1.5 top-1/2 -translate-y-1/2 py-1.5 md:py-[6px] px-3 md:px-5 rounded-full border border-gray-800 text-gray-800 transition-all duration-200 text-xs md:text-sm whitespace-nowrap btn-slide-overlay disabled:opacity-50"
+                    className="absolute right-1.5 top-1/2 -translate-y-1/2 py-1.5 md:py-[6px] px-3 md:px-5 rounded-full border border-slate-800 text-slate-800 transition-all duration-200 text-xs md:text-sm whitespace-nowrap hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <span>{isLoading ? '...' : 'Xác nhận'}</span>
                   </button>
                 )}
               </div>
             </div>
-            
+
             {/* Error message */}
             {errorMessage && (
-              <p className="text-xs text-red-600 ml-0 sm:ml-[120px]">{errorMessage}</p>
-            )}
-
-            {/* Available coupons list */}
-            {showCouponList && availableCoupons.length > 0 && !selectedCoupon && (
-              <div className="relative ml-0 sm:ml-[120px]">
-                <div className="absolute top-2 left-0 right-0 bg-white border border-gray-200 rounded-lg shadow-lg z-10 max-h-48 overflow-y-auto">
-                  <div className="p-2">
-                    <p className="text-xs font-semibold text-gray-700 mb-2 px-2">Mã giảm giá có sẵn:</p>
-                    {availableCoupons
-                      .filter(coupon => total >= coupon.minOrderValue)
-                      .map((coupon) => (
-                        <button
-                          key={coupon.couponId}
-                          onClick={() => handleSelectCoupon(coupon)}
-                          className="w-full text-left p-2 hover:bg-gray-50 rounded transition-colors mb-1"
-                        >
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <p className="text-sm font-semibold text-gray-900">{coupon.code}</p>
-                              <p className="text-xs text-gray-600">{coupon.description}</p>
-                            </div>
-                            <span className="text-sm font-bold text-red-600">
-                              -{coupon.discountPercent}%
-                            </span>
-                          </div>
-                        </button>
-                      ))}
-                  </div>
-                </div>
-              </div>
+              <p className="text-xs text-red-600">{errorMessage}</p>
             )}
 
             {/* Selected coupon info */}
             {selectedCoupon && (
-              <div className="ml-0 sm:ml-[120px] p-2 bg-green-50 border border-green-200 rounded-lg">
-                <p className="text-xs text-green-800">
-                  <span className="font-semibold">{selectedCoupon.code}</span> - Giảm {selectedCoupon.discountPercent}%
-                </p>
+              <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-green-800">
+                      <span className="font-bold">{selectedCoupon.code}</span> - Giảm {selectedCoupon.discountPercent}%
+                    </p>
+                    <p className="text-xs text-green-700 mt-0.5">
+                      Đã áp dụng thành công
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleRemoveCoupon}
+                    className="text-green-600 hover:text-green-800 transition-colors"
+                    title="Hủy mã giảm giá"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
               </div>
             )}
           </div>
@@ -267,10 +219,10 @@ export const CartSummary = ({ total, itemCount, discount = 0, onCouponApply }: C
         >
           <div className="w-11/12 lg:w-4/5 mx-auto py-4 md:py-6">
             <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4 lg:gap-6">
-              {/* Left: Coupon Section */}
+              {/* Left: Coupon Section - Sticky */}
               <div className="flex flex-col gap-2 flex-shrink-0">
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
-                  <label className="font-semibold text-gray-700 text-sm md:text-base whitespace-nowrap">Mã khuyến mãi:</label>
+                  <label className="font-semibold text-slate-700 text-sm md:text-base whitespace-nowrap">Mã khuyến mãi:</label>
                   <div className="relative w-full sm:w-auto">
                     <input
                       type="text"
@@ -279,8 +231,13 @@ export const CartSummary = ({ total, itemCount, discount = 0, onCouponApply }: C
                         setCouponCode(e.target.value);
                         setErrorMessage('');
                       }}
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter') {
+                          handleApplyCoupon();
+                        }
+                      }}
                       placeholder="Nhập mã khuyến mãi"
-                      className="w-full sm:w-[220px] md:w-[280px] py-2.5 md:py-3 pl-4 md:pl-5 pr-24 md:pr-28 border border-gray-300 rounded-full text-sm outline-none transition-all"
+                      className="w-full sm:w-[240px] md:w-[280px] py-2.5 md:py-3 pl-4 md:pl-5 pr-24 md:pr-28 border border-slate-300 rounded-full text-sm outline-none transition-all focus:border-black"
                     />
                     {selectedCoupon ? (
                       <button
@@ -293,7 +250,7 @@ export const CartSummary = ({ total, itemCount, discount = 0, onCouponApply }: C
                       <button
                         onClick={handleApplyCoupon}
                         disabled={isLoading}
-                        className="absolute right-1.5 top-1/2 -translate-y-1/2 py-1.5 md:py-[6px] px-3 md:px-5 rounded-full border border-gray-800 text-gray-800 transition-all duration-200 text-xs md:text-sm whitespace-nowrap btn-slide-overlay disabled:opacity-50"
+                        className="absolute right-1.5 top-1/2 -translate-y-1/2 py-1.5 md:py-[6px] px-3 md:px-5 rounded-full border border-slate-800 text-slate-800 transition-all duration-200 text-xs md:text-sm whitespace-nowrap hover:bg-slate-50 disabled:opacity-50"
                       >
                         <span>{isLoading ? '...' : 'Xác nhận'}</span>
                       </button>
@@ -301,7 +258,7 @@ export const CartSummary = ({ total, itemCount, discount = 0, onCouponApply }: C
                   </div>
                 </div>
                 {selectedCoupon && (
-                  <div className="ml-0 sm:ml-[120px] p-2 bg-green-50 border border-green-200 rounded-lg">
+                  <div className="p-2 bg-green-50 border border-green-200 rounded-lg">
                     <p className="text-xs text-green-800">
                       <span className="font-semibold">{selectedCoupon.code}</span> - Giảm {selectedCoupon.discountPercent}%
                     </p>
