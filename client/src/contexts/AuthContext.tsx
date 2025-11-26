@@ -1,7 +1,9 @@
-import { createContext, useContext, useState, useEffect } from 'react';
-import type { ReactNode } from 'react';
-import { authService } from '../services/auth.service';
-import type { AuthResponse } from '../services/auth.service';
+/* eslint-disable react-refresh/only-export-components */
+import { createContext, useContext, useState, useEffect } from "react";
+import type { ReactNode } from "react";
+import { authService } from "../services/auth.service";
+import type { AuthResponse } from "../services/auth.service";
+import { resetRefreshAttempts } from "../services/api";
 
 interface AuthContextType {
   user: AuthResponse | null;
@@ -53,8 +55,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     const intervalId = setInterval(async () => {
       try {
-        if (authService.isTokenExpiringSoon()) {
-          console.log('Token expiring soon, refreshing...');
+        if (authService.getToken() && authService.getRefreshToken()) {
+          console.log("Token expiring soon, refreshing...");
           const success = await authService.refreshToken();
           if (!success) {
             console.error('Failed to refresh token');

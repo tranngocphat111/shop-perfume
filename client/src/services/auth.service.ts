@@ -123,7 +123,6 @@ class AuthService {
     if (this.isTokenExpired()) {
       return false;
     }
-    
     return true;
   }
 
