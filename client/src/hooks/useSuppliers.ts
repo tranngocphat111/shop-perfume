@@ -11,7 +11,7 @@ export const useSuppliers = () => {
         const fetchSuppliers = async () => {
             try {
                 setLoading(true);
-                const suppliers = await apiService.get<Supplier[]>("/api/admin/suppliers");
+                const suppliers = await apiService.get<Supplier[]>("/admin/suppliers");
                 setSuppliers(suppliers || []);
                 setError(null);
             } catch (err) {
