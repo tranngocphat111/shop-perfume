@@ -2,8 +2,10 @@ package iuh.fit.server.services.impl;
 
 import iuh.fit.server.dto.request.PurchaseInvoiceDetailRequest;
 import iuh.fit.server.dto.request.PurchaseInvoiceRequest;
+import iuh.fit.server.dto.response.PurchaseInvoiceDetailResponse;
 import iuh.fit.server.dto.response.PurchaseInvoiceResponse;
 import iuh.fit.server.exception.ResourceNotFoundException;
+import iuh.fit.server.mapper.PurchaseInvoiceDetailMapper;
 import iuh.fit.server.mapper.PurchaseInvoiceMapper;
 import iuh.fit.server.model.entity.*;
 import iuh.fit.server.repository.*;
@@ -30,14 +32,24 @@ public class PurchaseInvoiceServiceImpl implements PurchaseInvoiceService {
     private final SupplierRepository supplierRepository;
     private final ProductRepository productRepository;
     private final InventoryRepository inventoryRepository;
-    private final PurchaseInvoiceMapper mapper;
-    
+    private final PurchaseInvoiceMapper purchaseInvoiceMapper;
+    private final PurchaseInvoiceDetailMapper purchaseInvoiceDetailMapper;
+
+
+    @Override
+    public List<PurchaseInvoiceDetailResponse> findByPurchaseDetail_PurchaseInvoiceId(int id) {
+        return detailRepository.findByPurchaseInvoice_PurchaseInvoiceId(id).stream()
+                .map(purchaseInvoiceDetailMapper::toResponse)
+                .collect(Collectors.toList());
+    }
+
+
     @Override
     @Transactional(readOnly = true)
     public List<PurchaseInvoiceResponse> findAll() {
         log.info("Finding all purchase invoices");
         return purchaseInvoiceRepository.findAll().stream()
-                .map(mapper::toResponse)
+                .map(purchaseInvoiceMapper::toResponse)
                 .collect(Collectors.toList());
     }
     
@@ -46,7 +58,7 @@ public class PurchaseInvoiceServiceImpl implements PurchaseInvoiceService {
     public Page<PurchaseInvoiceResponse> findAllPaginated(Pageable pageable) {
         log.info("Finding purchase invoices with pagination: {}", pageable);
         return purchaseInvoiceRepository.findAll(pageable)
-                .map(mapper::toResponse);
+                .map(purchaseInvoiceMapper::toResponse);
     }
     
     @Override
@@ -55,7 +67,7 @@ public class PurchaseInvoiceServiceImpl implements PurchaseInvoiceService {
         log.info("Finding purchase invoice by id: {}", id);
         PurchaseInvoice invoice = purchaseInvoiceRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Purchase invoice not found with id: " + id));
-        return mapper.toResponse(invoice);
+        return purchaseInvoiceMapper.toResponse(invoice);
     }
     
     @Override
@@ -67,7 +79,7 @@ public class PurchaseInvoiceServiceImpl implements PurchaseInvoiceService {
                 .orElseThrow(() -> new ResourceNotFoundException("Supplier not found with id: " + request.getSupplierId()));
         
         // Create invoice
-        PurchaseInvoice invoice = mapper.toEntity(request);
+        PurchaseInvoice invoice = purchaseInvoiceMapper.toEntity(request);
         invoice.setSupplier(supplier);
         invoice.setTotalAmount(0.0);
         
@@ -125,7 +137,7 @@ public class PurchaseInvoiceServiceImpl implements PurchaseInvoiceService {
         log.info("Purchase invoice created successfully with id: {}, total: {}", 
                 updated.getPurchaseInvoiceId(), updated.getTotalAmount());
         
-        return mapper.toResponse(updated);
+        return purchaseInvoiceMapper.toResponse(updated);
     }
     
     @Override
@@ -151,7 +163,7 @@ public class PurchaseInvoiceServiceImpl implements PurchaseInvoiceService {
         // - Creating new details
         
         PurchaseInvoice updated = purchaseInvoiceRepository.save(existing);
-        return mapper.toResponse(updated);
+        return purchaseInvoiceMapper.toResponse(updated);
     }
     
     @Override
