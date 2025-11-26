@@ -1,9 +1,7 @@
-/* eslint-disable react-refresh/only-export-components */
-import { createContext, useContext, useState, useEffect } from "react";
-import type { ReactNode } from "react";
-import { authService } from "../services/auth.service";
-import type { AuthResponse } from "../services/auth.service";
-import { resetRefreshAttempts } from "../services/api";
+import { createContext, useContext, useState, useEffect } from 'react';
+import type { ReactNode } from 'react';
+import { authService } from '../services/auth.service';
+import type { AuthResponse } from '../services/auth.service';
 
 interface AuthContextType {
   user: AuthResponse | null;
@@ -18,7 +16,6 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<AuthResponse | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     // Validate and potentially refresh token on mount
