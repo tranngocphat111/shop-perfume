@@ -58,7 +58,6 @@ export const CartSummary = ({ total, itemCount, discount = 0, onCouponApply }: C
       if (validation.valid && validation.coupon) {
         setSelectedCoupon(validation.coupon);
         setCouponCode(validation.coupon.code);
-        setShowCouponList(false);
         const discountAmount = validation.discountAmount || (total * validation.coupon.discountPercent) / 100;
         onCouponApply?.(validation.coupon, discountAmount);
       } else {
