@@ -10,7 +10,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isAdmin: boolean;
   isLoading: boolean;
-  login: (token: string, userData: AuthResponse) => void;
+  login: (token: string, userData: AuthResponse, mergeCart?: () => Promise<void>) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -48,36 +48,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     initAuth();
   }, []);
 
-  // Periodically check token expiration and refresh if needed
-  useEffect(() => {
-    if (!user) return;
+  // Removed periodic token refresh - let API handle 401 errors and refresh automatically
+  // This prevents race conditions and multiple refresh attempts
+  // The API will automatically refresh token when it expires and returns 401
 
-    const intervalId = setInterval(async () => {
-      try {
-        if (authService.getToken() && authService.getRefreshToken()) {
-          console.log("Token expiring soon, refreshing...");
-          const success = await authService.refreshToken();
-          if (!success) {
-            console.error("Failed to refresh token");
-            await logout();
-          }
-        }
-      } catch (error) {
-        console.error("Token refresh error:", error);
-        await logout();
-      }
-    }, 60000); // Check every minute
-
-    return () => clearInterval(intervalId);
-  }, [user]);
-
-  const login = (token: string, userData: AuthResponse) => {
+  const login = async (token: string, userData: AuthResponse, mergeCart?: () => Promise<void>) => {
     authService.setToken(token);
-    authService.setRefreshToken(userData.refreshToken);
+    // REFRESH TOKEN - COMMENTED OUT
+    // authService.setRefreshToken(userData.refreshToken);
     authService.setUser(userData);
     setUser(userData);
+    // REFRESH TOKEN - COMMENTED OUT
     // Reset refresh attempts on successful login
-    resetRefreshAttempts();
+    // resetRefreshAttempts();
+    resetRefreshAttempts(); // No-op when refresh token is disabled
   };
 
   const logout = async () => {

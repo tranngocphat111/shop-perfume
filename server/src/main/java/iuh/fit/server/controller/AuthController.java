@@ -20,6 +20,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
@@ -59,17 +60,21 @@ public class AuthController {
 
     @PostMapping("/refresh")
     @Operation(summary = "Refresh access token bằng refresh token")
+    @Transactional
     public ResponseEntity<TokenRefreshResponse> refreshToken(
             @Valid @RequestBody RefreshTokenRequest request,
             HttpServletRequest httpRequest) {
         String requestRefreshToken = request.getRefreshToken();
         
-        // Verify refresh token
+        // Verify refresh token (this loads User with JOIN FETCH)
         RefreshToken refreshToken = refreshTokenService.verifyRefreshToken(requestRefreshToken);
-        User user = refreshToken.getUser();
+        
+        // Get user email while still in transaction to avoid LazyInitializationException
+        String userEmail = refreshToken.getUser().getEmail();
+        User user = refreshToken.getUser(); // User is already loaded by JOIN FETCH
         
         // Generate new access token
-        String newAccessToken = jwtTokenProvider.generateToken(user.getEmail());
+        String newAccessToken = jwtTokenProvider.generateToken(userEmail);
         
         // Generate new refresh token (rotate refresh token)
         RefreshToken newRefreshToken = refreshTokenService.createRefreshToken(user, httpRequest);
@@ -77,7 +82,7 @@ public class AuthController {
         // Revoke old refresh token
         refreshTokenService.revokeRefreshToken(requestRefreshToken);
         
-        log.info("Token refreshed successfully for user: {}", user.getEmail());
+        log.info("Token refreshed successfully for user: {}", userEmail);
         
         return ResponseEntity.ok(TokenRefreshResponse.builder()
                 .accessToken(newAccessToken)

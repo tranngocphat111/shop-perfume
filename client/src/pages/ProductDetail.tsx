@@ -164,7 +164,7 @@ export const ProductDetail = () => {
 
     try {
       setIsAddingToCart(true);
-      addToCart(product, quantity);
+      await addToCart(product, quantity);
 
       // Show success notification
       const notification = document.createElement("div");
