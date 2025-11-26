@@ -1,15 +1,20 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '../../contexts/AuthContext';
+import { AddressSelector } from './AddressSelector';
+import { addressService, type Address } from '../../services/address.service';
 import type { CheckoutFormData, Province, District, Ward, ProvinceDetail, DistrictDetail } from '../../types';
 
 interface ShippingFormProps {
   formData: CheckoutFormData;
   onUpdate: (data: Partial<CheckoutFormData>) => void;
+  validationErrors?: Record<string, string>;
 }
 
 const PROVINCES_API = 'https://provinces.open-api.vn/api/p/';
 const DISTRICTS_API = 'https://provinces.open-api.vn/api/d/';
 
-export const ShippingForm: React.FC<ShippingFormProps> = ({ formData, onUpdate }) => {
+export const ShippingForm: React.FC<ShippingFormProps> = ({ formData, onUpdate, validationErrors = {} }) => {
+  const { user, isAuthenticated } = useAuth();
   const [provinces, setProvinces] = useState<Province[]>([]);
   const [districts, setDistricts] = useState<District[]>([]);
   const [wards, setWards] = useState<Ward[]>([]);
@@ -110,11 +115,134 @@ export const ShippingForm: React.FC<ShippingFormProps> = ({ formData, onUpdate }
     }
   };
 
+  // Normalize name for better matching
+  const normalizeName = (name: string): string => {
+    return name
+      .toLowerCase()
+      .replace(/^(thành phố|tp\.?|tỉnh|t\.?)\s*/i, '')
+      .replace(/\s*(thành phố|tp\.?|tỉnh|t\.?)$/i, '')
+      .replace(/^(quận|huyện|q\.?|h\.?)\s*/i, '')
+      .replace(/\s*(quận|huyện|q\.?|h\.?)$/i, '')
+      .replace(/^(phường|xã|thị trấn|p\.?|x\.?|tt\.?)\s*/i, '')
+      .replace(/\s*(phường|xã|thị trấn|p\.?|x\.?|tt\.?)$/i, '')
+      .trim();
+  };
+
+  // Handle address selection from AddressSelector
+  const handleSelectAddress = (address: Address, loadedProvinces: Province[], loadedDistricts: District[], loadedWards: Ward[]) => {
+    console.log('[ShippingForm] Handling address selection:', address);
+    console.log('[ShippingForm] Loaded provinces:', loadedProvinces.length);
+    console.log('[ShippingForm] Loaded districts:', loadedDistricts.length);
+    console.log('[ShippingForm] Loaded wards:', loadedWards.length);
+
+    // Update provinces, districts, wards
+    setProvinces(loadedProvinces);
+    setDistricts(loadedDistricts);
+    setWards(loadedWards);
+
+    // Normalize names for matching
+    const normalizedCity = normalizeName(address.city);
+    const normalizedDistrict = normalizeName(address.district);
+    const normalizedWard = normalizeName(address.ward || '');
+
+    // Find matching codes (try multiple strategies)
+    let province = loadedProvinces.find(p => {
+      const normalizedP = normalizeName(p.name);
+      return normalizedP === normalizedCity || 
+             p.name === address.city ||
+             p.name.includes(address.city) || 
+             address.city.includes(p.name) ||
+             normalizedP.includes(normalizedCity) ||
+             normalizedCity.includes(normalizedP);
+    });
+
+    let district: District | undefined;
+    if (province && address.district) {
+      district = loadedDistricts.find(d => {
+        const normalizedD = normalizeName(d.name);
+        return normalizedD === normalizedDistrict ||
+               d.name === address.district ||
+               d.name.includes(address.district) || 
+               address.district.includes(d.name) ||
+               normalizedD.includes(normalizedDistrict) ||
+               normalizedDistrict.includes(normalizedD);
+      });
+    }
+
+    let ward: Ward | undefined;
+    if (district && address.ward) {
+      ward = loadedWards.find(w => {
+        const normalizedW = normalizeName(w.name);
+        return normalizedW === normalizedWard ||
+               w.name === address.ward ||
+               w.name.includes(address.ward) || 
+               address.ward.includes(w.name) ||
+               normalizedW.includes(normalizedWard) ||
+               normalizedWard.includes(normalizedW);
+      });
+    }
+
+    console.log('[ShippingForm] Matched province:', province?.name, 'code:', province?.code);
+    console.log('[ShippingForm] Matched district:', district?.name, 'code:', district?.code);
+    console.log('[ShippingForm] Matched ward:', ward?.name, 'code:', ward?.code);
+
+    // Update form data - always fill all fields from address
+    onUpdate({
+      fullName: address.recipientName || '',
+      phone: address.phone || '',
+      city: province?.name || address.city || '',
+      cityCode: province?.code.toString() || '',
+      district: district?.name || address.district || '',
+      districtCode: district?.code.toString() || '',
+      ward: ward?.name || address.ward || '',
+      wardCode: ward?.code.toString() || '',
+      address: address.addressLine || '',
+    });
+
+    console.log('[ShippingForm] Form updated with address data');
+  };
+
+  // Wrapper functions for AddressSelector
+  const loadProvincesForSelector = async (): Promise<Province[]> => {
+    if (provinces.length > 0) return provinces;
+    const response = await fetch(PROVINCES_API);
+    const data: Province[] = await response.json();
+    setProvinces(data);
+    return data;
+  };
+
+  const loadDistrictsForSelector = async (provinceCode: string): Promise<District[]> => {
+    const response = await fetch(`${PROVINCES_API}${provinceCode}?depth=2`);
+    const data: ProvinceDetail = await response.json();
+    const loadedDistricts = data.districts || [];
+    setDistricts(loadedDistricts);
+    return loadedDistricts;
+  };
+
+  const loadWardsForSelector = async (districtCode: string): Promise<Ward[]> => {
+    const response = await fetch(`${DISTRICTS_API}${districtCode}?depth=2`);
+    const data: DistrictDetail = await response.json();
+    const loadedWards = data.wards || [];
+    setWards(loadedWards);
+    return loadedWards;
+  };
+
   return (
     <div className="bg-white p-6 md:p-8 rounded-xl shadow-sm">
       <h2 className="text-xl md:text-2xl font-semibold mb-6 pb-3 border-b-2 border-gray-100">
         Thông tin giao hàng
       </h2>
+
+      {/* Address Selector - only show if user is authenticated */}
+      {isAuthenticated && (
+        <AddressSelector
+          formData={formData}
+          onSelectAddress={handleSelectAddress}
+          onLoadProvinces={loadProvincesForSelector}
+          onLoadDistricts={loadDistrictsForSelector}
+          onLoadWards={loadWardsForSelector}
+        />
+      )}
 
       <div className="space-y-4">
         {/* Họ và tên & Số điện thoại */}
@@ -126,11 +254,30 @@ export const ShippingForm: React.FC<ShippingFormProps> = ({ formData, onUpdate }
             <input
               type="text"
               value={formData.fullName}
-              onChange={(e) => onUpdate({ fullName: e.target.value })}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent transition-all"
-              placeholder="Nhập đầy đủ họ và tên của bạn"
+              onChange={(e) => {
+                const value = e.target.value;
+                onUpdate({ fullName: value });
+              }}
+              onBlur={(e) => {
+                // Validate on blur
+                const value = e.target.value.trim();
+                if (value && (value.length < 2 || value.length > 100)) {
+                  // Error will be shown from backend validation
+                } else if (value && !/^[\p{L}\s]+$/u.test(value)) {
+                  // Error will be shown from backend validation
+                }
+              }}
+              className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent transition-all ${
+                validationErrors.fullName ? 'border-red-500 bg-red-50' : 'border-gray-300'
+              }`}
+              placeholder="Nhập đầy đủ họ và tên của bạn (chỉ chữ cái)"
               required
             />
+            {validationErrors.fullName && (
+              <p className="mt-1 text-sm text-red-600 font-medium">
+                {validationErrors.fullName}
+              </p>
+            )}
           </div>
 
           <div>
@@ -140,11 +287,22 @@ export const ShippingForm: React.FC<ShippingFormProps> = ({ formData, onUpdate }
             <input
               type="tel"
               value={formData.phone}
-              onChange={(e) => onUpdate({ phone: e.target.value })}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent transition-all"
-              placeholder="Nhập số điện thoại"
+              onChange={(e) => {
+                const value = e.target.value;
+                // Only allow numbers, +, and spaces (will be trimmed)
+                onUpdate({ phone: value });
+              }}
+              className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent transition-all ${
+                validationErrors.phone ? 'border-red-500 bg-red-50' : 'border-gray-300'
+              }`}
+              placeholder="VD: 0912345678 hoặc +84912345678"
               required
             />
+            {validationErrors.phone && (
+              <p className="mt-1 text-sm text-red-600 font-medium">
+                {validationErrors.phone}
+              </p>
+            )}
           </div>
         </div>
 
@@ -157,10 +315,17 @@ export const ShippingForm: React.FC<ShippingFormProps> = ({ formData, onUpdate }
             type="email"
             value={formData.email}
             onChange={(e) => onUpdate({ email: e.target.value })}
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent transition-all"
-            placeholder="Nhập Email"
+            className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent transition-all ${
+              validationErrors.email ? 'border-red-500 bg-red-50' : 'border-gray-300'
+            }`}
+            placeholder="VD: example@email.com"
             required
           />
+          {validationErrors.email && (
+            <p className="mt-1 text-sm text-red-600 font-medium">
+              {validationErrors.email}
+            </p>
+          )}
         </div>
 
         {/* Tỉnh/Thành phố & Quận/Huyện */}
@@ -172,7 +337,9 @@ export const ShippingForm: React.FC<ShippingFormProps> = ({ formData, onUpdate }
             <select
               value={formData.cityCode}
               onChange={handleProvinceChange}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent transition-all bg-white appearance-none cursor-pointer"
+              className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent transition-all bg-white appearance-none cursor-pointer ${
+                validationErrors.city ? 'border-red-500 bg-red-50' : 'border-gray-300'
+              }`}
               style={{
                 backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23333' d='M6 9L1 4h10z'/%3E%3C/svg%3E")`,
                 backgroundRepeat: 'no-repeat',
@@ -191,6 +358,11 @@ export const ShippingForm: React.FC<ShippingFormProps> = ({ formData, onUpdate }
                 </option>
               ))}
             </select>
+            {validationErrors.city && (
+              <p className="mt-1 text-sm text-red-600 font-medium">
+                {validationErrors.city}
+              </p>
+            )}
           </div>
 
           <div>
@@ -200,7 +372,9 @@ export const ShippingForm: React.FC<ShippingFormProps> = ({ formData, onUpdate }
             <select
               value={formData.districtCode}
               onChange={handleDistrictChange}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent transition-all bg-white appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent transition-all bg-white appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
+                validationErrors.district ? 'border-red-500 bg-red-50' : 'border-gray-300'
+              }`}
               style={{
                 backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23333' d='M6 9L1 4h10z'/%3E%3C/svg%3E")`,
                 backgroundRepeat: 'no-repeat',
@@ -219,6 +393,11 @@ export const ShippingForm: React.FC<ShippingFormProps> = ({ formData, onUpdate }
                 </option>
               ))}
             </select>
+            {validationErrors.district && (
+              <p className="mt-1 text-sm text-red-600 font-medium">
+                {validationErrors.district}
+              </p>
+            )}
           </div>
         </div>
 
@@ -231,7 +410,9 @@ export const ShippingForm: React.FC<ShippingFormProps> = ({ formData, onUpdate }
             <select
               value={formData.wardCode}
               onChange={handleWardChange}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent transition-all bg-white appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent transition-all bg-white appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
+                validationErrors.ward ? 'border-red-500 bg-red-50' : 'border-gray-300'
+              }`}
               style={{
                 backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23333' d='M6 9L1 4h10z'/%3E%3C/svg%3E")`,
                 backgroundRepeat: 'no-repeat',
@@ -250,6 +431,11 @@ export const ShippingForm: React.FC<ShippingFormProps> = ({ formData, onUpdate }
                 </option>
               ))}
             </select>
+            {validationErrors.ward && (
+              <p className="mt-1 text-sm text-red-600 font-medium">
+                {validationErrors.ward}
+              </p>
+            )}
           </div>
 
           <div>
@@ -260,10 +446,17 @@ export const ShippingForm: React.FC<ShippingFormProps> = ({ formData, onUpdate }
               type="text"
               value={formData.address}
               onChange={(e) => onUpdate({ address: e.target.value })}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent transition-all"
+              className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent transition-all ${
+                validationErrors.address ? 'border-red-500 bg-red-50' : 'border-gray-300'
+              }`}
               placeholder="Ví dụ: Số 18 Ngõ 86 Phú Kiều"
               required
             />
+            {validationErrors.address && (
+              <p className="mt-1 text-sm text-red-600 font-medium">
+                {validationErrors.address}
+              </p>
+            )}
           </div>
         </div>
 
@@ -275,10 +468,40 @@ export const ShippingForm: React.FC<ShippingFormProps> = ({ formData, onUpdate }
           <textarea
             value={formData.note || ''}
             onChange={(e) => onUpdate({ note: e.target.value })}
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent transition-all resize-y min-h-[100px]"
+            className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent transition-all resize-y min-h-[100px] ${
+              validationErrors.note ? 'border-red-500 bg-red-50' : 'border-gray-300'
+            }`}
             placeholder="Ghi chú..."
           />
+          {validationErrors.note && (
+            <p className="mt-1 text-sm text-red-600 font-medium">
+              {validationErrors.note}
+            </p>
+          )}
         </div>
+
+        {/* General Error (if any) */}
+        {validationErrors._general && (
+          <div className="p-3 bg-red-50 border border-red-500 rounded-lg">
+            <p className="text-sm text-red-600 font-medium">
+              {validationErrors._general}
+            </p>
+          </div>
+        )}
+
+        {/* Cart Items Errors (if any) */}
+        {validationErrors._cartItemsArray && (
+          <div className="p-3 bg-red-50 border border-red-500 rounded-lg">
+            <p className="text-sm font-semibold text-red-700 mb-2">Lỗi sản phẩm:</p>
+            <ul className="list-disc list-inside space-y-1">
+              {JSON.parse(validationErrors._cartItemsArray).map((error: string, index: number) => (
+                <li key={index} className="text-sm text-red-600">
+                  {error}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
     </div>
   );

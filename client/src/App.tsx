@@ -4,30 +4,60 @@ import { AuthProvider } from "./contexts/AuthContext";
 import { Header } from "./components/Header";
 import { Home } from "./pages/Home";
 import { Products as CustomerProducts } from "./pages/Products";
+import { ProductDetail } from "./pages/ProductDetail";
 import { Cart } from "./pages/Cart";
 import { Checkout } from "./pages/Checkout";
+import { Payment } from "./pages/Payment";
+import { MyOrders } from "./pages/MyOrders";
 import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
+import AdminLogin from "./pages/auth/AdminLogin";
+import Profile from "./pages/Profile";
+import { ProtectedRoute } from "./components/ProtectedRoute";
 import "./App.css";
 import { Dashboard } from "./pages/admin/Dashboard";
 import { StockAdjustments } from "./pages/admin/StockAdjustment";
 import { Products as AdminProducts } from "./pages/admin/Products";
+import { Footer } from "./components/Footer";
+import { Suppliers } from "./pages/admin/Suppliers";
+import { PurchaseInvoices } from "./pages/admin/PurchaseInvoices";
+import { ScrollToTop } from "./components/ScrollToTop";
 
 function AppContent() {
   const location = useLocation();
   const isHomePage = location.pathname === "/";
+  const isAdminRoute = location.pathname.startsWith("/admin");
+  const isAuthRoute =
+    location.pathname === "/login" ||
+    location.pathname === "/register" ||
+    location.pathname === "/admin/login";
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Header />
-      <main className={`min-h-[calc(100vh-80px)] ${isHomePage ? "" : "pt-20"}`}>
+      {!isAdminRoute && !isAuthRoute && <Header />}
+      <main
+        className={`min-h-[calc(100vh-80px)] ${
+          isHomePage || isAdminRoute || isAuthRoute ? "" : "pt-20"
+        }`}>
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/products" element={<CustomerProducts />} />
+          <Route path="/products/:id" element={<ProductDetail />} />
           <Route path="/cart" element={<Cart />} />
           <Route path="/checkout" element={<Checkout />} />
+          <Route path="/payment" element={<Payment />} />
+          <Route path="/my-orders" element={<MyOrders />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/admin/login" element={<AdminLogin />} />
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute>
+                <Profile />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/about"
             element={
@@ -46,14 +76,50 @@ function AppContent() {
               <div className="p-8 text-center">Contact Page - Coming Soon</div>
             }
           />
-          <Route path="/admin" element={<Dashboard />} />
-          <Route path="/admin/products" element={<AdminProducts />} />
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute requireAdmin={true}>
+                <Dashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/products"
+            element={
+              <ProtectedRoute requireAdmin={true}>
+                <AdminProducts />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/suppliers"
+            element={
+              <ProtectedRoute requireAdmin={true}>
+                <Suppliers />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/admin/stock-adjustments"
-            element={<StockAdjustments />}
+            element={
+              <ProtectedRoute requireAdmin={true}>
+                <StockAdjustments />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/purchase-invoices"
+            element={
+              <ProtectedRoute requireAdmin={true}>
+                <PurchaseInvoices />
+              </ProtectedRoute>
+            }
           />
         </Routes>
       </main>
+      <Footer />
+      <ScrollToTop />
     </div>
   );
 }

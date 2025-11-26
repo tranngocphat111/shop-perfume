@@ -27,7 +27,7 @@ export interface UpdateProductRequest {
     categoryId: number;
 }
 
-export const productAdminService = {
+export const productService = {
     async getProductPage(
         page: number,
         size: number,

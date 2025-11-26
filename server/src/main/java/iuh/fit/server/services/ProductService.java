@@ -58,5 +58,27 @@ public interface ProductService {
      */
     void delete(int productId);
 
+    /**
+     * Lấy danh sách sản phẩm bán chạy nhất dựa trên tổng quantity từ order_item
+     * @param limit Số lượng sản phẩm cần lấy (mặc định 20)
+     * @return Danh sách sản phẩm bán chạy nhất
+     */
+    List<ProductResponse> findBestSellers(int limit);
+
+    /**
+     * Lọc sản phẩm theo brand, category và search term
+     */
+    Page<ProductResponse> filterProducts(Integer brandId, Integer categoryId, String searchTerm, Pageable pageable);
+
+    /**
+     * Lấy danh sách sản phẩm theo brandId
+     */
+    List<ProductResponse> findByBrandId(int brandId);
+
+    /**
+     * Lấy danh sách sản phẩm theo categoryId
+     */
+    List<ProductResponse> findByCategoryId(int categoryId);
+
 }
 

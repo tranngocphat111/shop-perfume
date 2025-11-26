@@ -1,4 +1,4 @@
-import { apiService } from './api';
+import { apiService } from "./api";
 
 export interface LoginRequest {
   email: string;
@@ -23,27 +23,33 @@ export interface AuthResponse {
 }
 
 class AuthService {
-  private readonly TOKEN_KEY = 'auth_token';
-  private readonly USER_KEY = 'user_info';
+  private readonly TOKEN_KEY = "auth_token";
+  private readonly USER_KEY = "user_info";
 
   async login(credentials: LoginRequest): Promise<AuthResponse> {
-    const response = await apiService.post<AuthResponse>('/auth/login', credentials);
+    const response = await apiService.post<AuthResponse>(
+      "/auth/login",
+      credentials
+    );
 
     // Lưu token và thông tin user vào localStorage
-    this.setToken(response.data.token);
-    this.setUser(response.data);
+    this.setToken(response.token);
+    this.setUser(response);
 
-    return response.data;
+    return response;
   }
 
   async register(userData: RegisterRequest): Promise<AuthResponse> {
-    const response = await apiService.post<AuthResponse>('/auth/register', userData);
+    const response = await apiService.post<AuthResponse>(
+      "/auth/register",
+      userData
+    );
 
     // Lưu token và thông tin user vào localStorage
-    this.setToken(response.data.token);
-    this.setUser(response.data);
+    this.setToken(response.token);
+    this.setUser(response);
 
-    return response.data;
+    return response;
   }
 
   logout(): void {
@@ -65,7 +71,7 @@ class AuthService {
 
     try {
       return JSON.parse(userStr);
-    } catch (e) {
+    } catch {
       return null;
     }
   }
@@ -80,7 +86,7 @@ class AuthService {
 
   isAdmin(): boolean {
     const user = this.getUser();
-    return user?.role === 'ADMIN';
+    return user?.role === "ADMIN";
   }
 
   // Check if token is expired by parsing JWT
@@ -90,10 +96,10 @@ class AuthService {
 
     try {
       // Decode JWT token (without verification, just to check expiration)
-      const payload = JSON.parse(atob(token.split('.')[1]));
+      const payload = JSON.parse(atob(token.split(".")[1]));
       const expirationTime = payload.exp * 1000; // Convert to milliseconds
       return Date.now() >= expirationTime;
-    } catch (e) {
+    } catch {
       return true; // If can't parse, consider it expired
     }
   }
@@ -109,4 +115,3 @@ class AuthService {
 }
 
 export const authService = new AuthService();
-

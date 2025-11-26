@@ -1,6 +1,7 @@
 import React from 'react';
 import { FaTruck, FaCheckCircle, FaExclamationCircle } from 'react-icons/fa';
 import type { CartItem } from '../../types';
+import { getPrimaryImageUrl, formatCurrency } from '../../utils/helpers';
 
 interface OrderSummaryProps {
   cartItems: CartItem[];
@@ -24,20 +25,6 @@ export const OrderSummary: React.FC<OrderSummaryProps> = ({
   const shippingFee = 0; // Free shipping
   const total = subtotal + shippingFee;
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('vi-VN').format(value);
-  };
-
-  const getImageUrl = (imageUrl?: string) => {
-    if (!imageUrl) {
-      return 'https://via.placeholder.com/60';
-    }
-    if (imageUrl.startsWith('http')) {
-      return imageUrl;
-    }
-    return `https://res.cloudinary.com/piin/image/upload/${imageUrl}`;
-  };
-
   return (
     <div className="bg-white p-6 md:p-8 rounded-xl shadow-sm sticky top-5">
       <h3 className="text-xl font-semibold mb-6 pb-3 border-b-2 border-gray-100">
@@ -49,7 +36,7 @@ export const OrderSummary: React.FC<OrderSummaryProps> = ({
         {cartItems.map((item, index) => (
           <div key={index} className="flex gap-4 pb-4 border-b border-gray-100 last:border-b-0">
             <img
-              src={getImageUrl(item.product.imageUrl)}
+              src={getPrimaryImageUrl(item.product)}
               alt={item.product.name}
               className="w-16 h-16 object-cover rounded-lg flex-shrink-0"
               onError={(e) => {

@@ -41,8 +41,7 @@ public class AuthServiceImpl implements AuthService{
         user.setName(request.getName());
         user.setEmail(request.getEmail());
         user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
-        user.setPhone(request.getPhone());
-        user.setAddress(request.getAddress());
+        // Phone and address removed - users can add addresses after registration
         user.setStatus(UserStatus.ACTIVE);
 
         Role customerRole = roleRepository.findByName("CUSTOMER")

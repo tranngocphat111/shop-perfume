@@ -61,15 +61,63 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
-        String path = request.getRequestURI();
-        // Skip JWT filter for public endpoints
-        return path.startsWith("/api/auth/") ||
-               path.startsWith("/api/products/") ||
-               path.startsWith("/api/inventories/") ||
-               path.startsWith("/api/brands/") ||
-               path.startsWith("/api/categories/") ||
-               path.startsWith("/api/swagger-ui") ||
-               path.startsWith("/api/v3/api-docs");
+        String requestURI = request.getRequestURI();
+        String servletPath = request.getServletPath();
+        String method = request.getMethod();
+        
+        // With context-path=/api, servletPath already excludes context path
+        // Example: requestURI=/api/orders/create, servletPath=/orders/create (context-path already removed)
+        // So we use servletPath directly, or requestURI if servletPath is empty
+        String pathToCheck = (servletPath != null && !servletPath.isEmpty()) ? servletPath : requestURI;
+        
+        // CRITICAL: Skip JWT filter for webhook endpoints FIRST
+        // Check both servletPath (after context-path removal) and full requestURI
+        boolean isWebhook = (pathToCheck != null && pathToCheck.startsWith("/webhooks/")) ||
+                           (requestURI != null && (requestURI.startsWith("/api/webhooks/") || requestURI.startsWith("/webhooks/")));
+        
+        if (isWebhook) {
+            logger.debug("Skipping JWT filter for webhook: servletPath=" + servletPath + ", requestURI=" + requestURI + ", pathToCheck=" + pathToCheck);
+            return true;
+        }
+        
+        // Always skip JWT filter for auth endpoints
+        if (pathToCheck.startsWith("/auth/") || requestURI.startsWith("/api/auth/")) {
+            return true;
+        }
+        
+        // Skip JWT filter for swagger/docs
+        if (pathToCheck.startsWith("/swagger-ui") || pathToCheck.startsWith("/v3/api-docs") ||
+            requestURI.startsWith("/api/swagger-ui") || requestURI.startsWith("/api/v3/api-docs")) {
+            return true;
+        }
+        
+        // Skip JWT filter for public order/payment endpoints (guest checkout)
+        if (pathToCheck.equals("/orders/create") || pathToCheck.startsWith("/payment/check-qr") ||
+            pathToCheck.matches("/orders/\\d+/cancel-timeout") || 
+            pathToCheck.startsWith("/orders/my-orders")) {
+            return true;
+        }
+        
+        // Skip JWT filter for GET requests on public endpoints (read-only)
+        if ("GET".equalsIgnoreCase(method)) {
+            boolean isPublicGetEndpoint = pathToCheck.startsWith("/products/") ||
+                   pathToCheck.startsWith("/inventories/") ||
+                   pathToCheck.startsWith("/brands/") ||
+                   pathToCheck.startsWith("/categories/") ||
+                   pathToCheck.startsWith("/suppliers/") ||
+                   requestURI.startsWith("/api/products/") ||
+                   requestURI.startsWith("/api/inventories/") ||
+                   requestURI.startsWith("/api/brands/") ||
+                   requestURI.startsWith("/api/categories/") ||
+                   requestURI.startsWith("/api/suppliers/");
+            
+            if (isPublicGetEndpoint) {
+                return true;
+            }
+        }
+        
+        // For POST, PUT, DELETE on admin endpoints - require authentication (don't skip filter)
+        return false;
     }
 
 

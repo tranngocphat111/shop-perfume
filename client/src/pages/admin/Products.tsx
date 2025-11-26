@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { AdminLayout, DataTable, type Column } from "../../components/admin";
-import { productAdminService } from "../../services/product.service";
+import { productService as productAdminService } from "../../services/product.service";
 import { productService } from "../../services/perfume.service";
 import type { Brand, Category, Product } from "../../types";
 import {
@@ -39,7 +39,8 @@ export const Products = () => {
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<"add" | "edit">("add");
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [selectedProduct, setSelectedProduct] =
+    useState<ProductFormData | null>(null);
 
   // Detail modal state
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
@@ -368,7 +369,7 @@ export const Products = () => {
           }\nGiá: ${data.unitPrice.toLocaleString()} đ`
         );
       } else {
-        if (!selectedProduct) {
+        if (!selectedProduct || !selectedProduct.productId) {
           alert("⚠️ Không có sản phẩm nào được chọn để sửa!");
           return;
         }
@@ -412,7 +413,7 @@ export const Products = () => {
           });
 
           await productAdminService.updateProductWithImages(
-            selectedProduct.productId,
+            selectedProduct.productId!,
             payload,
             data.images,
             data.imagesToDelete,
@@ -421,7 +422,7 @@ export const Products = () => {
         } else {
           // Use regular update if no image changes
           await productAdminService.updateProduct(
-            selectedProduct.productId,
+            selectedProduct.productId!,
             payload
           );
         }
@@ -556,23 +557,7 @@ export const Products = () => {
           mode={modalMode}
           brands={brands}
           categories={categories}
-          initialData={
-            selectedProduct
-              ? {
-                  productId: selectedProduct.productId,
-                  name: selectedProduct.name,
-                  description: selectedProduct.description,
-                  perfumeLongevity: selectedProduct.perfumeLongevity,
-                  perfumeConcentration: selectedProduct.perfumeConcentration,
-                  releaseYear: selectedProduct.releaseYear,
-                  columeMl: selectedProduct.columeMl,
-                  status: selectedProduct.status,
-                  unitPrice: selectedProduct.unitPrice,
-                  brandId: selectedProduct.brand.brandId,
-                  categoryId: selectedProduct.category.categoryId,
-                }
-              : undefined
-          }
+          initialData={selectedProduct || undefined}
         />
 
         {/* Detail Modal */}

@@ -20,7 +20,7 @@ export const AdminLayout = ({ children }: AdminLayoutProps) => {
       <div className="flex">
         <AdminSidebar isOpen={isSidebarOpen} />
         <main
-          className={`flex-1 p-6 mt-16 transition-all duration-300 ${
+          className={`flex-1 p-6 mt-6 transition-all duration-300 ${
             isSidebarOpen ? "ml-64" : "ml-0"
           }`}>
           {children}
