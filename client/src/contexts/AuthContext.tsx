@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useState, useEffect } from "react";
 import type { ReactNode } from "react";
 import { authService } from "../services/auth.service";
@@ -53,7 +54,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     const intervalId = setInterval(async () => {
       try {
-        if (authService.isTokenExpiringSoon()) {
+        if (authService.getToken() && authService.getRefreshToken()) {
           console.log("Token expiring soon, refreshing...");
           const success = await authService.refreshToken();
           if (!success) {
