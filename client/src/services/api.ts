@@ -16,10 +16,16 @@ const clearAuthData = () => {
 };
 
 // Helper function to get auth headers
-const getAuthHeaders = async (
-  debug: boolean = false
-): Promise<Record<string, string>> => {
+const getAuthHeaders = async (): Promise<Record<string, string>> => {
   const token = localStorage.getItem("auth_token");
+  const headers: Record<string, string> = {};
+
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
+  return headers;
+};
 
 // Handle 401 errors - redirect to login
 const handle401Error = async <T>(endpoint: string): Promise<T> => {
@@ -35,7 +41,7 @@ export const apiService = {
   async get<T>(endpoint: string): Promise<T> {
     try {
       const fullUrl = `${API_BASE_URL}${endpoint}`;
-      const headers = { ...getAuthHeaders() };
+      const headers = { ...(await getAuthHeaders()) };
 
       // Only log non-polling requests (payment check is called frequently)
       const isPollingRequest = endpoint.includes("/payment/check-qr");
