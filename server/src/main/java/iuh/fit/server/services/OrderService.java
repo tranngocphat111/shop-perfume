@@ -11,6 +11,7 @@ public interface OrderService {
     OrderResponse createOrder(OrderCreateRequest request);
     
     PaymentCheckResponse checkQRPayment(String orderId);
+    PaymentCheckResponse checkQRPayment(String orderId, boolean debug);
     
     void cancelOrderIfTimeout(Integer orderId);
     

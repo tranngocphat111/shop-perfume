@@ -111,22 +111,12 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
 
     @Override
     public PaymentCheckResponse checkQRPayment(String orderId) {
-        // First, check if order should be cancelled due to timeout
-        try {
-            Integer orderIdInt = Integer.parseInt(orderId);
-            cancelOrderIfTimeout(orderIdInt);
-            
-            // Check if order was cancelled
-            if (isOrderCancelled(orderIdInt)) {
-                PaymentCheckResponse response = new PaymentCheckResponse();
-                response.setPaid(false);
-                response.setOrderId(orderId);
-                response.setCancelled(true);
-                return response;
-            }
-        } catch (NumberFormatException e) {
-            // Invalid order ID format
-        }
+        return checkQRPayment(orderId, false);
+    }
+    
+    @Override
+    public PaymentCheckResponse checkQRPayment(String orderId, boolean debug) {
+        log.info("🔍 [checkQRPayment] Checking payment for orderId: {}, debug: {}", orderId, debug);
         
         // Check actual payment status from database
         PaymentCheckResponse response = new PaymentCheckResponse();
@@ -134,40 +124,105 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
         response.setPaid(false);
         response.setCancelled(false);
         
+        if (debug) {
+            response.setDebugMessage("Debug mode enabled");
+        }
+        
         try {
             Integer orderIdInt = Integer.parseInt(orderId);
+            log.info("🔍 [checkQRPayment] Parsed orderId to integer: {}", orderIdInt);
+            
+            // First, check if order should be cancelled due to timeout
+            cancelOrderIfTimeout(orderIdInt);
+            
+            // Check if order was cancelled
+            if (isOrderCancelled(orderIdInt)) {
+                log.warn("⚠️ [checkQRPayment] Order {} is cancelled", orderIdInt);
+                response.setCancelled(true);
+                if (debug) {
+                    response.setDebugMessage("Order is cancelled due to timeout");
+                }
+                return response;
+            }
+            
             Optional<Order> orderOpt = orderRepository.findById(orderIdInt);
             
             if (orderOpt.isEmpty()) {
+                log.warn("⚠️ [checkQRPayment] Order {} not found", orderIdInt);
+                if (debug) {
+                    response.setOrderExists(false);
+                    response.setDebugMessage("Order not found in database");
+                }
                 return response;
+            }
+            
+            if (debug) {
+                response.setOrderExists(true);
             }
             
             Order order = orderOpt.get();
             Payment payment = order.getPayment();
             
             if (payment == null) {
+                log.warn("⚠️ [checkQRPayment] Payment not found for order {}", orderIdInt);
+                if (debug) {
+                    response.setPaymentExists(false);
+                    response.setDebugMessage("Payment not found for this order");
+                }
                 return response;
             }
+            
+            if (debug) {
+                response.setPaymentExists(true);
+                response.setPaymentStatus(payment.getStatus().toString());
+            }
+            
+            log.info("📊 [checkQRPayment] Order {} found. Payment status: {}, Amount: {}", 
+                    orderIdInt, payment.getStatus(), payment.getAmount());
             
             // Always set amount (even if not paid yet) so frontend can display it
             response.setAmount(payment.getAmount());
             
             // Check if payment is PAID
             if (payment.getStatus() == PaymentStatus.PAID) {
+                log.info("✅ [checkQRPayment] Payment is PAID for order {}", orderIdInt);
                 response.setPaid(true);
                 response.setPaymentDate(payment.getPaymentDate());
+                if (debug) {
+                    response.setDebugMessage("Payment is PAID");
+                }
             } 
             // Check if payment is FAILED (cancelled due to timeout)
             else if (payment.getStatus() == PaymentStatus.FAILED) {
+                log.warn("⚠️ [checkQRPayment] Payment is FAILED for order {}", orderIdInt);
                 response.setCancelled(true);
+                if (debug) {
+                    response.setDebugMessage("Payment is FAILED (cancelled due to timeout)");
+                }
+            } else {
+                log.info("⏳ [checkQRPayment] Payment is {} for order {}", payment.getStatus(), orderIdInt);
+                if (debug) {
+                    response.setDebugMessage("Payment status: " + payment.getStatus() + " (waiting for webhook)");
+                }
             }
             
         } catch (NumberFormatException e) {
-            // Invalid order ID format
+            log.error("❌ [checkQRPayment] Invalid order ID format: {}", orderId);
+            if (debug) {
+                response.setErrorMessage("Invalid order ID format: " + orderId);
+                response.setDebugMessage("Failed to parse orderId as integer");
+            }
         } catch (Exception e) {
-            log.error("Error checking QR payment for order: {}", orderId, e);
+            log.error("❌ [checkQRPayment] Error checking QR payment for order: {}", orderId, e);
+            log.error("Exception: {}", e.getMessage(), e);
+            if (debug) {
+                response.setErrorMessage("Exception: " + e.getMessage());
+                response.setDebugMessage("Error occurred while checking payment");
+            }
         }
         
+        log.info("📤 [checkQRPayment] Returning response: paid={}, cancelled={}, orderId={}", 
+                response.getPaid(), response.getCancelled(), response.getOrderId());
         return response;
     }
     

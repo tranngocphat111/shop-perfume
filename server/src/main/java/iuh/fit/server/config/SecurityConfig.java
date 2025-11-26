@@ -86,6 +86,8 @@ public class SecurityConfig {
                     .requestMatchers("/api/orders/create", "/api/orders/create/**").permitAll()
                     .requestMatchers("/payment/check-qr").permitAll()
                     .requestMatchers("/api/payment/check-qr", "/api/payment/check-qr/**").permitAll()
+                    .requestMatchers("/payment/debug").permitAll()
+                    .requestMatchers("/api/payment/debug", "/api/payment/debug/**").permitAll()
                     .requestMatchers("/orders/*/cancel-timeout").permitAll()
                     // Allow guest users to search orders by email
                     .requestMatchers("/orders/my-orders").permitAll()
