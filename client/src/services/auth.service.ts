@@ -233,10 +233,9 @@ class AuthService {
       return false;
     }
 
-    // If token is expired or expiring soon, refresh it
-    // Pass delayClear=true to prevent clearing auth on failure during initialization
-    if (this.isTokenExpired() || this.isTokenExpiringSoon()) {
-      return await this.refreshToken(true);
+    // If token is expired, it's invalid
+    if (this.isTokenExpired()) {
+      return false;
     }
 
     return true;
