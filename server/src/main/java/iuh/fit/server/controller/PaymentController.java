@@ -4,7 +4,6 @@ import iuh.fit.server.dto.response.PaymentCheckResponse;
 import iuh.fit.server.services.OrderService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -20,20 +19,42 @@ public class PaymentController {
 
     /**
      * Check QR payment status
+     * Add ?debug=true to get detailed debug information
      */
     @GetMapping("/check-qr")
-    public ResponseEntity<?> checkQRPayment(@RequestParam String orderId) {
+    public ResponseEntity<?> checkQRPayment(
+            @RequestParam String orderId,
+            @RequestParam(required = false, defaultValue = "false") boolean debug) {
+        log.info("🔍 Checking payment status for orderId: {}, debug: {}", orderId, debug);
         try {
-            PaymentCheckResponse response = orderService.checkQRPayment(orderId);
+            PaymentCheckResponse response = orderService.checkQRPayment(orderId, debug);
+            log.info("✅ Payment check response: paid={}, cancelled={}, orderId={}", 
+                    response.getPaid(), response.getCancelled(), response.getOrderId());
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            log.error("Error checking QR payment", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(new ErrorResponse("Có lỗi xảy ra khi kiểm tra thanh toán: " + e.getMessage()));
+            log.error("❌ Error checking QR payment for orderId: {}", orderId, e);
+            log.error("Exception details: {}", e.getMessage(), e);
+            // Return error response but still with 200 status to avoid breaking frontend
+            PaymentCheckResponse errorResponse = new PaymentCheckResponse();
+            errorResponse.setOrderId(orderId);
+            errorResponse.setPaid(false);
+            errorResponse.setCancelled(false);
+            if (debug) {
+                errorResponse.setErrorMessage("Error: " + e.getMessage());
+                errorResponse.setDebugMessage("Exception occurred while checking payment");
+            }
+            return ResponseEntity.ok(errorResponse);
         }
     }
-
-    // Error Response DTO
-    private record ErrorResponse(String message) {}
+    
+    /**
+     * Debug endpoint to get detailed payment information
+     * GET /api/payment/debug?orderId=123
+     */
+    @GetMapping("/debug")
+    public ResponseEntity<?> debugPayment(@RequestParam String orderId) {
+        PaymentCheckResponse response = orderService.checkQRPayment(orderId, true);
+        return ResponseEntity.ok(response);
+    }
 }
 
