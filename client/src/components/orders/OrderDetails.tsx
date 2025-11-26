@@ -78,7 +78,7 @@ export const OrderDetails: React.FC<OrderDetailsProps> = ({
       {/* Total */}
       <div className="flex items-center justify-between pt-3 border-t border-gray-200">
         <span className="text-lg font-semibold text-gray-700">Tổng tiền:</span>
-        <span className="text-xl font-bold text-blue-600">
+        <span className="text-xl font-bold text-black">
           {formatCurrency(order.totalAmount)} ₫
         </span>
       </div>

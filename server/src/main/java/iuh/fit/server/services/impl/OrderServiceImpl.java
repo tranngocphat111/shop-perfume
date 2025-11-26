@@ -285,6 +285,7 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
     }
     
     @Override
+    @Transactional(readOnly = true)
     public List<OrderResponse> getOrdersByEmail(String email) {
         List<Order> orders = orderRepository.findByGuestEmailOrderByOrderDateDesc(email);
         return orders.stream()
@@ -293,6 +294,7 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
     }
     
     @Override
+    @Transactional(readOnly = true)
     public List<OrderResponse> getOrdersByUserId(Integer userId) {
         List<Order> orders = orderRepository.findByUserIdOrderByOrderDateDesc(userId);
         return orders.stream()
