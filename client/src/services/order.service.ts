@@ -7,6 +7,15 @@ export interface CheckoutData {
 }
 
 export const orderService = {
+
+  async getTotalSize(): Promise<number> {
+    return await apiService.get<number>('/orders/size');
+  },
+
+  async getTotalRevenue(): Promise<number> {
+    return apiService.get<number>("/orders/totalRevenue");
+  },
+
   // Place order
   placeOrder: async (data: CheckoutData) => {
     return apiService.post<Order>('/checkout/place-order', data);

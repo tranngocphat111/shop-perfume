@@ -8,6 +8,10 @@ import iuh.fit.server.dto.response.PaymentCheckResponse;
 import java.util.List;
 
 public interface OrderService {
+    Long getTotalSize();
+
+    double getTotalRevenue();
+
     OrderResponse createOrder(OrderCreateRequest request);
     
     PaymentCheckResponse checkQRPayment(String orderId);
