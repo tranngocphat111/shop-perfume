@@ -40,11 +40,30 @@ jobs:
       run: |
         scp server/target/server-*.jar ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/home/${{ secrets.EC2_USER }}/backend.jar
     
+    - name: Copy systemd service file to EC2
+      run: |
+        scp server/shop-perfume-backend.service ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/tmp/shop-perfume-backend.service
+    
     - name: Deploy and restart on EC2
       run: |
         ssh ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+          set -e
+          
           # Tạo thư mục nếu chưa có
           mkdir -p ~/app
+          
+          # Setup systemd service nếu chưa có
+          if [ ! -f /etc/systemd/system/shop-perfume-backend.service ]; then
+            echo "Setting up systemd service..."
+            sudo cp /tmp/shop-perfume-backend.service /etc/systemd/system/shop-perfume-backend.service
+            sudo systemctl daemon-reload
+            sudo systemctl enable shop-perfume-backend
+          else
+            # Update service file nếu có thay đổi
+            echo "Updating systemd service..."
+            sudo cp /tmp/shop-perfume-backend.service /etc/systemd/system/shop-perfume-backend.service
+            sudo systemctl daemon-reload
+          fi
           
           # Backup JAR cũ
           if [ -f ~/app/backend.jar ]; then
@@ -55,12 +74,36 @@ jobs:
           mv ~/backend.jar ~/app/backend.jar
           
           # Dừng service cũ (nếu đang chạy)
+          echo "Stopping service..."
           sudo systemctl stop shop-perfume-backend || true
           
+          # Đợi một chút để đảm bảo service đã dừng hoàn toàn
+          sleep 3
+          
           # Chạy JAR mới
+          echo "Starting service..."
           sudo systemctl start shop-perfume-backend
           
+          # Đợi service khởi động
+          sleep 10
+          
           # Kiểm tra status
-          sleep 5
-          sudo systemctl status shop-perfume-backend
+          echo "Checking service status..."
+          if sudo systemctl is-active --quiet shop-perfume-backend; then
+            echo "✅ Service is running!"
+            sudo systemctl status shop-perfume-backend --no-pager -l
+          else
+            echo "❌ Service failed to start!"
+            echo "Recent logs:"
+            sudo journalctl -u shop-perfume-backend -n 50 --no-pager
+            exit 1
+          fi
+          
+          # Kiểm tra port có đang listen không
+          echo "Checking if port 8080 is listening..."
+          if sudo netstat -tlnp 2>/dev/null | grep :8080 || sudo ss -tlnp 2>/dev/null | grep :8080; then
+            echo "✅ Port 8080 is listening!"
+          else
+            echo "⚠️  Port 8080 is not listening. Check logs above."
+          fi
         EOF
