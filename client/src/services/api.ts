@@ -98,7 +98,7 @@ export const apiService = {
       const fullUrl = `${API_BASE_URL}${endpoint}`;
       const isFormData = data instanceof FormData;
       const headers: Record<string, string> = {
-        ...getAuthHeaders(),
+        ...(await getAuthHeaders()),
         ...(isFormData ? {} : { "Content-Type": "application/json" }),
         ...options?.headers,
       };

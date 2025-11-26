@@ -3,7 +3,7 @@ name: Auto Deploy Backend to AWS EC2
 on:
   push:
     branches:
-      - main  # Thay đổi branch này nếu bạn dùng branch khác (main, master, develop, etc.)
+      - develop  # Thay đổi branch này nếu bạn dùng branch khác (main, master, develop, etc.)
     paths:
       - 'server/**'  # Chỉ deploy khi có thay đổi trong folder server
   workflow_dispatch:  # Cho phép chạy thủ công từ GitHub Actions tab

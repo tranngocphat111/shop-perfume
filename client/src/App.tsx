@@ -37,7 +37,7 @@ function AppContent() {
       {!isAdminRoute && !isAuthRoute && <Header />}
       <main
         className={`min-h-[calc(100vh-80px)] ${
-          isHomePage || isAdminRoute || isAuthRoute ? "" : "pt-20"
+          isHomePage || isAdminRoute || isAuthRoute ? "" : "pt-28"
         }`}>
         <Routes>
           <Route path="/" element={<Home />} />
