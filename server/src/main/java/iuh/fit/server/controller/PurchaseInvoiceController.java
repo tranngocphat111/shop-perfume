@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/admin/purchase-invoices")
+@RequestMapping("/admin/purchase-invoices")
 @RequiredArgsConstructor
 @Slf4j
 @Tag(name = "Purchase Invoice Management", description = "APIs for managing purchase invoices")

@@ -1,7 +1,7 @@
 import { apiService } from './api';
 import type { PurchaseInvoice, PurchaseInvoiceFormData, PageResponse } from '../types';
 
-const PURCHASE_INVOICES_API = '/api/admin/purchase-invoices';
+const PURCHASE_INVOICES_API = '/admin/purchase-invoices';
 
 export const purchaseInvoiceService = {
     // Get all purchase invoices
