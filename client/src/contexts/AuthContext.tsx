@@ -1,44 +1,105 @@
-import { createContext, useContext, useState, useEffect } from 'react';
-import type { ReactNode } from 'react';
-import { authService } from '../services/auth.service';
-import type { AuthResponse } from '../services/auth.service';
+/* eslint-disable react-refresh/only-export-components */
+import { createContext, useContext, useState, useEffect } from "react";
+import type { ReactNode } from "react";
+import { authService } from "../services/auth.service";
+import type { AuthResponse } from "../services/auth.service";
+import { resetRefreshAttempts } from "../services/api";
 
 interface AuthContextType {
   user: AuthResponse | null;
   isAuthenticated: boolean;
   isAdmin: boolean;
+  isLoading: boolean;
   login: (token: string, userData: AuthResponse) => void;
-  logout: () => void;
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<AuthResponse | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Load user info from localStorage on mount
-    const savedUser = authService.getUser();
-    if (savedUser && authService.isAuthenticated()) {
-      setUser(savedUser);
-    }
+    // Validate and potentially refresh token on mount
+    const initAuth = async () => {
+      try {
+        const savedUser = authService.getUser();
+        if (savedUser) {
+          // Validate token and refresh if needed
+          const isValid = await authService.validateAndRefreshToken();
+          
+          if (isValid) {
+            setUser(savedUser);
+          } else {
+            // Token is invalid and couldn't be refreshed
+            authService.clearAuth();
+            setUser(null);
+          }
+        }
+      } catch (error) {
+        console.error('Auth initialization error:', error);
+        authService.clearAuth();
+        setUser(null);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    initAuth();
   }, []);
+
+  // Periodically check token expiration and refresh if needed
+  useEffect(() => {
+    if (!user) return;
+
+    const intervalId = setInterval(async () => {
+      try {
+        if (authService.getToken() && authService.getRefreshToken()) {
+          // Only refresh if token is actually expiring soon
+          if (authService.isTokenExpiringSoon()) {
+            const success = await authService.refreshToken();
+            if (!success) {
+              console.error("Failed to refresh token");
+              await logout();
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Token refresh error:', error);
+        await logout();
+      }
+    }, 5 * 60000); // Check every 5 minutes instead of every minute
+
+    return () => clearInterval(intervalId);
+  }, [user]);
 
   const login = (token: string, userData: AuthResponse) => {
     authService.setToken(token);
+    authService.setRefreshToken(userData.refreshToken);
     authService.setUser(userData);
     setUser(userData);
   };
 
-  const logout = () => {
-    authService.logout();
-    setUser(null);
+  const logout = async () => {
+    setIsLoading(true);
+    try {
+      await authService.logout();
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      setUser(null);
+      setIsLoading(false);
+      // Redirect to login page
+      window.location.href = '/login';
+    }
   };
 
   const value = {
     user,
-    isAuthenticated: !!user,
+    isAuthenticated: !!user && !isLoading,
     isAdmin: user?.role === 'ADMIN',
+    isLoading,
     login,
     logout,
   };
