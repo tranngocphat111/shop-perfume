@@ -26,5 +26,12 @@ public interface OrderService {
      * @return true if payment was successfully processed, false otherwise
      */
     boolean processSepayWebhook(SepayWebhookRequest webhookRequest);
+    
+    /**
+     * Extract order ID from webhook request
+     * @param webhookRequest The webhook request from Sepay
+     * @return Order ID if found, null otherwise
+     */
+    Integer extractOrderIdFromWebhook(SepayWebhookRequest webhookRequest);
 }
 
