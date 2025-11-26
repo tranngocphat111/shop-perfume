@@ -106,7 +106,8 @@ class AuthService {
     }
   }
 
-  // Check if token will expire soon (within 5 minutes)
+  // Check if token will expire soon (within 2 minutes)
+  // Reduced from 5 minutes to avoid refreshing too early
   isTokenExpiringSoon(): boolean {
     const token = this.getToken();
     if (!token) return true;
@@ -114,8 +115,8 @@ class AuthService {
     try {
       const payload = JSON.parse(atob(token.split(".")[1]));
       const expirationTime = payload.exp * 1000;
-      const fiveMinutes = 5 * 60 * 1000;
-      return Date.now() >= expirationTime - fiveMinutes;
+      const twoMinutes = 2 * 60 * 1000; // 2 minutes in milliseconds
+      return Date.now() >= expirationTime - twoMinutes;
     } catch {
       return true;
     }
@@ -218,8 +219,9 @@ class AuthService {
     }
 
     // If token is expired or expiring soon, refresh it
+    // Pass delayClear=true to prevent clearing auth on failure during initialization
     if (this.isTokenExpired() || this.isTokenExpiringSoon()) {
-      return await this.refreshToken();
+      return await this.refreshToken(true);
     }
 
     return true;

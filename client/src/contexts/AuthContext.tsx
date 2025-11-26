@@ -16,6 +16,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<AuthResponse | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     // Validate and potentially refresh token on mount
@@ -47,24 +48,32 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   // Periodically check token expiration and refresh if needed
+  // Note: We don't auto-logout on refresh failure - let the API handle 401 errors
   useEffect(() => {
     if (!user) return;
 
     const intervalId = setInterval(async () => {
       try {
+        // Only refresh if token is expiring soon (within 2 minutes)
         if (authService.isTokenExpiringSoon()) {
-          console.log("Token expiring soon, refreshing...");
+          console.log("Token expiring soon, attempting refresh...");
           const success = await authService.refreshToken();
-          if (!success) {
-            console.error("Failed to refresh token");
-            await logout();
+          if (success) {
+            // Update user state with new token info
+            const updatedUser = authService.getUser();
+            if (updatedUser) {
+              setUser(updatedUser);
+            }
+          } else {
+            // Don't auto-logout - let API 401 handler deal with it
+            console.warn("Token refresh failed, but not logging out. Will retry on next API call.");
           }
         }
       } catch (error) {
-        console.error("Token refresh error:", error);
-        await logout();
+        // Don't auto-logout on error - let API 401 handler deal with it
+        console.error("Token refresh error (non-fatal):", error);
       }
-    }, 60000); // Check every minute
+    }, 5 * 60000); // Check every 5 minutes instead of every minute
 
     return () => clearInterval(intervalId);
   }, [user]);

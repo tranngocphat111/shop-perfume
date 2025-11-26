@@ -59,8 +59,9 @@ const getAuthHeaders = async (
     const expirationTime = payload.exp * 1000;
     const now = Date.now();
 
-    // If token is expired or will expire in next 30 seconds, try to refresh
-    if (now >= expirationTime - 30000) {
+    // If token is expired or will expire in next 2 minutes, try to refresh
+    // Increased buffer to avoid refreshing too frequently
+    if (now >= expirationTime - 120000) {
       if (debug) {
         console.log(
           "[API] 🔄 Token expired or expiring soon, attempting refresh..."
@@ -71,7 +72,9 @@ const getAuthHeaders = async (
       if (refreshToken) {
         try {
           const { authService } = await import("./auth.service");
-          const refreshed = await authService.refreshToken();
+          // Pass delayClear=true to prevent clearing auth on failure
+          // Let handle401Error handle the error properly
+          const refreshed = await authService.refreshToken(true);
           if (refreshed) {
             token = localStorage.getItem("auth_token");
             if (debug) {
@@ -79,13 +82,14 @@ const getAuthHeaders = async (
             }
           } else {
             if (debug) {
-              console.warn("[API] ⚠️ Token refresh failed");
+              console.warn("[API] ⚠️ Token refresh failed, but not clearing auth");
             }
           }
         } catch (error) {
           if (debug) {
             console.error("[API] ❌ Error refreshing token:", error);
           }
+          // Don't clear auth here - let handle401Error handle it
         }
       }
     }
