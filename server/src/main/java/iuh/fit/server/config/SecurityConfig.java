@@ -18,6 +18,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.web.cors.CorsConfigurationSource;
 
 @Configuration
@@ -51,6 +52,17 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        // Custom matcher for webhook endpoints - works with context-path=/api
+        RequestMatcher webhookMatcher = new RequestMatcher() {
+            @Override
+            public boolean matches(jakarta.servlet.http.HttpServletRequest request) {
+                String servletPath = request.getServletPath();
+                String requestURI = request.getRequestURI();
+                return (servletPath != null && servletPath.startsWith("/webhooks/")) ||
+                       (requestURI != null && (requestURI.startsWith("/api/webhooks/") || requestURI.startsWith("/webhooks/")));
+            }
+        };
+        
         http
             .csrf(csrf -> csrf.disable())
             .cors(cors -> cors.configurationSource(corsConfigurationSource))
@@ -59,15 +71,22 @@ public class SecurityConfig {
             .exceptionHandling(exception ->
                 exception.authenticationEntryPoint(authenticationEntryPoint))
             .authorizeHttpRequests(auth -> auth
-                     // CRITICAL: Guest checkout endpoints MUST be FIRST to ensure they are matched
+                     // CRITICAL: Webhook endpoints MUST be FIRST (before any other rules)
+                    // Sepay webhook endpoint (must be public)
+                    // Use custom matcher to handle both servletPath and requestURI
+                    .requestMatchers(webhookMatcher).permitAll()
+                    // Explicit permit for manual endpoint (backup)
+                    .requestMatchers("/webhooks/sepay/manual", "/webhooks/sepay/test", "/webhooks/sepay/health").permitAll()
+                    
+                    // CRITICAL: Guest checkout endpoints MUST be SECOND to ensure they are matched
                     // Note: context-path=/api, Controller has @RequestMapping("/orders"), so servletPath is /orders/create
                     .requestMatchers("/orders/create").permitAll()
+                    .requestMatchers("/api/orders/create", "/api/orders/create/**").permitAll()
                     .requestMatchers("/payment/check-qr").permitAll()
+                    .requestMatchers("/api/payment/check-qr", "/api/payment/check-qr/**").permitAll()
                     .requestMatchers("/orders/*/cancel-timeout").permitAll()
                     // Allow guest users to search orders by email
                     .requestMatchers("/orders/my-orders").permitAll()
-                    // Sepay webhook endpoint (must be public)
-                    .requestMatchers("/webhooks/**").permitAll()
                     
                     // Other public endpoints
                     .requestMatchers("/auth/**").permitAll()
@@ -75,16 +94,12 @@ public class SecurityConfig {
                     .requestMatchers("/inventories/**").permitAll()
                     .requestMatchers("/brands/**").permitAll()
                     .requestMatchers("/categories/**").permitAll()
-                    .requestMatchers("/api/admin/suppliers").permitAll()
+                    .requestMatchers("/admin/suppliers/**").hasRole("ADMIN")
                     .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
 
-                    
-                    // Allow guest checkout (create order without login)
-                    .requestMatchers("/api/orders/create", "/api/api/orders/create/**").permitAll()
-                    .requestMatchers("/api/payment/check-qr", "api/api/payment/check-qr/**").permitAll()
-
-                    // Protected endpoints (these come AFTER the specific permitAll rules above)
-                    .requestMatchers("/cart/**").authenticated()
+                    // Protected endpoints
+                    .requestMatchers("/carts/**").authenticated()
+                    .requestMatchers("/orders/**").authenticated()
                     .requestMatchers("/users/me").authenticated()
 
                     // Admin endpoints

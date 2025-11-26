@@ -4,6 +4,7 @@ import { AuthProvider } from "./contexts/AuthContext";
 import { Header } from "./components/Header";
 import { Home } from "./pages/Home";
 import { Products as CustomerProducts } from "./pages/Products";
+import { ProductDetail } from "./pages/ProductDetail";
 import { Cart } from "./pages/Cart";
 import { Checkout } from "./pages/Checkout";
 import { Payment } from "./pages/Payment";
@@ -19,6 +20,8 @@ import { StockAdjustments } from "./pages/admin/StockAdjustment";
 import { Products as AdminProducts } from "./pages/admin/Products";
 import { Footer } from "./components/Footer";
 import { Suppliers } from "./pages/admin/Suppliers";
+import { PurchaseInvoices } from "./pages/admin/PurchaseInvoices";
+import { ScrollToTop } from "./components/ScrollToTop";
 
 function AppContent() {
   const location = useLocation();
@@ -35,11 +38,11 @@ function AppContent() {
       <main
         className={`min-h-[calc(100vh-80px)] ${
           isHomePage || isAdminRoute || isAuthRoute ? "" : "pt-20"
-        }`}
-      >
+        }`}>
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/products" element={<CustomerProducts />} />
+          <Route path="/products/:id" element={<ProductDetail />} />
           <Route path="/cart" element={<Cart />} />
           <Route path="/checkout" element={<Checkout />} />
           <Route path="/payment" element={<Payment />} />
@@ -105,9 +108,18 @@ function AppContent() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/admin/purchase-invoices"
+            element={
+              <ProtectedRoute requireAdmin={true}>
+                <PurchaseInvoices />
+              </ProtectedRoute>
+            }
+          />
         </Routes>
       </main>
       <Footer />
+      <ScrollToTop />
     </div>
   );
 }

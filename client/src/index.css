@@ -108,6 +108,7 @@
   .best-sellers-swiper .swiper-slide {
     width: 220px;
     height: auto;
+    pointer-events: auto !important;
   }
 
   /* Container shows complete products without cutting */

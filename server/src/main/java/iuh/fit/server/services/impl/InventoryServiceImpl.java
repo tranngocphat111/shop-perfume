@@ -90,5 +90,43 @@ public class InventoryServiceImpl implements iuh.fit.server.services.InventorySe
         return responses;
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public InventoryResponse findById(Integer inventoryId) {
+        log.info("Finding inventory by inventoryId: {}", inventoryId);
+        Inventory inventory = inventoryRepository.findById(inventoryId).orElse(null);
+        if (inventory == null) {
+            log.warn("Inventory not found for inventoryId: {}", inventoryId);
+            return null;
+        }
+        return inventoryMapper.toResponse(inventory);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public InventoryResponse findByProductId(Integer productId) {
+        log.info("Finding inventory by productId: {}", productId);
+        Inventory inventory = inventoryRepository.findByProductId(productId);
+        if (inventory == null) {
+            log.warn("Inventory not found for productId: {}", productId);
+            return null;
+        }
+        return inventoryMapper.toResponse(inventory);
+    }
+
+    @Override
+    public InventoryResponse updateQuantity(Integer inventoryId, Integer quantity) {
+        log.info("Updating inventory {} with new quantity: {}", inventoryId, quantity);
+        
+        Inventory inventory = inventoryRepository.findById(inventoryId)
+                .orElseThrow(() -> new RuntimeException("Inventory not found with id: " + inventoryId));
+        
+        inventory.setQuantity(quantity);
+        Inventory updatedInventory = inventoryRepository.save(inventory);
+        
+        log.info("Inventory {} updated successfully with quantity: {}", inventoryId, quantity);
+        return inventoryMapper.toResponse(updatedInventory);
+    }
+
 }
 

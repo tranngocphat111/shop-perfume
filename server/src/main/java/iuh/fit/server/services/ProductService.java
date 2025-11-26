@@ -70,5 +70,15 @@ public interface ProductService {
      */
     Page<ProductResponse> filterProducts(Integer brandId, Integer categoryId, String searchTerm, Pageable pageable);
 
+    /**
+     * Lấy danh sách sản phẩm theo brandId
+     */
+    List<ProductResponse> findByBrandId(int brandId);
+
+    /**
+     * Lấy danh sách sản phẩm theo categoryId
+     */
+    List<ProductResponse> findByCategoryId(int categoryId);
+
 }
 

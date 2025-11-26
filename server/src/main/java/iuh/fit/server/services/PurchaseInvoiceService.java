@@ -1,0 +1,23 @@
+package iuh.fit.server.services;
+
+import iuh.fit.server.dto.request.PurchaseInvoiceRequest;
+import iuh.fit.server.dto.response.PurchaseInvoiceResponse;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+
+import java.util.List;
+
+public interface PurchaseInvoiceService {
+    
+    List<PurchaseInvoiceResponse> findAll();
+    
+    Page<PurchaseInvoiceResponse> findAllPaginated(Pageable pageable);
+    
+    PurchaseInvoiceResponse findById(Integer id);
+    
+    PurchaseInvoiceResponse create(PurchaseInvoiceRequest request);
+    
+    PurchaseInvoiceResponse update(Integer id, PurchaseInvoiceRequest request);
+    
+    void delete(Integer id);
+}

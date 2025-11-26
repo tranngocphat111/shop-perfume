@@ -35,35 +35,46 @@ export const Payment: React.FC = () => {
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null); // Time remaining in seconds
 
   const generateQRCode = useCallback((orderId: string, amount: number) => {
+    console.log('[Payment] 🔵 Generating QR code:', { orderId, amount });
     // Use Sepay QR code generation
     const url = generateOrderQRCode(orderId, amount);
+    console.log('[Payment] 🔵 QR Code URL generated:', url);
     
     const img = new Image();
     img.onload = () => {
+      console.log('[Payment] ✅ QR code image loaded successfully');
       setQrUrl(url);
     };
     img.onerror = () => {
-      console.error('Failed to load QR code');
+      console.error('[Payment] ❌ Failed to load QR code image');
     };
     img.src = url;
   }, []);
 
   // Check if order should be cancelled due to timeout
   const checkTimeout = useCallback(async () => {
-    if (!order?.orderId) return;
+    if (!order?.orderId) {
+      console.log('[Payment] ⚠️ Cannot check timeout: orderId is missing');
+      return;
+    }
     
+    console.log('[Payment] 🔵 Checking timeout for order:', order.orderId);
     try {
       const response = await apiService.post<{ cancelled: boolean; message: string }>(
         `/orders/${order.orderId}/cancel-timeout`,
         {}
       );
+      console.log('[Payment] 🔵 Timeout check response:', response);
       
       if (response.cancelled) {
+        console.log('[Payment] ⚠️ Order cancelled due to timeout:', order.orderId);
         setIsCancelled(true);
         setError('Đơn hàng đã bị hủy do quá thời gian thanh toán (30 phút). Vui lòng đặt hàng lại.');
+      } else {
+        console.log('[Payment] ✅ Order still valid (not cancelled)');
       }
     } catch (error) {
-      console.error('Error checking timeout:', error);
+      console.error('[Payment] ❌ Error checking timeout:', error);
     }
   }, [order]);
 
@@ -102,9 +113,17 @@ export const Payment: React.FC = () => {
   // Redirect if no state
   useEffect(() => {
     if (!state || !state.order) {
+      console.log('[Payment] ⚠️ No state or order found, redirecting to checkout');
       navigate('/checkout');
       return;
     }
+
+    console.log('[Payment] 🔵 Initializing payment page:', {
+      orderId: state.order.orderId,
+      paymentMethod: state.paymentMethod,
+      totalAmount: state.totalAmount,
+      order: state.order
+    });
 
     // Set order from state
     setOrder(state.order);
@@ -112,6 +131,7 @@ export const Payment: React.FC = () => {
 
     // Generate QR code if needed
     if (state.paymentMethod === 'qr-payment' || state.paymentMethod === 'bank-transfer') {
+      console.log('[Payment] 🔵 QR/Bank transfer payment detected, generating QR code');
       generateQRCode(state.order.orderId.toString(), state.totalAmount);
     }
     
@@ -120,24 +140,79 @@ export const Payment: React.FC = () => {
   }, [state, navigate, generateQRCode, checkTimeout]);
 
   const checkPayment = useCallback(async () => {
-    if (!order?.orderId || isPaid || isChecking || isCancelled) return;
+    if (!order?.orderId) {
+      return;
+    }
+    
+    if (isPaid || isChecking || isCancelled) {
+      return;
+    }
 
     setIsChecking(true);
     try {
-      const data = await apiService.get<{ paid: boolean; cancelled?: boolean }>(`/payment/check-qr?orderId=${order.orderId}`);
+      const url = `/payment/check-qr?orderId=${order.orderId}`;
+      const data = await apiService.get<{ 
+        paid: boolean; 
+        cancelled?: boolean;
+        amount?: number;
+        paymentDate?: string;
+        orderId?: string;
+      }>(url);
+
+      // Log payment status check result
+      console.log('[Payment] 📊 Payment Status Check:', {
+        orderId: order.orderId,
+        paid: data.paid,
+        cancelled: data.cancelled,
+        amount: data.amount,
+        paymentDate: data.paymentDate,
+        timestamp: new Date().toISOString()
+      });
 
       if (data.cancelled) {
+        console.log('[Payment] ⚠️⚠️⚠️ ORDER CANCELLED! Order:', order.orderId);
         setIsCancelled(true);
         setError('Đơn hàng đã bị hủy do quá thời gian thanh toán (30 phút). Vui lòng đặt hàng lại.');
       } else if (data.paid) {
+        console.log('[Payment] ✅✅✅✅✅ PAYMENT CONFIRMED! ✅✅✅✅✅');
+        console.log('[Payment] Order ID:', order.orderId);
+        console.log('[Payment] Amount:', data.amount);
+        console.log('[Payment] Payment Date:', data.paymentDate);
+        console.log('[Payment] Webhook đã xử lý thành công!');
         setIsPaid(true);
         // Redirect to home after 3 seconds
         setTimeout(() => {
           navigate('/', { state: { orderSuccess: true } });
         }, 3000);
+      } else {
+        // Payment still pending - log only every 10th check to reduce noise
+        const checkCount = Math.floor(Date.now() / 10000) % 10;
+        if (checkCount === 0) {
+          console.log('[Payment] ⏳ Payment still pending for order:', order.orderId, '- Waiting for webhook...');
+        }
       }
-    } catch (error) {
-      console.error('Error checking payment:', error);
+    } catch (error: any) {
+      // Only log connection errors occasionally to avoid spam
+      const errorMessage = error?.message || '';
+      const isConnectionError = errorMessage.includes('Network error') || 
+                                errorMessage.includes('CONNECTION_REFUSED') ||
+                                errorMessage.includes('Failed to fetch');
+      
+      if (isConnectionError) {
+        // Log connection errors only every 30 seconds to reduce spam
+        const errorLogCount = Math.floor(Date.now() / 30000) % 2;
+        if (errorLogCount === 0) {
+          console.warn('[Payment] ⚠️ Server connection error - server may be restarting. Will retry...');
+        }
+      } else {
+        // Log other errors normally
+        console.error('[Payment] ❌ Error checking payment:', error);
+        console.error('[Payment] ❌ Error details:', {
+          message: error?.message,
+          response: error?.response?.data,
+          status: error?.response?.status
+        });
+      }
     } finally {
       setIsChecking(false);
     }

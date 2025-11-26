@@ -71,11 +71,20 @@ export const BestSellersSection = () => {
                 resistance={true}
                 resistanceRatio={0.85}
                 grabCursor={true}
+                allowTouchMove={true}
+                preventClicks={false}
+                preventClicksPropagation={false}
+                touchStartPreventDefault={false}
+                touchMoveStop={false}
                 pagination={{
                   clickable: true,
                   dynamicBullets: false,
                 }}
                 className="best-sellers-swiper"
+                onSwiper={(swiper) => {
+                  // Disable Swiper's click prevention
+                  swiper.allowTouchMove = true;
+                }}
                 breakpoints={{
                   0: {
                     spaceBetween: 16,
@@ -95,7 +104,14 @@ export const BestSellersSection = () => {
                 }}
               >
               {products.map((inventory, index) => (
-                <SwiperSlide key={inventory.product.productId}>
+                <SwiperSlide 
+                  key={inventory.product.productId}
+                  style={{ pointerEvents: 'auto' }}
+                  onClick={(e) => {
+                    // Allow click to pass through to card
+                    e.stopPropagation();
+                  }}
+                >
                   <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     whileInView={{ opacity: 1, y: 0 }}
@@ -105,6 +121,7 @@ export const BestSellersSection = () => {
                       delay: index * 0.08,
                       ease: [0.22, 1, 0.36, 1]
                     }}
+                    style={{ pointerEvents: 'auto', width: '100%', height: '100%' }}
                   >
                     <PerfumeCard inventory={inventory} />
                   </motion.div>

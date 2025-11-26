@@ -23,8 +23,11 @@ public interface InventoryService {
     Page<InventoryResponse> findAllPaginated(Pageable pageable);
 
     /**
-     * Tìm sản phẩm theo ID
+     * Tìm inventory theo ID
+     * @param inventoryId ID của inventory
+     * @return InventoryResponse hoặc null nếu không tìm thấy
      */
+    InventoryResponse findById(Integer inventoryId);
 
     /**
      * Lấy danh sách sản phẩm bán chạy nhất dựa trên tổng quantity từ order_item
@@ -32,6 +35,21 @@ public interface InventoryService {
      * @return Danh sách inventory của sản phẩm bán chạy nhất
      */
     List<InventoryResponse> findBestSellers(int limit);
+
+    /**
+     * Tìm inventory theo productId
+     * @param productId ID của sản phẩm
+     * @return InventoryResponse hoặc null nếu không tìm thấy
+     */
+    InventoryResponse findByProductId(Integer productId);
+
+    /**
+     * Cập nhật số lượng tồn kho
+     * @param inventoryId ID của inventory
+     * @param quantity Số lượng mới
+     * @return InventoryResponse đã cập nhật
+     */
+    InventoryResponse updateQuantity(Integer inventoryId, Integer quantity);
 
 }
 

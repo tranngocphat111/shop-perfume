@@ -6,3 +6,6 @@ export { ProductModal, type ProductFormData } from "./ProductModal";
 export { ProductDetailModal } from "./ProductDetailModal";
 export { SupplierModal, type SupplierFormData } from "./SupplierModal";
 export { SupplierDetailModal } from "./SupplierDetailModal";
+export { StockAdjustmentModal } from "./StockAdjustmentModal";
+export { InventoryDetailModal } from "./InventoryDetailModal";
+export { PurchaseInvoiceModal } from "./PurchaseInvoiceModal";

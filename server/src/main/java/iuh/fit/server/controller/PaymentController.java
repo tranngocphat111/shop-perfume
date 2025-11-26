@@ -24,7 +24,6 @@ public class PaymentController {
     @GetMapping("/check-qr")
     public ResponseEntity<?> checkQRPayment(@RequestParam String orderId) {
         try {
-            log.info("Checking QR payment for order: {}", orderId);
             PaymentCheckResponse response = orderService.checkQRPayment(orderId);
             return ResponseEntity.ok(response);
         } catch (Exception e) {
