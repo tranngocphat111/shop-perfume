@@ -9,7 +9,11 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isAdmin: boolean;
   isLoading: boolean;
-  login: (token: string, userData: AuthResponse, mergeCart?: () => Promise<void>) => Promise<void>;
+  login: (
+    token: string,
+    userData: AuthResponse,
+    mergeCart?: () => Promise<void>
+  ) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -17,6 +21,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<AuthResponse | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     // Load user info from localStorage on mount
@@ -24,20 +29,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       try {
         const savedUser = authService.getUser();
         if (savedUser) {
-          // Validate token and refresh if needed
-          const isValid = await authService.validateAndRefreshToken();
-
-          if (isValid) {
-            setUser(savedUser);
-          } else {
-            // Token is invalid and couldn't be refreshed
-            authService.clearAuth();
-            setUser(null);
-          }
+          setUser(savedUser);
         }
       } catch (error) {
         console.error("Auth initialization error:", error);
-        authService.clearAuth();
+        authService.logout();
         setUser(null);
       } finally {
         setIsLoading(false);
@@ -47,47 +43,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     initAuth();
   }, []);
 
-  // Removed periodic token refresh - let API handle 401 errors and refresh automatically
-  // This prevents race conditions and multiple refresh attempts
-  // The API will automatically refresh token when it expires and returns 401
-
-    const intervalId = setInterval(async () => {
-      try {
-        if (authService.getToken() && authService.getRefreshToken()) {
-          // Only refresh if token is actually expiring soon
-          if (authService.isTokenExpiringSoon()) {
-            const success = await authService.refreshToken();
-            if (!success) {
-              console.error("Failed to refresh token");
-              await logout();
-            }
-          }
-        }
-      } catch (error) {
-        console.error("Token refresh error:", error);
-        await logout();
-      }
-    }, 5 * 60000); // Check every 5 minutes instead of every minute
-
-    return () => clearInterval(intervalId);
-  }, [user]);
-
-  const login = (token: string, userData: AuthResponse) => {
+  const login = async (token: string, userData: AuthResponse) => {
     authService.setToken(token);
-    // REFRESH TOKEN - COMMENTED OUT
-    // authService.setRefreshToken(userData.refreshToken);
     authService.setUser(userData);
     setUser(userData);
-    // REFRESH TOKEN - COMMENTED OUT
-    // Reset refresh attempts on successful login
-    // resetRefreshAttempts();
-    resetRefreshAttempts(); // No-op when refresh token is disabled
   };
 
   const logout = async () => {
     setIsLoading(true);
     try {
-      await authService.logout();
+      authService.logout();
     } catch (error) {
       console.error("Logout error:", error);
     } finally {
