@@ -44,6 +44,7 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
     @Override
     @Transactional(readOnly = true)
     public RefreshToken verifyRefreshToken(String token) {
+        // Sử dụng JOIN FETCH để load User cùng lúc, tránh lazy loading error
         RefreshToken refreshToken = refreshTokenRepository.findByToken(token)
                 .orElseThrow(() -> new TokenRefreshException("Refresh token không tồn tại"));
         

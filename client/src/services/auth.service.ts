@@ -118,17 +118,14 @@ class AuthService {
   isAuthenticated(): boolean {
     const token = this.getToken();
     if (!token) return false;
-    
     // Check if token is expired
     if (this.isTokenExpired()) {
       return false;
     }
-    
     return true;
   }
 
   isAdmin(): boolean {
-    const user = this.getUser();
     return user?.role === "ADMIN";
   }
 
@@ -166,7 +163,6 @@ class AuthService {
   // Get valid token (refresh if needed)
   async getValidToken(): Promise<string | null> {
     const token = this.getToken();
-    
     if (!token) {
       return null;
     }
@@ -181,7 +177,7 @@ class AuthService {
   }
 
   // Refresh access token using refresh token
-  async refreshToken(): Promise<boolean> {
+  async refreshToken(delayClear: boolean = false): Promise<boolean> {
     // If there's already a refresh in progress, wait for it
     if (this.refreshPromise) {
       try {
@@ -194,7 +190,11 @@ class AuthService {
 
     const refreshToken = this.getRefreshToken();
     if (!refreshToken) {
-      this.clearAuth();
+      // If delayClear is true, don't clear auth here - let handle401Error do it
+      // This allows the delay to work properly
+      if (!delayClear) {
+        this.clearAuth();
+      }
       return false;
     }
 
@@ -211,11 +211,36 @@ class AuthService {
       this.setToken(response.accessToken);
       this.setRefreshToken(response.refreshToken);
 
-      console.log("Token refreshed successfully");
+      // Log token preview to verify it's saved
+      const tokenPreview =
+        response.accessToken.length > 30
+          ? `${response.accessToken.substring(
+              0,
+              20
+            )}...${response.accessToken.substring(
+              response.accessToken.length - 10
+            )}`
+          : response.accessToken.substring(0, 30);
+      console.log("Token refreshed successfully. New token:", tokenPreview);
+
+      // Verify token is saved
+      const savedToken = this.getToken();
+      const savedTokenPreview =
+        savedToken && savedToken.length > 30
+          ? `${savedToken.substring(0, 20)}...${savedToken.substring(
+              savedToken.length - 10
+            )}`
+          : savedToken?.substring(0, 30);
+      console.log("Saved token in localStorage:", savedTokenPreview);
+
       return true;
     } catch (error) {
       console.error("Token refresh failed:", error);
-      this.clearAuth();
+      // If delayClear is true, don't clear auth here - let handle401Error do it
+      // This allows the delay to work properly
+      if (!delayClear) {
+        this.clearAuth();
+      }
       return false;
     } finally {
       this.refreshPromise = null;
@@ -225,7 +250,6 @@ class AuthService {
   // Validate token on app load
   async validateAndRefreshToken(): Promise<boolean> {
     const token = this.getToken();
-    
     if (!token) {
       return false;
     }

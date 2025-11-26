@@ -1,7 +1,9 @@
-import { createContext, useContext, useState, useEffect } from 'react';
-import type { ReactNode } from 'react';
-import { authService } from '../services/auth.service';
-import type { AuthResponse } from '../services/auth.service';
+/* eslint-disable react-refresh/only-export-components */
+import { createContext, useContext, useState, useEffect } from "react";
+import type { ReactNode } from "react";
+import { authService } from "../services/auth.service";
+import type { AuthResponse } from "../services/auth.service";
+import { resetRefreshAttempts } from "../services/api";
 
 interface AuthContextType {
   user: AuthResponse | null;
@@ -26,7 +28,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (savedUser) {
           // Validate token and refresh if needed
           const isValid = await authService.validateAndRefreshToken();
-          
           if (isValid) {
             setUser(savedUser);
           } else {
@@ -36,7 +37,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           }
         }
       } catch (error) {
-        console.error('Auth initialization error:', error);
+        console.error("Auth initialization error:", error);
         authService.clearAuth();
         setUser(null);
       } finally {
@@ -53,16 +54,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     const intervalId = setInterval(async () => {
       try {
-        if (authService.isTokenExpiringSoon()) {
-          console.log('Token expiring soon, refreshing...');
+        if (authService.getToken() && authService.getRefreshToken()) {
+          console.log("Token expiring soon, refreshing...");
           const success = await authService.refreshToken();
           if (!success) {
-            console.error('Failed to refresh token');
+            console.error("Failed to refresh token");
             await logout();
           }
         }
       } catch (error) {
-        console.error('Token refresh error:', error);
+        console.error("Token refresh error:", error);
         await logout();
       }
     }, 60000); // Check every minute
@@ -75,6 +76,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     authService.setRefreshToken(userData.refreshToken);
     authService.setUser(userData);
     setUser(userData);
+    // Reset refresh attempts on successful login
+    resetRefreshAttempts();
   };
 
   const logout = async () => {
@@ -82,19 +85,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       await authService.logout();
     } catch (error) {
-      console.error('Logout error:', error);
+      console.error("Logout error:", error);
     } finally {
       setUser(null);
       setIsLoading(false);
       // Redirect to login page
-      window.location.href = '/login';
+      window.location.href = "/login";
     }
   };
 
   const value = {
     user,
     isAuthenticated: !!user && !isLoading,
-    isAdmin: user?.role === 'ADMIN',
+    isAdmin: user?.role === "ADMIN",
     isLoading,
     login,
     logout,
@@ -106,8 +109,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 };
-
