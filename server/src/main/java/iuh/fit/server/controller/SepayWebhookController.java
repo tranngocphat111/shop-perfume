@@ -7,6 +7,7 @@ import iuh.fit.server.services.OrderService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -29,18 +30,23 @@ public class SepayWebhookController {
 
     private final OrderService orderService;
     private final WebhookLogRepository webhookLogRepository;
+    
+    @Value("${sepay.webhook.api-key:PASS_KEY}")
+    private String expectedApiKey;
 
     /**
      * Handle Sepay webhook callback for payment verification
      * This endpoint receives notifications when a payment is received
      * 
-     * Sepay sends webhook as JSON (no authentication required)
+     * Sepay sends webhook as JSON with API Key authentication
+     * Format: Header "Authorization": "Apikey YOUR_API_KEY"
      * We support both JSON and form-urlencoded
      */
     @PostMapping(value = "/sepay", consumes = {MediaType.APPLICATION_JSON_VALUE, MediaType.APPLICATION_FORM_URLENCODED_VALUE, MediaType.ALL_VALUE})
     public ResponseEntity<?> handleSepayWebhook(
             @RequestBody(required = false) SepayWebhookRequest webhookRequest,
             @RequestParam(required = false) java.util.Map<String, String> params,
+            @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
             HttpServletRequest request) {
         
         WebhookLog webhookLog = new WebhookLog();
@@ -55,6 +61,20 @@ public class SepayWebhookController {
         log.info("Request URI: {}", request.getRequestURI());
         log.info("Content-Type: {}", request.getContentType());
         log.info("Remote Address: {}", request.getRemoteAddr());
+        log.info("Authorization Header: {}", authorizationHeader != null ? "Present" : "Missing");
+        
+        // Verify API Key if provided (optional for backward compatibility)
+        if (authorizationHeader != null && !authorizationHeader.isEmpty()) {
+            String providedApiKey = authorizationHeader.replace("Apikey ", "").trim();
+            if (!expectedApiKey.equals(providedApiKey)) {
+                log.warn("⚠️ Invalid API Key provided. Expected: {}, Got: {}", expectedApiKey, providedApiKey);
+                // Still process the webhook but log the warning
+            } else {
+                log.info("✅ API Key verified successfully");
+            }
+        } else {
+            log.info("ℹ️ No Authorization header provided (webhook may work without it)");
+        }
         
         try {
             // Try to read raw body for debugging
