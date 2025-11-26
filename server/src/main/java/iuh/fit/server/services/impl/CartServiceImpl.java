@@ -128,4 +128,58 @@ public class CartServiceImpl implements CartService {
         log.info("Cart merge completed for user: {}, total items: {}", userId, cart.getItems().size());
         return cartMapper.toResponse(cart);
     }
+
+    @Override
+    public CartResponse syncCartItems(int userId, List<CartItemRequest> cartItems) {
+        log.info("Syncing cart items for user: {} with {} items (replace all)", userId, cartItems.size());
+        
+        // Get or create cart for user
+        Cart cart = cartRepository.findCartByUser_UserId(userId);
+        if (cart == null) {
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
+            cart = new Cart();
+            cart.setUser(user);
+            cart.setItems(new java.util.ArrayList<>());
+            cart = cartRepository.save(cart);
+            log.info("Created new cart with id: {} for user: {}", cart.getCartId(), userId);
+        }
+        
+        // Clear all existing items first (replace strategy)
+        // Use cascade delete by clearing the list and saving
+        List<CartItem> existingItems = new java.util.ArrayList<>(cart.getItems());
+        cart.getItems().clear();
+        cartRepository.save(cart); // This will cascade delete items due to orphanRemoval = true
+        // Also explicitly delete to ensure cleanup
+        cartItemRepository.deleteAll(existingItems);
+        log.info("Cleared existing cart items for user: {}", userId);
+        
+        // Add new items
+        for (CartItemRequest itemRequest : cartItems) {
+            Product product = productRepository.findById(itemRequest.getProductId())
+                    .orElse(null);
+            
+            if (product == null) {
+                log.warn("Product with id {} not found, skipping", itemRequest.getProductId());
+                continue;
+            }
+            
+            // Create new cart item
+            CartItem newItem = new CartItem();
+            newItem.setCart(cart);
+            newItem.setProduct(product);
+            newItem.setQuantity(itemRequest.getQuantity());
+            newItem.setSubtotal(product.getUnitPrice() * itemRequest.getQuantity());
+            cartItemRepository.save(newItem);
+            log.info("Added cart item for product {} with quantity {}", 
+                    product.getProductId(), itemRequest.getQuantity());
+        }
+        
+        // Refresh cart to get updated items
+        cart = cartRepository.findById(cart.getCartId())
+                .orElseThrow(() -> new ResourceNotFoundException("Cart not found after sync"));
+        
+        log.info("Cart sync completed for user: {}, total items: {}", userId, cart.getItems().size());
+        return cartMapper.toResponse(cart);
+    }
 }

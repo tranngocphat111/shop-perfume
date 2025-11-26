@@ -32,7 +32,7 @@ export const OrderSearchForm: React.FC<OrderSearchFormProps> = ({
             value={email}
             onChange={(e) => onEmailChange(e.target.value)}
             placeholder={isAuthenticated ? "Email của bạn đã được điền sẵn. Nhập email khác để tra cứu đơn hàng khác." : "Nhập email bạn đã dùng khi đặt hàng"}
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black outline-none"
             required
           />
         </div>
@@ -40,11 +40,11 @@ export const OrderSearchForm: React.FC<OrderSearchFormProps> = ({
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full md:w-auto px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            className="w-full md:w-auto px-6 py-3 bg-black text-white rounded-lg font-semibold hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             {isLoading ? (
               <>
-                <FaSpinner className="animate-spin" />
+                <FaSpinner className="animate-spin text-white" />
                 Đang tìm...
               </>
             ) : (

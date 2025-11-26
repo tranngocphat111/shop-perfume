@@ -88,6 +88,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setUser(userData);
     // Reset refresh attempts on successful login
     resetRefreshAttempts();
+    // Merge cart if callback provided
+    if (mergeCart) {
+      try {
+        await mergeCart();
+      } catch (error) {
+        console.error('Error merging cart on login:', error);
+      }
+    }
   };
 
   const logout = async () => {

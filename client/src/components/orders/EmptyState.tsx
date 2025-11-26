@@ -49,7 +49,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
         )}
         <button
           onClick={() => navigate('/products')}
-          className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+          className="bg-black text-white px-6 py-3 rounded-lg font-semibold hover:bg-gray-800 transition-colors"
         >
           Xem sản phẩm
         </button>

@@ -49,7 +49,7 @@ export const OrderCard: React.FC<OrderCardProps> = ({
           </div>
           <button
             onClick={onToggleExpand}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-black hover:bg-gray-100 rounded-lg transition-colors border border-gray-300 hover:border-black"
           >
             <FaEye />
             {isExpanded ? 'Ẩn chi tiết' : 'Xem chi tiết'}

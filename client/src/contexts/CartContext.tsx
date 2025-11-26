@@ -42,19 +42,37 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [cart, isAuthenticated]);
 
+  // Track if we've already loaded/merged cart for this user
+  const hasLoadedCartRef = useRef<number | null>(null);
+
   // Load cart from DB when user is authenticated (only once on mount or when user changes)
   useEffect(() => {
     if (isAuthenticated && user) {
-      // Only load if sessionStorage doesn't have cart (meaning we haven't loaded from DB yet)
-      const hasSessionCart = sessionStorage.getItem(CART_STORAGE_KEY);
-      if (!hasSessionCart) {
-        loadCartFromDB(user.userId);
+      // Only load if we haven't loaded for this user yet
+      // mergeCartOnLogin will handle the merge, so we only load if no merge happened
+      if (hasLoadedCartRef.current !== user.userId) {
+        const hasSessionCart = sessionStorage.getItem(CART_STORAGE_KEY);
+        if (hasSessionCart) {
+          // If there's a session cart, mergeCartOnLogin should be called from login
+          // But if it wasn't (e.g., page refresh), we should merge now
+          mergeCartOnLogin(user.userId).then(() => {
+            hasLoadedCartRef.current = user.userId;
+          });
+        } else {
+          // No session cart, just load from DB
+          loadCartFromDB(user.userId).then(() => {
+            hasLoadedCartRef.current = user.userId;
+          });
+        }
       }
     } else if (!isAuthenticated) {
-      // User logged out, clear cart and sessionStorage
+      // User logged out - clear cart state and sessionStorage
+      // Cart is already saved in DB, so it will be restored when user logs back in
       setCart({ items: [], total: 0, totalItems: 0 });
       sessionStorage.removeItem(CART_STORAGE_KEY);
       lastCartRef.current = '';
+      // Reset the loaded cart ref so we can load again on next login
+      hasLoadedCartRef.current = null;
     }
   }, [isAuthenticated, user?.userId]);
 
@@ -150,11 +168,14 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
 
   const mergeCartOnLogin = async (userId: number) => {
     try {
+      isSyncingRef.current = true; // Prevent sync during merge
+      
       // Get session cart items
       const savedCart = sessionStorage.getItem(CART_STORAGE_KEY);
       if (!savedCart) {
         // No session cart, just load from DB
         await loadCartFromDB(userId);
+        hasLoadedCartRef.current = userId;
         return;
       }
 
@@ -162,6 +183,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       if (sessionCart.items.length === 0) {
         // Empty session cart, just load from DB
         await loadCartFromDB(userId);
+        hasLoadedCartRef.current = userId;
         return;
       }
 
@@ -201,7 +223,6 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       };
       
       // Update lastCartRef to prevent sync trigger
-      isSyncingRef.current = true;
       const cartString = JSON.stringify(mergedCartFormatted.items.map(item => ({
         productId: item.product.productId,
         quantity: item.quantity,
@@ -211,11 +232,14 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       setCart(mergedCartFormatted);
       // Clear sessionStorage after merge
       sessionStorage.removeItem(CART_STORAGE_KEY);
+      hasLoadedCartRef.current = userId;
       isSyncingRef.current = false;
     } catch (error) {
       console.error('Error merging cart on login:', error);
       // Fallback: just load from DB
       await loadCartFromDB(userId);
+      hasLoadedCartRef.current = userId;
+      isSyncingRef.current = false;
     }
   };
 
@@ -285,8 +309,8 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         quantity: item.quantity,
       }));
       
-      // Use merge to sync (it will handle add/update)
-      await cartService.mergeCart(user.userId, cartItems);
+      // Use sync to replace all items (not merge, to handle deletions)
+      await cartService.syncCart(user.userId, cartItems);
     } catch (error) {
       console.error('Error syncing entire cart to DB:', error);
     }

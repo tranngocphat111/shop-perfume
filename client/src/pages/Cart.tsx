@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useCart } from "../contexts/CartContext";
 import { Link } from "react-router-dom";
 import { EmptyCart } from "../components/cart/EmptyCart";
@@ -11,6 +11,11 @@ export const Cart = () => {
   const { cart, removeFromCart, updateQuantity, getCartTotal } = useCart();
   const [discount, setDiscount] = useState(0);
   const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
+
+  // Auto scroll to top when component mounts
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
 
   const handleQuantityChange = (productId: number, newQuantity: number) => {
     if (newQuantity < 1) {

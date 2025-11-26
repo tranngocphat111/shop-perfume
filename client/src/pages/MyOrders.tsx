@@ -10,6 +10,7 @@ import {
   LoadingState,
   EmptyState,
 } from '../components/orders';
+import { ErrorModal } from '../components/common/ErrorModal';
 import { FaSpinner } from 'react-icons/fa';
 
 export const MyOrders: React.FC = () => {
@@ -192,26 +193,6 @@ export const MyOrders: React.FC = () => {
     return <LoadingState message="Đang tải danh sách đơn hàng..." />;
   }
 
-  if (error && !hasSearched) {
-    return (
-      <div className="min-h-screen bg-gray-50 pt-24 pb-8">
-        <div className="container mx-auto px-4 max-w-7xl">
-          <div className="bg-red-50 border-l-4 border-red-500 p-5 rounded-lg">
-            <p className="text-red-700">{error}</p>
-            <button
-              onClick={(e) => {
-                e.preventDefault();
-                fetchOrders();
-              }}
-              className="mt-4 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
-            >
-              Thử lại
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gray-50 pt-24 pb-8">
@@ -232,7 +213,7 @@ export const MyOrders: React.FC = () => {
           onEmailChange={handleEmailChange}
           onSubmit={handleSearch}
           isLoading={isLoading}
-          error={error}
+          error={null}
           isAuthenticated={isAuthenticated}
         />
 
@@ -241,7 +222,7 @@ export const MyOrders: React.FC = () => {
           <EmptyState type="no-search" isAuthenticated={isAuthenticated} />
         ) : isLoading ? (
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
-            <FaSpinner className="text-5xl text-blue-500 animate-spin mx-auto mb-4" />
+            <FaSpinner className="text-5xl text-black animate-spin mx-auto mb-4" />
             <p className="text-gray-600">Đang tìm kiếm đơn hàng...</p>
           </div>
         ) : orders.length === 0 ? (
@@ -262,6 +243,15 @@ export const MyOrders: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Error Modal */}
+      <ErrorModal
+        isOpen={!!error}
+        onClose={() => setError(null)}
+        title="Lỗi khi tải danh sách đơn hàng"
+        message={error || ''}
+        onRetry={() => fetchOrders()}
+      />
 
       <style>{`
         @keyframes fadeIn {
