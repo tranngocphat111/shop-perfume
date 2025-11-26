@@ -300,7 +300,10 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const syncEntireCartToDB = async () => {
-    if (!isAuthenticated || !user) return;
+    if (!isAuthenticated || !user) {
+      console.log('[CartContext] Skipping sync: user not authenticated');
+      return;
+    }
     
     try {
       // Convert current cart items to CartItemRequest format
@@ -309,10 +312,13 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         quantity: item.quantity,
       }));
       
+      console.log(`[CartContext] Syncing cart to DB for user ${user.userId} with ${cartItems.length} items:`, cartItems);
+      
       // Use sync to replace all items (not merge, to handle deletions)
-      await cartService.syncCart(user.userId, cartItems);
+      const response = await cartService.syncCart(user.userId, cartItems);
+      console.log(`[CartContext] Cart sync successful. Response:`, response);
     } catch (error) {
-      console.error('Error syncing entire cart to DB:', error);
+      console.error('[CartContext] Error syncing entire cart to DB:', error);
     }
   };
 
@@ -322,7 +328,15 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   const lastCartRef = useRef<string>('');
 
   useEffect(() => {
-    if (!isAuthenticated || !user || isSyncingRef.current) return;
+    if (!isAuthenticated || !user) {
+      console.log('[CartContext] Skipping sync: user not authenticated');
+      return;
+    }
+    
+    if (isSyncingRef.current) {
+      console.log('[CartContext] Skipping sync: already syncing');
+      return;
+    }
     
     // Create a string representation of cart items to detect changes
     const cartString = JSON.stringify(cart.items.map(item => ({
@@ -332,12 +346,16 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     
     // Only sync if cart actually changed
     if (cartString !== lastCartRef.current) {
+      console.log('[CartContext] Cart changed, triggering sync. Old:', lastCartRef.current, 'New:', cartString);
       lastCartRef.current = cartString;
       isSyncingRef.current = true;
       
       syncEntireCartToDB().finally(() => {
         isSyncingRef.current = false;
+        console.log('[CartContext] Sync completed');
       });
+    } else {
+      console.log('[CartContext] Cart unchanged, skipping sync');
     }
   }, [cart.items, isAuthenticated, user?.userId]);
 
@@ -346,6 +364,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       const newItems = prevCart.items.filter(
         (item) => item.product.productId !== productId
       );
+      
       return {
         items: newItems,
         total: calculateTotal(newItems),
@@ -371,6 +390,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       const newItems = prevCart.items.map((item) =>
         item.product.productId === productId ? { ...item, quantity } : item
       );
+      
       return {
         items: newItems,
         total: calculateTotal(newItems),

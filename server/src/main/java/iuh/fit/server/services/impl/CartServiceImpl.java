@@ -17,6 +17,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 
 import java.util.List;
 import java.util.Optional;
@@ -31,6 +33,9 @@ public class CartServiceImpl implements CartService {
     private final UserRepository userRepository;
     private final CartItemRepository cartItemRepository;
     private final ProductRepository productRepository;
+    
+    @PersistenceContext
+    private EntityManager entityManager;
 
 
     @Override
@@ -41,6 +46,7 @@ public class CartServiceImpl implements CartService {
                 .orElseThrow(() -> new ResourceNotFoundException("Cart not found with id: " + cartId));
 
         cart.getItems().clear();
+        cart.setTotalAmount(0.0);
 
         Cart clearedCart = cartRepository.save(cart);
         log.info("Cleared cart with id: {}", cartId);
@@ -62,8 +68,12 @@ public class CartServiceImpl implements CartService {
             cart = new Cart();
             cart.setUser(user);
             cart.setItems(new java.util.ArrayList<>());
+            cart.setTotalAmount(0.0);
             cart = cartRepository.save(cart);
+            entityManager.flush(); // Ensure cart is persisted immediately
             log.info("Created new cart with id: {} for user: {}", cart.getCartId(), userId);
+        } else {
+            log.info("Found existing cart with id: {} for user: {}", cart.getCartId(), userId);
         }
         
         return cartMapper.toResponse(cart);
@@ -81,8 +91,12 @@ public class CartServiceImpl implements CartService {
             cart = new Cart();
             cart.setUser(user);
             cart.setItems(new java.util.ArrayList<>());
+            cart.setTotalAmount(0.0);
             cart = cartRepository.save(cart);
+            entityManager.flush(); // Ensure cart is persisted immediately
             log.info("Created new cart with id: {} for user: {}", cart.getCartId(), userId);
+        } else {
+            log.info("Found existing cart with id: {} for user: {}", cart.getCartId(), userId);
         }
         
         // Merge session cart items with DB cart
@@ -102,12 +116,17 @@ public class CartServiceImpl implements CartService {
             if (existingItem.isPresent()) {
                 // Update quantity (add session quantity to existing quantity)
                 CartItem item = existingItem.get();
+                int oldQuantity = item.getQuantity();
                 int newQuantity = item.getQuantity() + sessionItem.getQuantity();
                 item.setQuantity(newQuantity);
                 item.setSubtotal(product.getUnitPrice() * newQuantity);
-                cartItemRepository.save(item);
+                CartItem savedItem = cartItemRepository.save(item);
+                // Ensure item is in cart's items list
+                if (!cart.getItems().contains(savedItem)) {
+                    cart.getItems().add(savedItem);
+                }
                 log.info("Updated cart item quantity for product {}: {} -> {}", 
-                        product.getProductId(), item.getQuantity() - sessionItem.getQuantity(), item.getQuantity());
+                        product.getProductId(), oldQuantity, newQuantity);
             } else {
                 // Add new item to cart
                 CartItem newItem = new CartItem();
@@ -115,17 +134,32 @@ public class CartServiceImpl implements CartService {
                 newItem.setProduct(product);
                 newItem.setQuantity(sessionItem.getQuantity());
                 newItem.setSubtotal(product.getUnitPrice() * sessionItem.getQuantity());
-                cartItemRepository.save(newItem);
+                CartItem savedItem = cartItemRepository.save(newItem);
+                // Add to cart's items list to maintain bidirectional relationship
+                cart.getItems().add(savedItem);
                 log.info("Added new cart item for product {} with quantity {}", 
                         product.getProductId(), sessionItem.getQuantity());
             }
         }
         
-        // Refresh cart to get updated items
-        cart = cartRepository.findById(cart.getCartId())
-                .orElseThrow(() -> new ResourceNotFoundException("Cart not found after merge"));
+        // Calculate and update total amount
+        double totalAmount = cart.getItems().stream()
+                .mapToDouble(CartItem::getSubtotal)
+                .sum();
+        cart.setTotalAmount(totalAmount);
         
-        log.info("Cart merge completed for user: {}, total items: {}", userId, cart.getItems().size());
+        // Save cart to ensure items and totalAmount are persisted
+        cart = cartRepository.save(cart);
+        entityManager.flush(); // Ensure all changes are persisted
+        
+        // Refresh cart to get updated items with JOIN FETCH
+        cart = cartRepository.findByIdWithItems(cart.getCartId());
+        if (cart == null) {
+            throw new ResourceNotFoundException("Cart not found after merge");
+        }
+        
+        int itemCount = cart.getItems() != null ? cart.getItems().size() : 0;
+        log.info("Cart merge completed for user: {}, total items: {}, total amount: {}", userId, itemCount, cart.getTotalAmount());
         return cartMapper.toResponse(cart);
     }
 
@@ -141,18 +175,29 @@ public class CartServiceImpl implements CartService {
             cart = new Cart();
             cart.setUser(user);
             cart.setItems(new java.util.ArrayList<>());
+            cart.setTotalAmount(0.0);
             cart = cartRepository.save(cart);
+            entityManager.flush(); // Ensure cart is persisted immediately
             log.info("Created new cart with id: {} for user: {}", cart.getCartId(), userId);
+        } else {
+            log.info("Found existing cart with id: {} for user: {}", cart.getCartId(), userId);
         }
         
         // Clear all existing items first (replace strategy)
-        // Use cascade delete by clearing the list and saving
-        List<CartItem> existingItems = new java.util.ArrayList<>(cart.getItems());
+        // Delete all existing items explicitly
+        List<CartItem> existingItems = cartItemRepository.findCartItemsByCart_CartId(cart.getCartId());
+        if (!existingItems.isEmpty()) {
+            cartItemRepository.deleteAll(existingItems);
+            entityManager.flush(); // Ensure deletes are executed before adding new items
+            log.info("Cleared {} existing cart items for user: {}", existingItems.size(), userId);
+        }
+        
+        // Clear the items list in the cart entity
         cart.getItems().clear();
-        cartRepository.save(cart); // This will cascade delete items due to orphanRemoval = true
-        // Also explicitly delete to ensure cleanup
-        cartItemRepository.deleteAll(existingItems);
-        log.info("Cleared existing cart items for user: {}", userId);
+        cart.setTotalAmount(0.0);
+        cart = cartRepository.save(cart);
+        entityManager.flush(); // Ensure cart is persisted
+        entityManager.refresh(cart); // Refresh to ensure cart is managed
         
         // Add new items
         for (CartItemRequest itemRequest : cartItems) {
@@ -164,22 +209,61 @@ public class CartServiceImpl implements CartService {
                 continue;
             }
             
-            // Create new cart item
+            double unitPrice = product.getUnitPrice();
+            if (unitPrice <= 0) {
+                log.warn("Product {} has invalid unitPrice: {}, skipping", product.getProductId(), unitPrice);
+                continue;
+            }
+            
+            log.info("Creating cart item for product {} with unitPrice: {}, quantity: {}", 
+                    product.getProductId(), unitPrice, itemRequest.getQuantity());
+            
+            // Create new cart item - ensure cart is properly set
             CartItem newItem = new CartItem();
-            newItem.setCart(cart);
+            newItem.setCart(cart); // Set the managed cart entity
             newItem.setProduct(product);
             newItem.setQuantity(itemRequest.getQuantity());
-            newItem.setSubtotal(product.getUnitPrice() * itemRequest.getQuantity());
-            cartItemRepository.save(newItem);
+            newItem.setSubtotal(unitPrice * itemRequest.getQuantity());
+            
+            log.info("CartItem before save - quantity: {}, subtotal: {}, cartId: {}", 
+                    newItem.getQuantity(), newItem.getSubtotal(), 
+                    newItem.getCart() != null ? newItem.getCart().getCartId() : "null");
+            
+            // Save the cart item
+            CartItem savedItem = cartItemRepository.save(newItem);
+            entityManager.flush(); // Ensure item is persisted immediately
+            
+            log.info("CartItem after save - cartItemId: {}, quantity: {}, subtotal: {}", 
+                    savedItem.getCartItemId(), savedItem.getQuantity(), savedItem.getSubtotal());
+            
+            // Add to cart's items list to maintain bidirectional relationship
+            if (cart.getItems() == null) {
+                cart.setItems(new java.util.ArrayList<>());
+            }
+            cart.getItems().add(savedItem);
             log.info("Added cart item for product {} with quantity {}", 
                     product.getProductId(), itemRequest.getQuantity());
         }
         
-        // Refresh cart to get updated items
-        cart = cartRepository.findById(cart.getCartId())
-                .orElseThrow(() -> new ResourceNotFoundException("Cart not found after sync"));
+        // Calculate and update total amount
+        double totalAmount = cart.getItems().stream()
+                .mapToDouble(CartItem::getSubtotal)
+                .sum();
+        cart.setTotalAmount(totalAmount);
         
-        log.info("Cart sync completed for user: {}, total items: {}", userId, cart.getItems().size());
+        // Save cart again to ensure items and totalAmount are persisted
+        cart = cartRepository.save(cart);
+        entityManager.flush(); // Ensure all changes are persisted
+        
+        // Refresh cart to get updated items with JOIN FETCH
+        cart = cartRepository.findByIdWithItems(cart.getCartId());
+        if (cart == null) {
+            throw new ResourceNotFoundException("Cart not found after sync");
+        }
+        
+        // Force load items by accessing them
+        int itemCount = cart.getItems() != null ? cart.getItems().size() : 0;
+        log.info("Cart sync completed for user: {}, total items: {}, total amount: {}", userId, itemCount, cart.getTotalAmount());
         return cartMapper.toResponse(cart);
     }
 }
