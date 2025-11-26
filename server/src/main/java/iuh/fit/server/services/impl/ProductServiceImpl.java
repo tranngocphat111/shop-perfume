@@ -370,11 +370,21 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     @Transactional(readOnly = true)
-    public Page<ProductResponse> filterProducts(Integer brandId, Integer categoryId, String searchTerm, Pageable pageable) {
-        log.info("Filtering products with brandId: {}, categoryId: {}, searchTerm: '{}', pageable: {}", 
-                brandId, categoryId, searchTerm, pageable);
+    public Page<ProductResponse> filterProducts(Integer brandId, Integer categoryId, Double minPrice, Double maxPrice, String searchTerm, Pageable pageable) {
+        log.info("Filtering products with brandId: {}, categoryId: {}, minPrice: {}, maxPrice: {}, searchTerm: '{}', pageable: {}", 
+                brandId, categoryId, minPrice, maxPrice, searchTerm, pageable);
         
-        Page<Product> products = productRepository.filterProducts(brandId, categoryId, searchTerm, pageable);
+        Page<Product> products = productRepository.filterProducts(brandId, categoryId, minPrice, maxPrice, searchTerm, pageable);
+        return products.map(productMapper::toResponse);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<ProductResponse> filterProductsMultiple(List<Integer> brandIds, List<Integer> categoryIds, Double minPrice, Double maxPrice, String searchTerm, Pageable pageable) {
+        log.info("Filtering products with brandIds: {}, categoryIds: {}, minPrice: {}, maxPrice: {}, searchTerm: '{}', pageable: {}", 
+                brandIds, categoryIds, minPrice, maxPrice, searchTerm, pageable);
+        
+        Page<Product> products = productRepository.filterProductsMultiple(brandIds, categoryIds, minPrice, maxPrice, searchTerm, pageable);
         return products.map(productMapper::toResponse);
     }
 

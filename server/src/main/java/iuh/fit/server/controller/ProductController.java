@@ -61,12 +61,16 @@ public class ProductController {
             @RequestParam(required = false) String sort,
             @RequestParam(required = false) Integer brandId,
             @RequestParam(required = false) Integer categoryId,
+            @RequestParam(required = false) List<Integer> brandIds,
+            @RequestParam(required = false) List<Integer> categoryIds,
+            @RequestParam(required = false) Double minPrice,
+            @RequestParam(required = false) Double maxPrice,
             @RequestParam(required = false) String sortBy,
             @RequestParam(required = false) String direction,
             @RequestParam(required = false) String search
     ) {
-        log.info("REST request to get products with pagination - page: {}, size: {}, brandId: {}, categoryId: {}, search: {}", 
-                page, size, brandId, categoryId, search);
+        log.info("REST request to get products with pagination - page: {}, size: {}, brandId: {}, categoryId: {}, brandIds: {}, categoryIds: {}, minPrice: {}, maxPrice: {}, search: {}", 
+                page, size, brandId, categoryId, brandIds, categoryIds, minPrice, maxPrice, search);
 
         // Parse sort parameter (format: "field,direction" or just "field")
         String fieldName = "productId";
@@ -87,8 +91,13 @@ public class ProductController {
 
         Pageable pageable = PageRequest.of(page, size, Sort.by(sortDirection, fieldName));
         
-        // Use filter method to support brandId, categoryId and search
-        Page<ProductResponse> products = productService.filterProducts(brandId, categoryId, search, pageable);
+        // Use filter method - support both single and multiple brands/categories
+        Page<ProductResponse> products;
+        if ((brandIds != null && !brandIds.isEmpty()) || (categoryIds != null && !categoryIds.isEmpty())) {
+            products = productService.filterProductsMultiple(brandIds, categoryIds, minPrice, maxPrice, search, pageable);
+        } else {
+            products = productService.filterProducts(brandId, categoryId, minPrice, maxPrice, search, pageable);
+        }
         
         return ResponseEntity.ok(products);
     }

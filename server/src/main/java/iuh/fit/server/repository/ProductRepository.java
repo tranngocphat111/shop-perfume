@@ -52,12 +52,14 @@ public interface ProductRepository extends JpaRepository<Product, Integer> {
     Page<Product> searchProducts(@Param("searchTerm") String searchTerm, Pageable pageable);
 
     /**
-     * Lọc sản phẩm theo brand, category và search term
-     * Hỗ trợ filter kết hợp: có thể filter theo brand, category hoặc cả hai
+     * Lọc sản phẩm theo brand, category, search term và khoảng giá
+     * Hỗ trợ filter kết hợp: có thể filter theo brand, category, price range hoặc cả ba
      */
     @Query("SELECT p FROM Product p WHERE " +
            "(:brandId IS NULL OR p.brand.brandId = :brandId) AND " +
            "(:categoryId IS NULL OR p.category.categoryId = :categoryId) AND " +
+           "(:minPrice IS NULL OR p.unitPrice >= :minPrice) AND " +
+           "(:maxPrice IS NULL OR p.unitPrice <= :maxPrice) AND " +
            "(:searchTerm IS NULL OR :searchTerm = '' OR " +
            "LOWER(p.name) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
            "LOWER(p.brand.name) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
@@ -65,6 +67,29 @@ public interface ProductRepository extends JpaRepository<Product, Integer> {
     Page<Product> filterProducts(
         @Param("brandId") Integer brandId,
         @Param("categoryId") Integer categoryId,
+        @Param("minPrice") Double minPrice,
+        @Param("maxPrice") Double maxPrice,
+        @Param("searchTerm") String searchTerm,
+        Pageable pageable
+    );
+
+    /**
+     * Lọc sản phẩm với nhiều brands và categories
+     */
+    @Query("SELECT p FROM Product p WHERE " +
+           "(:brandIds IS NULL OR SIZE(:brandIds) = 0 OR p.brand.brandId IN :brandIds) AND " +
+           "(:categoryIds IS NULL OR SIZE(:categoryIds) = 0 OR p.category.categoryId IN :categoryIds) AND " +
+           "(:minPrice IS NULL OR p.unitPrice >= :minPrice) AND " +
+           "(:maxPrice IS NULL OR p.unitPrice <= :maxPrice) AND " +
+           "(:searchTerm IS NULL OR :searchTerm = '' OR " +
+           "LOWER(p.name) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
+           "LOWER(p.brand.name) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
+           "LOWER(p.category.name) LIKE LOWER(CONCAT('%', :searchTerm, '%')))")
+    Page<Product> filterProductsMultiple(
+        @Param("brandIds") List<Integer> brandIds,
+        @Param("categoryIds") List<Integer> categoryIds,
+        @Param("minPrice") Double minPrice,
+        @Param("maxPrice") Double maxPrice,
         @Param("searchTerm") String searchTerm,
         Pageable pageable
     );

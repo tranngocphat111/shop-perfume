@@ -54,7 +54,11 @@ export const productService = {
     direction?: string,
     search?: string,
     brandId?: number | null,
-    categoryId?: number | null
+    categoryId?: number | null,
+    brandIds?: number[] | null,
+    categoryIds?: number[] | null,
+    minPrice?: number | null,
+    maxPrice?: number | null
   ): Promise<PageResponse<Product>> {
     let url = `/products/page?page=${page}&size=${size}`;
 
@@ -66,12 +70,28 @@ export const productService = {
       url += `&search=${encodeURIComponent(search.trim())}`;
     }
 
-    if (brandId) {
+    if (brandIds && brandIds.length > 0) {
+      brandIds.forEach((id) => {
+        url += `&brandIds=${id}`;
+      });
+    } else if (brandId) {
       url += `&brandId=${brandId}`;
     }
 
-    if (categoryId) {
+    if (categoryIds && categoryIds.length > 0) {
+      categoryIds.forEach((id) => {
+        url += `&categoryIds=${id}`;
+      });
+    } else if (categoryId) {
       url += `&categoryId=${categoryId}`;
+    }
+
+    if (minPrice !== null && minPrice !== undefined) {
+      url += `&minPrice=${minPrice}`;
+    }
+
+    if (maxPrice !== null && maxPrice !== undefined) {
+      url += `&maxPrice=${maxPrice}`;
     }
 
     return apiService.get<PageResponse<Product>>(url);

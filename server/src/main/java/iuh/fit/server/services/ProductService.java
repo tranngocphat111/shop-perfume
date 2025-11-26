@@ -66,9 +66,14 @@ public interface ProductService {
     List<ProductResponse> findBestSellers(int limit);
 
     /**
-     * Lọc sản phẩm theo brand, category và search term
+     * Lọc sản phẩm theo brand, category, search term và khoảng giá
      */
-    Page<ProductResponse> filterProducts(Integer brandId, Integer categoryId, String searchTerm, Pageable pageable);
+    Page<ProductResponse> filterProducts(Integer brandId, Integer categoryId, Double minPrice, Double maxPrice, String searchTerm, Pageable pageable);
+
+    /**
+     * Lọc sản phẩm với nhiều brands và categories
+     */
+    Page<ProductResponse> filterProductsMultiple(List<Integer> brandIds, List<Integer> categoryIds, Double minPrice, Double maxPrice, String searchTerm, Pageable pageable);
 
     /**
      * Lấy danh sách sản phẩm theo brandId
