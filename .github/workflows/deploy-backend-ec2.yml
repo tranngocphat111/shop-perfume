@@ -40,155 +40,27 @@ jobs:
       run: |
         scp server/target/server-*.jar ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/home/${{ secrets.EC2_USER }}/backend.jar
     
-    - name: Debug and Fix EC2 Service
-      run: |
-        ssh ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
-          echo "=== Debugging EC2 Service ==="
-          
-          # Kiểm tra Java
-          echo "1. Checking Java..."
-          if ! command -v java &> /dev/null; then
-            echo "❌ Java not found! Installing..."
-            sudo apt update && sudo apt install -y openjdk-17-jdk
-          else
-            echo "✅ Java found: $(java -version 2>&1 | head -1)"
-          fi
-          
-          # Kiểm tra service file
-          echo ""
-          echo "2. Checking systemd service..."
-          if [ ! -f /etc/systemd/system/shop-perfume-backend.service ]; then
-            echo "❌ Service file not found! Creating..."
-            CURRENT_USER=$(whoami)
-            HOME_DIR=$(eval echo ~$CURRENT_USER)
-            JAVA_PATH=$(which java)
-            
-            sudo bash << 'SCRIPTEOF'
-cat > /etc/systemd/system/shop-perfume-backend.service << 'SERVICEEOF'
-[Unit]
-Description=Shop Perfume Backend Service
-After=network.target
-
-[Service]
-Type=simple
-User=$CURRENT_USER
-WorkingDirectory=$HOME_DIR/app
-ExecStart=$JAVA_PATH -jar -Xmx512m -Xms256m $HOME_DIR/app/backend.jar
-Restart=always
-RestartSec=10
-StandardOutput=append:$HOME_DIR/app/logs/backend.log
-StandardError=append:$HOME_DIR/app/logs/backend-error.log
-Environment="SERVER_PORT=8080"
-Environment="SPRING_PROFILES_ACTIVE=prod"
-
-[Install]
-WantedBy=multi-user.target
-SERVICEEOF
-SCRIPTEOF
-            sudo systemctl daemon-reload
-            sudo systemctl enable shop-perfume-backend
-            echo "✅ Service file created"
-          else
-            echo "✅ Service file exists"
-            # Đảm bảo có Restart=always
-            if ! grep -q "Restart=always" /etc/systemd/system/shop-perfume-backend.service; then
-              echo "Adding Restart=always..."
-              sudo sed -i '/\[Service\]/a Restart=always\nRestartSec=10' /etc/systemd/system/shop-perfume-backend.service
-              sudo systemctl daemon-reload
-            fi
-          fi
-          
-          # Kiểm tra thư mục
-          echo ""
-          echo "3. Checking directories..."
-          mkdir -p ~/app/logs
-          echo "✅ Directories ready"
-          
-          # Kiểm tra port đang được sử dụng
-          echo ""
-          echo "4. Checking port 8080..."
-          if ss -tuln 2>/dev/null | grep -q ":8080 " || netstat -tuln 2>/dev/null | grep -q ":8080 "; then
-            echo "⚠️  Port 8080 is in use. Finding process..."
-            PID=$(sudo lsof -t -i:8080 2>/dev/null || sudo fuser 8080/tcp 2>/dev/null | awk '{print $2}')
-            if [ ! -z "$PID" ]; then
-              echo "Killing process $PID..."
-              sudo kill -9 $PID 2>/dev/null || true
-              sleep 2
-            fi
-          fi
-          
-          echo ""
-          echo "=== Debug Complete ==="
-        EOF
-    
     - name: Deploy and restart on EC2
       run: |
         ssh ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
-          echo "=== Starting Deployment ==="
-          
           # Tạo thư mục nếu chưa có
           mkdir -p ~/app
-          mkdir -p ~/app/logs
           
           # Backup JAR cũ
           if [ -f ~/app/backend.jar ]; then
-            echo "Backing up old JAR..."
-            mv ~/app/backend.jar ~/app/backend.jar.backup.$(date +%Y%m%d_%H%M%S)
+            mv ~/app/backend.jar ~/app/backend.jar.backup
           fi
           
           # Copy JAR mới
-          echo "Copying new JAR..."
           mv ~/backend.jar ~/app/backend.jar
-          chmod +x ~/app/backend.jar
           
           # Dừng service cũ (nếu đang chạy)
-          echo "Stopping old service..."
           sudo systemctl stop shop-perfume-backend || true
-          sleep 3
           
           # Chạy JAR mới
-          echo "Starting new service..."
           sudo systemctl start shop-perfume-backend
           
-          # Đợi service khởi động
-          echo "Waiting for service to start..."
-          sleep 15
-          
           # Kiểm tra status
-          echo ""
-          echo "=== Service Status ==="
-          if sudo systemctl is-active --quiet shop-perfume-backend; then
-            echo "✅ Service is ACTIVE"
-            sudo systemctl status shop-perfume-backend --no-pager -l | head -30
-          else
-            echo "❌ Service is NOT active"
-            echo ""
-            echo "=== Service Status Details ==="
-            sudo systemctl status shop-perfume-backend --no-pager -l || true
-            echo ""
-            echo "=== Recent Error Logs ==="
-            tail -n 100 ~/app/logs/backend-error.log 2>/dev/null || echo "No error log file found"
-            echo ""
-            echo "=== Recent Application Logs ==="
-            tail -n 100 ~/app/logs/backend.log 2>/dev/null || echo "No application log file found"
-            echo ""
-            echo "=== Systemd Journal (last 100 lines) ==="
-            sudo journalctl -u shop-perfume-backend -n 100 --no-pager || true
-            exit 1
-          fi
-          
-          # Kiểm tra port
-          echo ""
-          echo "=== Checking Port 8080 ==="
           sleep 5
-          if ss -tuln 2>/dev/null | grep -q ":8080 " || netstat -tuln 2>/dev/null | grep -q ":8080 "; then
-            echo "✅ Port 8080 is listening"
-          else
-            echo "⚠️  Warning: Port 8080 is not listening yet"
-            echo "Service may still be starting. Check logs: tail -f ~/app/logs/backend.log"
-          fi
-          
-          echo ""
-          echo "=== Deployment Complete ==="
-          echo "API should be available at: http://13.251.125.90:8080/api"
+          sudo systemctl status shop-perfume-backend
         EOF

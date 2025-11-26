@@ -10,7 +10,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isAdmin: boolean;
   isLoading: boolean;
-  login: (token: string, userData: AuthResponse) => void;
+  login: (token: string, userData: AuthResponse, mergeCart?: () => Promise<void>) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -81,7 +81,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return () => clearInterval(intervalId);
   }, [user]);
 
-  const login = (token: string, userData: AuthResponse) => {
+  const login = async (token: string, userData: AuthResponse, mergeCart?: () => Promise<void>) => {
     authService.setToken(token);
     authService.setRefreshToken(userData.refreshToken);
     authService.setUser(userData);

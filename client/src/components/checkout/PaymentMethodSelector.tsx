@@ -23,12 +23,12 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
   };
 
   return (
-    <div className="bg-white p-6 md:p-8 rounded-xl shadow-sm mt-6">
-      <h2 className="text-xl md:text-2xl font-semibold mb-6 pb-3 border-b-2 border-gray-100">
+    <div className="bg-white p-6 md:p-8 rounded-xl shadow-[0_2px_8px_rgba(0,0,0,0.1)] border border-slate-100 mt-6">
+      <h2 className="text-xl md:text-2xl font-semibold text-slate-800 mb-6 pb-4 border-b-2 border-slate-100">
         Phương thức thanh toán
       </h2>
 
-      <div className="space-y-4">
+      <div className="space-y-3">
         {/* COD - Trả tiền mặt khi nhận hàng */}
         <div className="relative">
           <input
@@ -42,36 +42,46 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
           />
           <label
             htmlFor="cod"
-            className={`flex items-start p-5 border-2 rounded-lg cursor-pointer transition-all ${
+            className={`flex items-center p-5 border-2 rounded-xl cursor-pointer transition-all duration-200 ${
               selectedMethod === 'cod'
-                ? 'border-black bg-gray-50'
-                : 'border-gray-200 hover:border-gray-400'
+                ? 'border-black bg-slate-50 shadow-md'
+                : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
             }`}
           >
-            <div className="flex items-center">
+            <div className="flex items-center flex-1 gap-4">
+              {/* Radio Button */}
               <div
-                className={`w-5 h-5 rounded-full border-2 mr-4 mt-0.5 flex-shrink-0 relative transition-all ${
+                className={`w-6 h-6 rounded-full border-2 flex-shrink-0 relative transition-all ${
                   selectedMethod === 'cod'
                     ? 'border-black bg-black'
-                    : 'border-gray-300'
+                    : 'border-slate-300 bg-white'
                 }`}
               >
                 {selectedMethod === 'cod' && (
-                  <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-2 h-2 bg-white rounded-full" />
+                  <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-2.5 h-2.5 bg-white rounded-full" />
                 )}
               </div>
-            </div>
 
-            <div className="flex-1">
-              <div className="flex items-center gap-2 font-semibold text-lg mb-2">
-                <FaMoneyBillWave className="text-green-600" />
-                <span>Trả tiền mặt khi nhận hàng</span>
+              {/* Icon */}
+              <div className={`p-3 rounded-lg flex-shrink-0 ${
+                selectedMethod === 'cod' ? 'bg-green-100' : 'bg-slate-100'
+              }`}>
+                <FaMoneyBillWave className={`text-xl ${
+                  selectedMethod === 'cod' ? 'text-green-600' : 'text-slate-500'
+                }`} />
               </div>
-              {selectedMethod === 'cod' && (
-                <p className="text-sm text-gray-600 mt-2 animate-fadeIn">
-                  Thanh toán bằng tiền mặt khi nhận hàng tại địa chỉ của bạn.
-                </p>
-              )}
+
+              {/* Content */}
+              <div className="flex-1">
+                <div className="flex items-center gap-2 font-semibold text-base md:text-lg text-slate-800 mb-1">
+                  <span>Trả tiền mặt khi nhận hàng</span>
+                </div>
+                {selectedMethod === 'cod' && (
+                  <p className="text-sm text-slate-600 mt-1 animate-fadeIn">
+                    Thanh toán bằng tiền mặt khi nhận hàng tại địa chỉ của bạn
+                  </p>
+                )}
+              </div>
             </div>
           </label>
         </div>
@@ -89,30 +99,45 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
           />
           <label
             htmlFor="qr-payment"
-            className={`flex items-start p-5 border-2 rounded-lg cursor-pointer transition-all ${
+            className={`flex items-center p-5 border-2 rounded-xl cursor-pointer transition-all duration-200 ${
               selectedMethod === 'qr-payment'
-                ? 'border-black bg-gray-50'
-                : 'border-gray-200 hover:border-gray-400'
+                ? 'border-black bg-slate-50 shadow-md'
+                : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
             }`}
           >
-            <div className="flex items-center">
+            <div className="flex items-center flex-1 gap-4">
+              {/* Radio Button */}
               <div
-                className={`w-5 h-5 rounded-full border-2 mr-4 mt-0.5 flex-shrink-0 relative transition-all ${
+                className={`w-6 h-6 rounded-full border-2 flex-shrink-0 relative transition-all ${
                   selectedMethod === 'qr-payment'
                     ? 'border-black bg-black'
-                    : 'border-gray-300'
+                    : 'border-slate-300 bg-white'
                 }`}
               >
                 {selectedMethod === 'qr-payment' && (
-                  <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-2 h-2 bg-white rounded-full" />
+                  <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-2.5 h-2.5 bg-white rounded-full" />
                 )}
               </div>
-            </div>
 
-            <div className="flex-1">
-              <div className="flex items-center gap-2 font-semibold text-lg mb-2">
-                <FaQrcode className="text-blue-600" />
-                <span>Thanh toán QR Code</span>
+              {/* Icon */}
+              <div className={`p-3 rounded-lg flex-shrink-0 ${
+                selectedMethod === 'qr-payment' ? 'bg-blue-100' : 'bg-slate-100'
+              }`}>
+                <FaQrcode className={`text-xl ${
+                  selectedMethod === 'qr-payment' ? 'text-blue-600' : 'text-slate-500'
+                }`} />
+              </div>
+
+              {/* Content */}
+              <div className="flex-1">
+                <div className="flex items-center gap-2 font-semibold text-base md:text-lg text-slate-800 mb-1">
+                  <span>Thanh toán QR Code</span>
+                </div>
+                {selectedMethod === 'qr-payment' && (
+                  <p className="text-sm text-slate-600 mt-1 animate-fadeIn">
+                    Quét mã QR để thanh toán nhanh chóng và an toàn
+                  </p>
+                )}
               </div>
             </div>
           </label>
@@ -120,13 +145,29 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
 
         {/* Validation Error */}
         {validationError && (
-          <div className="mt-4 p-3 bg-red-50 border border-red-500 rounded-lg">
+          <div className="mt-4 p-3 bg-red-50 border border-red-500 rounded-lg animate-fadeIn">
             <p className="text-sm text-red-600 font-medium">
               {validationError}
             </p>
           </div>
         )}
       </div>
+
+      <style>{`
+        @keyframes fadeIn {
+          from {
+            opacity: 0;
+            transform: translateY(-5px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        .animate-fadeIn {
+          animation: fadeIn 0.3s ease-in-out;
+        }
+      `}</style>
     </div>
   );
 };
