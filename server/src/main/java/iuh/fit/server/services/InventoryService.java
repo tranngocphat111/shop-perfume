@@ -12,6 +12,8 @@ import java.util.List;
  */
 public interface InventoryService {
 
+    Long getLowStockItem();
+
     /**
      * Lấy tất cả sản phẩm
      */
