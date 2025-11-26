@@ -7,7 +7,7 @@ interface PurchaseInvoiceModalProps {
   onClose: () => void;
   onSubmit: (data: PurchaseInvoiceFormData) => Promise<void>;
   initialData?: PurchaseInvoiceFormData;
-  mode: "add" | "edit";
+  mode: "add" | "edit" | "view";
   suppliers: Supplier[];
   products: Product[];
   isSubmitting?: boolean;
@@ -43,8 +43,10 @@ export const PurchaseInvoiceModal = ({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const isReadOnly = mode === "view";
+
   useEffect(() => {
-    if (initialData && mode === "edit") {
+    if (initialData && mode !== "add") {
       setFormData(initialData);
       // Convert initialData.details to InvoiceDetail format with product names
       const mappedDetails = initialData.details.map((detail) => {
@@ -210,6 +212,10 @@ export const PurchaseInvoiceModal = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isReadOnly) {
+      onClose();
+      return;
+    }
     if (validate() && !isSubmitting) {
       setIsSubmitting(true);
       try {
@@ -255,7 +261,11 @@ export const PurchaseInvoiceModal = ({
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b sticky top-0 bg-white rounded-t-lg">
           <h3 className="text-xl font-bold text-gray-800">
-            {mode === "add" ? "Add Purchase Invoice" : "Edit Purchase Invoice"}
+            {mode === "add"
+              ? "Add Purchase Invoice"
+              : mode === "edit"
+              ? "Edit Purchase Invoice"
+              : "Purchase Invoice Details"}
           </h3>
           <button
             onClick={onClose}
@@ -288,7 +298,7 @@ export const PurchaseInvoiceModal = ({
                     email: supplier?.email || "",
                   });
                 }}
-                disabled={isSubmitting}
+                disabled={isSubmitting || isReadOnly}
                 className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed ${
                   errors.supplierId ? "border-red-500" : "border-gray-300"
                 }`}>
@@ -315,7 +325,7 @@ export const PurchaseInvoiceModal = ({
                 onChange={(e) =>
                   setFormData({ ...formData, email: e.target.value })
                 }
-                disabled={isSubmitting}
+                disabled={isSubmitting || isReadOnly}
                 className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed ${
                   errors.email ? "border-red-500" : "border-gray-300"
                 }`}
@@ -342,7 +352,7 @@ export const PurchaseInvoiceModal = ({
                       | "CANCELLED",
                   })
                 }
-                disabled={isSubmitting}
+                disabled={isSubmitting || isReadOnly}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed">
                 <option value="PENDING">Pending</option>
                 <option value="COMPLETED">Completed</option>
@@ -352,7 +362,8 @@ export const PurchaseInvoiceModal = ({
           </div>
 
           {/* Excel Import Section */}
-          <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+          {!isReadOnly && (
+            <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
             <div className="flex items-center justify-between mb-3">
               <h4 className="font-semibold text-gray-700">
                 <i className="fas fa-file-excel text-green-600 mr-2"></i>
@@ -389,7 +400,8 @@ export const PurchaseInvoiceModal = ({
               Upload an Excel file with columns: ProductID, Quantity,
               ImportPrice
             </p>
-          </div>
+            </div>
+          )}
 
           {/* Product Details Table */}
           <div className="mb-6">
@@ -427,16 +439,18 @@ export const PurchaseInvoiceModal = ({
                     <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
                       Sub Total (đ)
                     </th>
-                    <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700">
-                      Action
-                    </th>
+                    {!isReadOnly && (
+                      <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700">
+                        Action
+                      </th>
+                    )}
                   </tr>
                 </thead>
                 <tbody>
                   {details.length === 0 ? (
                     <tr>
                       <td
-                        colSpan={6}
+                        colSpan={isReadOnly ? 5 : 6}
                         className="px-4 py-8 text-center text-gray-500">
                         No products added. Click "Add Row" or import from Excel.
                       </td>
@@ -457,7 +471,7 @@ export const PurchaseInvoiceModal = ({
                                 e.target.value
                               )
                             }
-                            disabled={isSubmitting}
+                            disabled={isSubmitting || isReadOnly}
                             className={`w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed ${
                               errors[`detail_${index}_product`]
                                 ? "border-red-500"
@@ -490,7 +504,7 @@ export const PurchaseInvoiceModal = ({
                               )
                             }
                             min="1"
-                            disabled={isSubmitting}
+                            disabled={isSubmitting || isReadOnly}
                             className={`w-24 px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed ${
                               errors[`detail_${index}_quantity`]
                                 ? "border-red-500"
@@ -516,7 +530,7 @@ export const PurchaseInvoiceModal = ({
                             }
                             min="0"
                             step="1000"
-                            disabled={isSubmitting}
+                            disabled={isSubmitting || isReadOnly}
                             className={`w-32 px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed ${
                               errors[`detail_${index}_price`]
                                 ? "border-red-500"
@@ -532,7 +546,8 @@ export const PurchaseInvoiceModal = ({
                         <td className="px-4 py-3 text-sm font-medium text-gray-700">
                           {detail.subTotal.toLocaleString("vi-VN")}
                         </td>
-                        <td className="px-4 py-3 text-center">
+                        {!isReadOnly && (
+                          <td className="px-4 py-3 text-center">
                           <button
                             type="button"
                             onClick={() => handleRemoveDetail(index)}
@@ -541,7 +556,8 @@ export const PurchaseInvoiceModal = ({
                             title="Remove">
                             <i className="fas fa-trash"></i>
                           </button>
-                        </td>
+                          </td>
+                        )}
                       </tr>
                     ))
                   )}
@@ -549,12 +565,12 @@ export const PurchaseInvoiceModal = ({
                 <tfoot className="bg-gray-50 border-t-2 border-gray-300">
                   <tr>
                     <td
-                      colSpan={4}
+                      colSpan={isReadOnly ? 3 : 4}
                       className="px-4 py-3 text-right font-semibold text-gray-700">
                       Total Amount:
                     </td>
                     <td
-                      colSpan={2}
+                      colSpan={isReadOnly ? 2 : 3}
                       className="px-4 py-3 text-left font-bold text-lg text-blue-600">
                       {totalAmount.toLocaleString("vi-VN")} đ
                     </td>
@@ -571,19 +587,21 @@ export const PurchaseInvoiceModal = ({
               onClick={onClose}
               disabled={isSubmitting}
               className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-              Cancel
+              {isReadOnly ? "Close" : "Cancel"}
             </button>
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
-              {isSubmitting && <i className="fas fa-spinner fa-spin"></i>}
-              {isSubmitting
-                ? "Processing..."
-                : mode === "add"
-                ? "Create Invoice"
-                : "Save Changes"}
-            </button>
+            {!isReadOnly && (
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+                {isSubmitting && <i className="fas fa-spinner fa-spin"></i>}
+                {isSubmitting
+                  ? "Processing..."
+                  : mode === "add"
+                  ? "Create Invoice"
+                  : "Save Changes"}
+              </button>
+            )}
           </div>
         </form>
       </div>
