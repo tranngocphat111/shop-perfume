@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import type { Brand, Category } from "../../types";
+import { productService } from "@/services/perfume.service";
 
 interface ProductModalProps {
   isOpen: boolean;
@@ -7,8 +8,6 @@ interface ProductModalProps {
   onSubmit: (data: ProductFormData) => Promise<void>;
   initialData?: ProductFormData;
   mode: "add" | "edit";
-  brands: Brand[];
-  categories: Category[];
   isSubmitting?: boolean;
 }
 
@@ -36,9 +35,10 @@ export const ProductModal = ({
   onSubmit,
   initialData,
   mode,
-  brands,
-  categories,
 }: ProductModalProps) => {
+  const [brands, setBrands] = useState<Brand[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+
   const [formData, setFormData] = useState<ProductFormData>({
     name: "",
     description: "",
@@ -53,6 +53,23 @@ export const ProductModal = ({
     images: [],
     primaryImageIndex: 0,
   });
+
+  // Fetch brands and categories
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [brandsData, categoriesData] = await Promise.all([
+          productService.getAllBrands(),
+          productService.getAllCategories(),
+        ]);
+        setBrands(brandsData);
+        setCategories(categoriesData);
+      } catch (err) {
+        console.error("Error fetching brands/categories:", err);
+      }
+    };
+    fetchData();
+  }, []);
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
