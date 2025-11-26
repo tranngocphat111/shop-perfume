@@ -47,14 +47,14 @@ const Login: React.FC = () => {
       // Chỉ customer mới đăng nhập qua trang này
       if (response.role === "ADMIN") {
         setError("Vui lòng sử dụng trang đăng nhập dành cho quản trị viên.");
-        authService.logout();
+        await authService.logout();
         setLoading(false);
         return;
       }
 
       login(response.token, response);
       navigate("/");
-    } catch (err) {
+    } catch (err: any) {
       console.error("Login error:", err);
       setError(getErrorMessage(err));
     } finally {
