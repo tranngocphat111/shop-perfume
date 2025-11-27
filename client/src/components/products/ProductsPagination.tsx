@@ -67,30 +67,76 @@ export const ProductsPagination = ({
 
         {/* Page Numbers */}
         <div className="flex gap-2">
-          {Array.from({ length: pageInfo.totalPages }, (_, i) => i).map(
-            (page) => {
-              const showPage =
-                page === 0 ||
-                page === pageInfo.totalPages - 1 ||
-                (page >= actualCurrentPage - 1 && page <= actualCurrentPage + 1);
-
-              const showEllipsis =
-                (page === 1 && actualCurrentPage > 3) ||
-                (page === pageInfo.totalPages - 2 &&
-                  actualCurrentPage < pageInfo.totalPages - 4);
-
-              if (showEllipsis) {
+          {(() => {
+            const totalPages = pageInfo.totalPages;
+            const pages: (number | 'ellipsis')[] = [];
+            
+            // Always show first page
+            pages.push(0);
+            
+            // Determine which pages to show around current page
+            let showStartEllipsis = false;
+            let showEndEllipsis = false;
+            let startPage = 1;
+            let endPage = totalPages - 2;
+            
+            if (totalPages <= 7) {
+              // Show all pages if 7 or fewer
+              for (let i = 1; i < totalPages - 1; i++) {
+                pages.push(i);
+              }
+            } else {
+              // Show pages around current page
+              if (actualCurrentPage <= 3) {
+                // Near start: show 1, 2, 3, 4
+                endPage = Math.min(4, totalPages - 2);
+                showEndEllipsis = totalPages > 6;
+              } else if (actualCurrentPage >= totalPages - 4) {
+                // Near end: show last few pages
+                startPage = Math.max(1, totalPages - 5);
+                showStartEllipsis = totalPages > 6;
+              } else {
+                // In middle: show current page and neighbors
+                startPage = actualCurrentPage - 1;
+                endPage = actualCurrentPage + 1;
+                showStartEllipsis = true;
+                showEndEllipsis = true;
+              }
+              
+              // Add start ellipsis if needed
+              if (showStartEllipsis) {
+                pages.push('ellipsis');
+              }
+              
+              // Add middle pages
+              for (let i = startPage; i <= endPage; i++) {
+                if (i > 0 && i < totalPages - 1) {
+                  pages.push(i);
+                }
+              }
+              
+              // Add end ellipsis if needed
+              if (showEndEllipsis) {
+                pages.push('ellipsis');
+              }
+            }
+            
+            // Always show last page (if more than 1 page)
+            if (totalPages > 1) {
+              pages.push(totalPages - 1);
+            }
+            
+            return pages.map((page, index) => {
+              if (page === 'ellipsis') {
                 return (
                   <span
-                    key={page}
+                    key={`ellipsis-${index}`}
                     className="px-3 py-2 text-gray-500 text-sm">
                     ...
                   </span>
                 );
               }
-
-              if (!showPage) return null;
-
+              
               return (
                 <button
                   key={page}
@@ -103,8 +149,8 @@ export const ProductsPagination = ({
                   {page + 1}
                 </button>
               );
-            }
-          )}
+            });
+          })()}
         </div>
 
         <button

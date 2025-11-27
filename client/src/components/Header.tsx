@@ -300,7 +300,7 @@ export const Header = () => {
                         damping: 30,
                         mass: 0.9
                       }}
-                      className="absolute top-full left-0 mt-4 w-52 bg-white backdrop-blur-md shadow-xl rounded-xl py-3 p-2 border border-gray-200/50 z-50">
+                      className="absolute top-full left-0 mt-4 w-52 bg-white shadow-md rounded-sm py-3 p-2 border border-gray-200/50 z-50">
                       {categories.map((category) => (
                         <Link
                           key={category.categoryId}
@@ -357,7 +357,7 @@ export const Header = () => {
                         damping: 30,
                         mass: 0.9
                       }}
-                      className="fixed font-normal left-0 right-0 mt-4 mx-auto w-[90vw] max-w-5xl bg-white backdrop-blur-md shadow-2xl rounded-xl py-8 px-10 border border-gray-200/50 z-50"
+                      className="fixed font-normal left-0 right-0 mt-4 mx-auto w-[90vw] max-w-5xl bg-white backdrop-blur-md shadow-md rounded-sm py-8 px-10 border border-gray-200/50 z-50"
                     >
                   {loading ? (
                     <div className="text-center py-8 text-gray-500">
