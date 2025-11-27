@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { CartProvider } from "./contexts/CartContext";
 import { AuthProvider } from "./contexts/AuthContext";
+import { ProductsFilterProvider } from "./contexts/ProductsFilterContext";
 import { Header } from "./components/Header";
 import { Home } from "./pages/Home";
 import { Products as CustomerProducts } from "./pages/Products";
@@ -129,7 +130,9 @@ function App() {
     <BrowserRouter>
       <AuthProvider>
         <CartProvider>
-          <AppContent />
+          <ProductsFilterProvider>
+            <AppContent />
+          </ProductsFilterProvider>
         </CartProvider>
       </AuthProvider>
     </BrowserRouter>

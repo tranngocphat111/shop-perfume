@@ -11,9 +11,9 @@ export const CategoriesSection = ({ categories }: CategoriesSectionProps) => {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6 }}
-          className="text-section-title text-center mb-16"
+          className="text-section-title text-center mb-16 capitalize"
         >
-          Bộ sưu tập nước hoa
+         Danh mục nước hoa
         </motion.h2>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-center">
@@ -28,7 +28,11 @@ export const CategoriesSection = ({ categories }: CategoriesSectionProps) => {
             >
               <Link
                 to={category.link}
-                className="items-center"
+                onClick={() => {
+                  // Reset filters when clicking category from home
+                  window.dispatchEvent(new CustomEvent('resetFilters'));
+                }}
+                className="block w-full h-full"
               >
                 <img
                   src={category.image}

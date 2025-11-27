@@ -76,4 +76,11 @@ export const productService = {
 
     return apiService.get<PageResponse<Product>>(url);
   },
+
+  // Get best sellers (products sold most)
+  async getBestSellers(limit: number = 100): Promise<Product[]> {
+    const inventories = await apiService.get<Inventory[]>(`/inventories/best-sellers?limit=${limit}`);
+    // Convert Inventory[] to Product[]
+    return inventories.map(inv => inv.product);
+  },
 };

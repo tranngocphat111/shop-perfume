@@ -1,106 +1,221 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
-import { useSearchParams } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
-import { PerfumeCard } from "../components/PerfumeCard";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useSearchParams, useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
 import { productService } from "../services/perfume.service";
 import { inventoryService, type InventoryItem } from "../services/inventory.service";
-import type { Brand, Category, Product, PageResponse, Inventory } from "../types";
-import { formatCurrency } from "../utils/helpers";
-import { Link } from "react-router-dom";
+import { useProductsFilter } from "../contexts/ProductsFilterContext";
+import type { Brand, Category, Product, PageResponse } from "../types";
+import {
+  ProductsSidebar,
+  ProductsHeader,
+  ProductsGrid,
+  ProductsPagination,
+  ProductsToolbar,
+} from "../components/products";
+
+// Cache keys for sessionStorage
+const CACHE_KEYS = {
+  BRANDS: 'products_cache_brands',
+  CATEGORIES: 'products_cache_categories',
+  PRODUCTS: 'products_cache_products',
+  ALL_PRODUCTS: 'products_cache_all_products',
+  PAGE_INFO: 'products_cache_page_info',
+  PRICE_BOUNDS: 'products_cache_price_bounds',
+  FILTERS: 'products_cache_filters',
+  CURRENT_PAGE: 'products_cache_current_page',
+  INVENTORY_MAP: 'products_cache_inventory_map',
+};
+
+// Helper functions for cache
+const getCachedData = <T,>(key: string): T | null => {
+  try {
+    const cached = sessionStorage.getItem(key);
+    if (cached) {
+      return JSON.parse(cached);
+    }
+  } catch (err) {
+    console.error(`Failed to parse cached data for ${key}:`, err);
+  }
+  return null;
+};
+
+const setCachedData = <T,>(key: string, data: T): void => {
+  try {
+    sessionStorage.setItem(key, JSON.stringify(data));
+  } catch (err) {
+    console.error(`Failed to cache data for ${key}:`, err);
+  }
+};
 
 export const Products = () => {
   const [searchParams] = useSearchParams();
-  const [products, setProducts] = useState<Product[]>([]);
-  const [allProducts, setAllProducts] = useState<Product[]>([]); // For client-side price filtering
-  const [pageInfo, setPageInfo] = useState<PageResponse<Product> | null>(null);
-  const [priceBoundsCache, setPriceBoundsCache] = useState<[number, number] | null>(null);
-  const [brands, setBrands] = useState<Brand[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [currentPage, setCurrentPage] = useState(0);
-  const [inventoryMap, setInventoryMap] = useState<Map<number, InventoryItem>>(new Map());
+  const navigate = useNavigate();
+  
+  // Use filter context
+  const {
+    appliedBrands,
+    appliedCategories,
+    appliedSearchQuery,
+    appliedPriceRange,
+    sortBy,
+    selectedBrands,
+    selectedCategories,
+    priceRange,
+    brandSearchQuery,
+    selectedBrand,
+    selectedCategory,
+    currentPage,
+    setAppliedBrands,
+    setAppliedCategories,
+    setAppliedSearchQuery,
+    setAppliedPriceRange,
+    setSortBy,
+    setSelectedBrands,
+    setSelectedCategories,
+    setSearchQuery,
+    setPriceRange,
+    setBrandSearchQuery,
+    setSelectedBrand,
+    setSelectedCategory,
+    setCurrentPage,
+    applyFilters,
+    resetFilters,
+    hasActiveFilters,
+    hasPendingFilters,
+  } = useProductsFilter();
 
-  // Applied filter states (used for API calls)
-  const [appliedBrands, setAppliedBrands] = useState<number[]>([]);
-  const [appliedCategories, setAppliedCategories] = useState<number[]>([]);
-  const [appliedSearchQuery, setAppliedSearchQuery] = useState("");
-  const [appliedPriceRange, setAppliedPriceRange] = useState<[number, number] | null>(null);
-  const [sortBy, setSortBy] = useState("default");
-  
-  // Temporary filter states (UI only, not applied until button click)
-  const [selectedBrands, setSelectedBrands] = useState<number[]>([]);
-  const [selectedCategories, setSelectedCategories] = useState<number[]>([]);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [priceRange, setPriceRange] = useState<[number, number] | null>(null);
-  const [brandSearchQuery, setBrandSearchQuery] = useState("");
-  
-  // Section collapse states
-  const [isCategoriesOpen, setIsCategoriesOpen] = useState(true);
-  const [isBrandsOpen, setIsBrandsOpen] = useState(true);
-  const [isPriceOpen, setIsPriceOpen] = useState(true);
-  
-  // Legacy support for URL params (single selection)
-  const [selectedBrand, setSelectedBrand] = useState<number | null>(null);
-  const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
+  // Initialize state from cache if available
+  const [products, setProducts] = useState<Product[]>(() =>
+    getCachedData<Product[]>(CACHE_KEYS.PRODUCTS) || []
+  );
+  const [allProducts, setAllProducts] = useState<Product[]>(() =>
+    getCachedData<Product[]>(CACHE_KEYS.ALL_PRODUCTS) || []
+  );
+  const [pageInfo, setPageInfo] = useState<PageResponse<Product> | null>(() =>
+    getCachedData<PageResponse<Product>>(CACHE_KEYS.PAGE_INFO) || null
+  );
+  const [priceBoundsCache, setPriceBoundsCache] = useState<[number, number] | null>(() =>
+    getCachedData<[number, number]>(CACHE_KEYS.PRICE_BOUNDS) || null
+  );
+  const [brands, setBrands] = useState<Brand[]>(() =>
+    getCachedData<Brand[]>(CACHE_KEYS.BRANDS) || []
+  );
+  const [categories, setCategories] = useState<Category[]>(() =>
+    getCachedData<Category[]>(CACHE_KEYS.CATEGORIES) || []
+  );
+
+  // Loading states for each data source
+  const [loadingBrands, setLoadingBrands] = useState(false);
+  const [loadingCategories, setLoadingCategories] = useState(false);
+  const [loadingPriceBounds, setLoadingPriceBounds] = useState(false);
+  const [loadingInventories, setLoadingInventories] = useState(false);
+  const [loadingProducts, setLoadingProducts] = useState(false);
+
+  // Single loading state for initial load - only false when ALL data is loaded
+  // Always start with true to ensure we wait for all data to be loaded into state
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
+
+  const [error, setError] = useState<string | null>(null);
+  const [inventoryMap, setInventoryMap] = useState<Map<number, InventoryItem>>(() => {
+    const cached = getCachedData<Array<[number, InventoryItem]>>(CACHE_KEYS.INVENTORY_MAP);
+    return cached ? new Map(cached) : new Map();
+  });
 
   // Use cached price bounds - don't recalculate from allProducts to avoid changing bounds when filtering
   // This ensures the slider bounds remain stable
   const priceBounds = priceBoundsCache;
 
-  // Selected brand/category info for display
-  const [selectedBrandInfo, setSelectedBrandInfo] = useState<Brand | null>(
-    null
-  );
-  const [selectedCategoryInfo, setSelectedCategoryInfo] =
-    useState<Category | null>(null);
+  // Track if we're restoring from URL to prevent sync loop
+  const isRestoringFromUrlRef = useRef(false);
 
-  // Read URL params on mount - reset other filters when selecting from URL
+  // Restore filters from URL params on mount
   useEffect(() => {
     const brandIdParam = searchParams.get("brandId");
     const categoryIdParam = searchParams.get("categoryId");
     const searchParam = searchParams.get("q");
 
-    if (brandIdParam) {
-      const brandId = Number(brandIdParam);
-      setSelectedBrand(brandId);
-      setSelectedBrands([brandId]);
-      setAppliedBrands([brandId]); // Auto-apply from URL
-      setSelectedCategory(null);
-      setSelectedCategories([]);
-      setAppliedCategories([]);
-      setSearchQuery("");
-      setAppliedSearchQuery("");
-    } else if (categoryIdParam) {
+    // Set flag to prevent sync URL from running
+    isRestoringFromUrlRef.current = true;
+
+    // If URL has categoryId → filter by category only
+    if (categoryIdParam) {
       const categoryId = Number(categoryIdParam);
       setSelectedCategory(categoryId);
       setSelectedCategories([categoryId]);
       setAppliedCategories([categoryId]); // Auto-apply from URL
+      // Clear other filters
       setSelectedBrand(null);
       setSelectedBrands([]);
       setAppliedBrands([]);
       setSearchQuery("");
       setAppliedSearchQuery("");
-    } else if (searchParam) {
+      setBrandSearchQuery(""); // Reset brand search
+      // Reset price range to bounds if available
+      if (priceBounds) {
+        setPriceRange([priceBounds[0], priceBounds[1]]);
+        setAppliedPriceRange([priceBounds[0], priceBounds[1]]);
+      } else {
+        setPriceRange(null);
+        setAppliedPriceRange(null);
+      }
+      setSortBy("newest");
+      setCurrentPage(0);
+    }
+    // If URL has brandId → filter by brand only
+    else if (brandIdParam) {
+      const brandId = Number(brandIdParam);
+      setSelectedBrand(brandId);
+      setSelectedBrands([brandId]);
+      setAppliedBrands([brandId]); // Auto-apply from URL
+      // Clear other filters
+      setSelectedCategory(null);
+      setSelectedCategories([]);
+      setAppliedCategories([]);
+      setSearchQuery("");
+      setAppliedSearchQuery("");
+      setBrandSearchQuery(""); // Reset brand search
+      // Reset price range to bounds if available
+      if (priceBounds) {
+        setPriceRange([priceBounds[0], priceBounds[1]]);
+        setAppliedPriceRange([priceBounds[0], priceBounds[1]]);
+      } else {
+        setPriceRange(null);
+        setAppliedPriceRange(null);
+      }
+      setSortBy("newest");
+      setCurrentPage(0);
+    }
+    // If URL has search query
+    else if (searchParam) {
       setSearchQuery(searchParam);
       setAppliedSearchQuery(searchParam); // Auto-apply from URL
+      // Clear other filters
       setSelectedBrand(null);
       setSelectedBrands([]);
       setAppliedBrands([]);
       setSelectedCategory(null);
       setSelectedCategories([]);
       setAppliedCategories([]);
-    } else {
-      setSelectedBrand(null);
-      setSelectedBrands([]);
-      setAppliedBrands([]);
-      setSelectedCategory(null);
-      setSelectedCategories([]);
-      setAppliedCategories([]);
-      setSearchQuery("");
-      setAppliedSearchQuery("");
+      setBrandSearchQuery(""); // Reset brand search
+      // Reset price range to bounds if available
+      if (priceBounds) {
+        setPriceRange([priceBounds[0], priceBounds[1]]);
+        setAppliedPriceRange([priceBounds[0], priceBounds[1]]);
+      } else {
+        setPriceRange(null);
+        setAppliedPriceRange(null);
+      }
+      setSortBy("newest");
+      setCurrentPage(0);
     }
-  }, [searchParams]);
+    // If no URL params → restore from sessionStorage (handled by context)
+    // Context will automatically restore from sessionStorage
+
+    // Reset flag after a short delay to allow state updates
+    setTimeout(() => {
+      isRestoringFromUrlRef.current = false;
+    }, 100);
+  }, [searchParams, setSelectedBrand, setSelectedBrands, setAppliedBrands, setSelectedCategory, setSelectedCategories, setAppliedCategories, setSearchQuery, setAppliedSearchQuery, setBrandSearchQuery, setPriceRange, setAppliedPriceRange, setSortBy, setCurrentPage, priceBounds]);
 
   // Fetch price bounds once on mount (small sample to get min/max)
   const fetchPriceBounds = useCallback(async () => {
@@ -115,7 +230,7 @@ export const Products = () => {
         undefined,
         undefined
       );
-      
+
       if (sampleResponse.content.length > 0) {
         const prices = sampleResponse.content
           .filter(p => p.unitPrice > 0)
@@ -137,11 +252,13 @@ export const Products = () => {
             .map(p => p.unitPrice);
           if (maxPrices.length > 0) {
             const maxPrice = Math.ceil(Math.max(...maxPrices));
-            setPriceBoundsCache([minPrice, maxPrice]);
+            const bounds: [number, number] = [minPrice, maxPrice];
+            setPriceBoundsCache(bounds);
+            setCachedData(CACHE_KEYS.PRICE_BOUNDS, bounds);
             // Only set price range if not already set
             if (priceRange === null) {
-              setPriceRange([minPrice, maxPrice]);
-              setAppliedPriceRange([minPrice, maxPrice]);
+              setPriceRange(bounds);
+              setAppliedPriceRange(bounds);
             }
           }
         }
@@ -152,88 +269,237 @@ export const Products = () => {
     }
   }, [priceRange]);
 
-  // Load brands, categories, and price bounds on mount
+  // Preload brand images (non-blocking, runs in background)
+  const preloadBrandImages = useCallback(async (brandsList: Brand[]) => {
+    try {
+      const { getBrandLogoUrl } = await import("../utils/helpers");
+
+      // Preload all brand images (non-blocking)
+      const imagePromises = brandsList
+        .map(brand => {
+          const logoUrl = getBrandLogoUrl(brand.url);
+          if (!logoUrl) return null;
+
+          return new Promise<void>((resolve) => {
+            const img = new Image();
+            img.onload = () => resolve();
+            img.onerror = () => resolve(); // Continue even if image fails
+            img.src = logoUrl;
+          });
+        })
+        .filter(Boolean) as Promise<void>[];
+
+      // Don't await - let it run in background
+      Promise.all(imagePromises).catch(err => {
+        console.error("Failed to preload brand images:", err);
+      });
+    } catch (err) {
+      console.error("Failed to preload brand images:", err);
+    }
+  }, []);
+
+  // Load brands, categories, and price bounds on mount (only once)
   useEffect(() => {
+    let isMounted = true;
+
     const loadInitialData = async () => {
       try {
+        // Check if we have cached data
+        const cachedBrands = getCachedData<Brand[]>(CACHE_KEYS.BRANDS);
+        const cachedCategories = getCachedData<Category[]>(CACHE_KEYS.CATEGORIES);
+        const hasCachedPriceBounds = getCachedData(CACHE_KEYS.PRICE_BOUNDS) !== null;
+
+        // Set loading states - always set to track loading, even with cache
+        if (!cachedBrands) setLoadingBrands(true);
+        if (!cachedCategories) setLoadingCategories(true);
+        if (!hasCachedPriceBounds) setLoadingPriceBounds(true);
+
         // Load in parallel for speed
-        const [brandsRes, categoriesRes] = await Promise.all([
-          productService.getAllBrands(),
-          productService.getAllCategories(),
+        const [brandsRes] = await Promise.all([
+          cachedBrands ? (async () => {
+            // Use cached data, but ensure state is set
+            if (isMounted && brands.length === 0) {
+              setBrands(cachedBrands);
+            }
+            // Mark as loaded immediately if we have cache
+            if (isMounted) setLoadingBrands(false);
+            return cachedBrands;
+          })() : (async () => {
+            try {
+              const result = await productService.getAllBrands();
+              if (isMounted) {
+                setBrands(result);
+                setCachedData(CACHE_KEYS.BRANDS, result);
+              }
+              return result;
+            } catch (err) {
+              console.error("Failed to load brands:", err);
+              return [];
+            } finally {
+              if (isMounted) setLoadingBrands(false);
+            }
+          })(),
+          cachedCategories ? (async () => {
+            // Use cached data, but ensure state is set
+            if (isMounted && categories.length === 0) {
+              setCategories(cachedCategories);
+            }
+            // Mark as loaded immediately if we have cache
+            if (isMounted) setLoadingCategories(false);
+            return cachedCategories;
+          })() : (async () => {
+            try {
+              const result = await productService.getAllCategories();
+              if (isMounted) {
+                setCategories(result);
+                setCachedData(CACHE_KEYS.CATEGORIES, result);
+              }
+              return result;
+            } catch (err) {
+              console.error("Failed to load categories:", err);
+              return [];
+            } finally {
+              if (isMounted) setLoadingCategories(false);
+            }
+          })(),
         ]);
-        setBrands(brandsRes);
-        setCategories(categoriesRes);
-        
-        // Fetch price bounds (wait for it to complete)
-        await fetchPriceBounds();
+
+        // Fetch price bounds if not cached
+        if (!hasCachedPriceBounds) {
+          try {
+            await fetchPriceBounds();
+          } finally {
+            if (isMounted) setLoadingPriceBounds(false);
+          }
+        } else {
+          // Mark as loaded if we have cache
+          if (isMounted) setLoadingPriceBounds(false);
+        }
+
+        // Preload brand images after brands are loaded (non-blocking)
+        if (brandsRes && brandsRes.length > 0) {
+          preloadBrandImages(brandsRes);
+        }
       } catch (err) {
         console.error("Failed to load initial data:", err);
-      } finally {
+        if (isMounted) {
+          setLoadingBrands(false);
+          setLoadingCategories(false);
+          setLoadingPriceBounds(false);
+        }
       }
     };
+
+    // Always load on mount to ensure data is in state
     loadInitialData();
-  }, [fetchPriceBounds]);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [fetchPriceBounds, preloadBrandImages]); // Remove isInitialLoading dependency to always run on mount
 
   // Load inventories and create a map
   useEffect(() => {
+    let isMounted = true;
+
     const loadInventories = async () => {
       try {
+        // Check if we have cached inventory map
+        const cachedInventory = getCachedData<Array<[number, InventoryItem]>>(CACHE_KEYS.INVENTORY_MAP);
+
+        if (cachedInventory && cachedInventory.length > 0) {
+          // Use cached data, but ensure state is set
+          if (isMounted && inventoryMap.size === 0) {
+            setInventoryMap(new Map(cachedInventory));
+          }
+          // Mark as loaded immediately if we have cache
+          if (isMounted) setLoadingInventories(false);
+
+          // Fetch fresh data in background (non-blocking)
+          inventoryService.getInventoryPage(0, 1000).then((pageResponse) => {
+            if (!isMounted) return;
+            const map = new Map<number, InventoryItem>();
+            pageResponse.content.forEach((item) => {
+              map.set(item.product.productId, item);
+            });
+            setInventoryMap(map);
+            setCachedData(CACHE_KEYS.INVENTORY_MAP, Array.from(map.entries()));
+          }).catch((err) => {
+            console.error("Failed to refresh inventories:", err);
+          });
+          return;
+        }
+
+        // Set loading state
+        if (isMounted) setLoadingInventories(true);
+
         // Fetch all inventories (with a reasonable page size)
         const pageResponse = await inventoryService.getInventoryPage(0, 1000);
+        if (!isMounted) return;
+
         const map = new Map<number, InventoryItem>();
         pageResponse.content.forEach((item) => {
           map.set(item.product.productId, item);
         });
         setInventoryMap(map);
+        setCachedData(CACHE_KEYS.INVENTORY_MAP, Array.from(map.entries()));
       } catch (err) {
         console.error("Failed to load inventories:", err);
         // Continue with empty map if inventory fetch fails
+      } finally {
+        if (isMounted) setLoadingInventories(false);
       }
     };
+
     loadInventories();
-  }, []);
 
-  // Update selected brand/category info when selection or data changes
-  useEffect(() => {
-    if (selectedBrand && brands.length > 0) {
-      const brandInfo = brands.find((b) => b.brandId === selectedBrand);
-      setSelectedBrandInfo(brandInfo || null);
-    } else {
-      setSelectedBrandInfo(null);
-    }
-  }, [selectedBrand, brands]);
+    return () => {
+      isMounted = false;
+    };
+  }, []); // Only run once on mount
 
-  useEffect(() => {
-    if (selectedCategory && categories.length > 0) {
-      const categoryInfo = categories.find(
-        (c) => c.categoryId === selectedCategory
-      );
-      console.log(
-        "Selected Category:",
-        selectedCategory,
-        "Found:",
-        categoryInfo
-      );
-      setSelectedCategoryInfo(categoryInfo || null);
-    } else {
-      setSelectedCategoryInfo(null);
-    }
-  }, [selectedCategory, categories]);
-
+  // Track last fetch params to avoid unnecessary refetches
+  const lastFetchParamsRef = useRef<string | null>(null);
+  const isInitialFetchRef = useRef(true);
 
   // Fetch products from backend - optimized for speed
-  const fetchProducts = useCallback(async () => {
+  const fetchProducts = useCallback(async (force = false) => {
+    // Create a key for current fetch params
+    const fetchKey = JSON.stringify({
+      appliedBrands,
+      appliedCategories,
+      appliedSearchQuery,
+      sortBy,
+      appliedPriceRange,
+      currentPage,
+    });
+
+    // Skip if we're fetching with the same params (unless forced or initial fetch)
+    if (!force && !isInitialFetchRef.current && lastFetchParamsRef.current === fetchKey) {
+      return;
+    }
+
+    lastFetchParamsRef.current = fetchKey;
+    isInitialFetchRef.current = false;
+
     try {
-      setLoading(true);
       setError(null);
+      setLoadingProducts(true);
+
+      // Note: Popularity sort will be handled client-side after fetching products normally
+      // We fetch products normally and then sort by sales quantity
 
       // Determine sort field and direction
+      // Note: For popularity sort, we'll sort client-side after filtering
       let sortField = "productId";
       let sortDirection = "DESC";
-      
-      if (sortBy === "newest" || sortBy === "default") {
+
+      if (sortBy === "newest") {
         sortField = "productId";
         sortDirection = "DESC";
+      } else if (sortBy === "oldest") {
+        sortField = "productId";
+        sortDirection = "ASC";
       } else if (sortBy === "price-asc") {
         sortField = "unitPrice";
         sortDirection = "ASC";
@@ -241,30 +507,40 @@ export const Products = () => {
         sortField = "unitPrice";
         sortDirection = "DESC";
       }
+      // For popularity, we don't pass sort to backend - will sort client-side
 
-      // Check if we need to fetch more for price filtering or multiple brand/category selection
-      const needsPriceFilter = appliedPriceRange !== null && 
-                              priceBoundsCache !== null &&
-                              (appliedPriceRange[0] !== priceBoundsCache[0] || 
-                               appliedPriceRange[1] !== priceBoundsCache[1]);
-      const hasMultipleFilters = appliedBrands.length > 1 || appliedCategories.length > 1;
-      const needsClientSideFilter = needsPriceFilter || hasMultipleFilters;
-      
-      // If price filter or multiple selections are active, fetch more items for client-side filtering
-      // Otherwise, use server-side pagination for speed
-      const pageSize = needsClientSideFilter ? 200 : 12;
-      
+      // Check if we need to fetch more for client-side filtering/sorting
+      const needsPriceFilter = appliedPriceRange !== null &&
+        priceBoundsCache !== null &&
+        (appliedPriceRange[0] !== priceBoundsCache[0] ||
+          appliedPriceRange[1] !== priceBoundsCache[1]);
+      const hasMultipleBrands = appliedBrands.length > 1;
+      const hasMultipleCategories = appliedCategories.length > 1;
+      const hasMultipleFilters = hasMultipleBrands || hasMultipleCategories;
+      const isPopularitySort = sortBy === "popularity";
+      // Need client-side processing if: price filter, multiple filters, or popularity sort
+      const needsClientSideFilter = needsPriceFilter || hasMultipleFilters || isPopularitySort;
+
+      // If we need client-side filtering/sorting, fetch more items to ensure we have all matching products
+      // For popularity sort, we need all filtered products to sort them properly
+      const pageSize = needsClientSideFilter ? 1000 : 9;
+
       // For single selection, use backend filter; for multiple, fetch all and filter client-side
-      const backendBrandId = appliedBrands.length === 1 ? appliedBrands[0] : 
-                            (appliedBrands.length > 0 ? undefined : undefined);
-      const backendCategoryId = appliedCategories.length === 1 ? appliedCategories[0] : 
-                               (appliedCategories.length > 0 ? undefined : undefined);
+      // When multiple filters, don't pass brandId/categoryId to backend, fetch all and filter client-side
+      const backendBrandId = (hasMultipleBrands || hasMultipleCategories) ? undefined :
+        (appliedBrands.length === 1 ? appliedBrands[0] : undefined);
+      const backendCategoryId = (hasMultipleBrands || hasMultipleCategories) ? undefined :
+        (appliedCategories.length === 1 ? appliedCategories[0] : undefined);
+
+      // For popularity sort, don't pass sort to backend - we'll sort client-side after filtering
+      const backendSortField = isPopularitySort ? undefined : sortField;
+      const backendSortDirection = isPopularitySort ? undefined : sortDirection;
       
       const response = await productService.getProductPage(
         needsClientSideFilter ? 0 : currentPage,
         pageSize,
-        sortField,
-        sortDirection,
+        backendSortField,
+        backendSortDirection,
         appliedSearchQuery || undefined,
         backendBrandId,
         backendCategoryId
@@ -272,47 +548,120 @@ export const Products = () => {
 
       // Store products
       setAllProducts(response.content);
-      
-      if (!needsPriceFilter) {
+      setCachedData(CACHE_KEYS.ALL_PRODUCTS, response.content);
+
+      // Only use server-side pagination if we don't need client-side processing
+      if (!needsClientSideFilter) {
         // Use server-side pagination - much faster!
         setPageInfo(response);
+        setCachedData(CACHE_KEYS.PAGE_INFO, response);
         setProducts(response.content);
+        setCachedData(CACHE_KEYS.PRODUCTS, response.content);
       }
+      // If needsClientSideFilter, products will be set in the useEffect that watches filteredAndSortedProducts
     } catch (err) {
       console.error("Failed to fetch products:", err);
       setError("Không thể tải sản phẩm. Vui lòng thử lại sau.");
       setAllProducts([]);
       setProducts([]);
     } finally {
-      setLoading(false);
+      setLoadingProducts(false);
     }
   }, [appliedBrands, appliedCategories, appliedSearchQuery, sortBy, appliedPriceRange, priceBoundsCache, currentPage]);
 
-  // Filter products client-side (when price filter or multiple selections are active)
-  const filteredAndSortedProducts = useMemo(() => {
-    const needsPriceFilter = appliedPriceRange !== null && 
-                            priceBoundsCache !== null &&
-                            (appliedPriceRange[0] !== priceBoundsCache[0] || 
-                             appliedPriceRange[1] !== priceBoundsCache[1]);
-    const hasMultipleFilters = appliedBrands.length > 1 || appliedCategories.length > 1;
-    const needsClientSideFilter = needsPriceFilter || hasMultipleFilters;
+  // Listen for reset filters event (must be after fetchProducts is defined)
+  useEffect(() => {
+    const handleResetFilters = () => {
+      // Reset all filters in context
+      resetFilters(priceBounds);
+      // Set flag to prevent URL sync from interfering
+      isRestoringFromUrlRef.current = true;
+      // Navigate to /products without params
+      navigate("/products", { replace: true });
+      // Force fetch products after reset
+      setTimeout(() => {
+        fetchProducts(true); // Force fetch
+        isRestoringFromUrlRef.current = false;
+      }, 100);
+    };
+    window.addEventListener('resetFilters', handleResetFilters);
+    return () => window.removeEventListener('resetFilters', handleResetFilters);
+  }, [resetFilters, priceBounds, navigate, fetchProducts]);
+
+  // Fetch sales data (productId -> sales rank) for popularity sort
+  const [salesRankMap, setSalesRankMap] = useState<Map<number, number>>(new Map());
+  
+  useEffect(() => {
+    const fetchSalesRank = async () => {
+      try {
+        // Fetch best sellers with large limit to get sales ranking for many products
+        // getBestSellers returns Product[], already sorted by sales quantity (descending)
+        const bestSellers = await productService.getBestSellers(1000);
+        const rankMap = new Map<number, number>();
+        // Best sellers are already sorted by sales quantity (descending)
+        // Use index as rank (lower index = higher sales = better rank)
+        bestSellers.forEach((product: Product, index: number) => {
+          rankMap.set(product.productId, index);
+        });
+        setSalesRankMap(rankMap);
+      } catch (err) {
+        console.error("Failed to fetch sales rank:", err);
+        setSalesRankMap(new Map());
+      }
+    };
     
-    // If no client-side filtering needed, return products as-is (server-side pagination)
+    if (sortBy === "popularity") {
+      fetchSalesRank();
+    } else {
+      // Clear sales rank when not using popularity sort
+      setSalesRankMap(new Map());
+    }
+  }, [sortBy]);
+
+  // Filter products first, then sort (filteredAndSortedProducts)
+  const filteredAndSortedProducts = useMemo(() => {
+    const needsPriceFilter = appliedPriceRange !== null &&
+      priceBoundsCache !== null &&
+      (appliedPriceRange[0] !== priceBoundsCache[0] ||
+        appliedPriceRange[1] !== priceBoundsCache[1]);
+    const hasMultipleBrands = appliedBrands.length > 1;
+    const hasMultipleCategories = appliedCategories.length > 1;
+    const hasMultipleFilters = hasMultipleBrands || hasMultipleCategories;
+    const isPopularitySort = sortBy === "popularity";
+    const needsClientSideFilter = needsPriceFilter || hasMultipleFilters || isPopularitySort;
+
+    // If no client-side filtering/sorting needed, return products as-is (server-side pagination)
     if (!needsClientSideFilter) {
       return allProducts;
     }
 
-    // Start with all products
+    // STEP 1: Start with all products and FILTER first
     let filtered = [...allProducts];
 
-    // Apply multiple brand filter
-    if (appliedBrands.length > 1) {
-      filtered = filtered.filter(p => appliedBrands.includes(p.brand.brandId));
+    // Apply brand filter (always filter if brands are selected and we need client-side processing)
+    if (appliedBrands.length > 0) {
+      if (appliedBrands.length === 1) {
+        // Single brand: filter if we need client-side processing
+        if (isPopularitySort || needsPriceFilter || hasMultipleCategories || hasMultipleBrands) {
+          filtered = filtered.filter(p => appliedBrands.includes(p.brand.brandId));
+        }
+      } else {
+        // Multiple brands: always filter client-side
+        filtered = filtered.filter(p => appliedBrands.includes(p.brand.brandId));
+      }
     }
 
-    // Apply multiple category filter
-    if (appliedCategories.length > 1) {
-      filtered = filtered.filter(p => appliedCategories.includes(p.category.categoryId));
+    // Apply category filter (always filter if categories are selected and we need client-side processing)
+    if (appliedCategories.length > 0) {
+      if (appliedCategories.length === 1) {
+        // Single category: filter if we need client-side processing
+        if (isPopularitySort || needsPriceFilter || hasMultipleBrands || hasMultipleCategories) {
+          filtered = filtered.filter(p => appliedCategories.includes(p.category.categoryId));
+        }
+      } else {
+        // Multiple categories: always filter client-side
+        filtered = filtered.filter(p => appliedCategories.includes(p.category.categoryId));
+      }
     }
 
     // Apply price filter
@@ -322,64 +671,179 @@ export const Products = () => {
       );
     }
 
-    // Additional client-side sorting for options not supported by backend
-    if (sortBy === "saleoff") {
-      filtered.sort((a, b) => a.unitPrice - b.unitPrice);
-    } else if (sortBy === "popularity") {
-      filtered.sort((a, b) => b.productId - a.productId);
-    } else if (sortBy === "rating") {
-      filtered.sort((a, b) => b.productId - a.productId);
+    // Apply search filter (always filter if search query exists and we need client-side processing)
+    if (appliedSearchQuery && (isPopularitySort || needsPriceFilter || hasMultipleFilters)) {
+      const query = appliedSearchQuery.toLowerCase();
+      filtered = filtered.filter(p =>
+        p.name.toLowerCase().includes(query) ||
+        p.brand.name.toLowerCase().includes(query) ||
+        p.category.name.toLowerCase().includes(query)
+      );
     }
 
+    // STEP 2: After filtering, SORT the filtered list
+    if (isPopularitySort) {
+      // Sort by sales rank (products with sales data first, sorted by rank)
+      // Products not in best sellers will be placed at the end
+      filtered.sort((a, b) => {
+        const aRank = salesRankMap.get(a.productId);
+        const bRank = salesRankMap.get(b.productId);
+        
+        // Both have sales data - sort by rank (lower rank = higher sales)
+        if (aRank !== undefined && bRank !== undefined) {
+          return aRank - bRank;
+        }
+        
+        // Only a has sales data - a comes first
+        if (aRank !== undefined && bRank === undefined) {
+          return -1;
+        }
+        
+        // Only b has sales data - b comes first
+        if (aRank === undefined && bRank !== undefined) {
+          return 1;
+        }
+        
+        // Neither has sales data - keep original order
+        return 0;
+      });
+    } else if (sortBy === "price-asc") {
+      // Sort by price ascending
+      filtered.sort((a, b) => a.unitPrice - b.unitPrice);
+    } else if (sortBy === "price-desc") {
+      // Sort by price descending
+      filtered.sort((a, b) => b.unitPrice - a.unitPrice);
+    } else if (sortBy === "newest") {
+      // Sort by productId descending (newest first)
+      filtered.sort((a, b) => b.productId - a.productId);
+    } else if (sortBy === "oldest") {
+      // Sort by productId ascending (oldest first)
+      filtered.sort((a, b) => a.productId - b.productId);
+    }
+    // Default (newest) is handled above
+
     return filtered;
-  }, [allProducts, appliedPriceRange, sortBy, priceBoundsCache, appliedBrands, appliedCategories]);
+  }, [allProducts, appliedPriceRange, sortBy, priceBoundsCache, appliedBrands, appliedCategories, appliedSearchQuery, salesRankMap]);
 
   // Paginate filtered products
   const paginatedProducts = useMemo(() => {
-    const itemsPerPage = 12;
+    const itemsPerPage = 9;
     const startIndex = currentPage * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
     return filteredAndSortedProducts.slice(startIndex, endIndex);
   }, [filteredAndSortedProducts, currentPage]);
 
-  const totalPages = Math.ceil(filteredAndSortedProducts.length / 12);
+  const totalPages = Math.ceil(filteredAndSortedProducts.length / 9);
 
-  // Fetch products when filters change
+  // Cache current page when it changes
   useEffect(() => {
-    fetchProducts();
-  }, [fetchProducts]);
+    setCachedData(CACHE_KEYS.CURRENT_PAGE, currentPage);
+  }, [currentPage]);
+
+  // Note: Filter state caching is now handled by ProductsFilterContext
+
+  // Fetch products when filters change (but not on initial mount)
+  const hasMountedRef = useRef(false);
+  useEffect(() => {
+    // Skip on initial mount - initial products are loaded separately
+    if (!hasMountedRef.current) {
+      hasMountedRef.current = true;
+      return;
+    }
+
+    // Only fetch if not in initial loading (to avoid double fetch)
+    if (!isInitialLoading) {
+      fetchProducts();
+    }
+  }, [fetchProducts, isInitialLoading]);
+
+  // Initial products fetch - must complete before showing page
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadInitialProducts = async () => {
+      // Check if we have cached products
+      const cachedProducts = getCachedData<Product[]>(CACHE_KEYS.PRODUCTS);
+      const cachedAllProducts = getCachedData<Product[]>(CACHE_KEYS.ALL_PRODUCTS);
+      const cachedPageInfo = getCachedData<PageResponse<Product>>(CACHE_KEYS.PAGE_INFO);
+
+      if (cachedProducts && cachedProducts.length > 0) {
+        // Use cached data, but ensure state is set
+        if (isMounted && products.length === 0) {
+          setProducts(cachedProducts);
+        }
+        if (isMounted && cachedAllProducts && allProducts.length === 0) {
+          setAllProducts(cachedAllProducts);
+        }
+        if (isMounted && cachedPageInfo && !pageInfo) {
+          setPageInfo(cachedPageInfo);
+        }
+        // Mark as loaded immediately if we have cache
+        if (isMounted) setLoadingProducts(false);
+      } else {
+        // No cache, fetch from API (force initial fetch)
+        try {
+          await fetchProducts(true);
+        } finally {
+          if (isMounted) setLoadingProducts(false);
+        }
+      }
+    };
+
+    // Always load initial products on mount
+    loadInitialProducts();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []); // Only run once on mount
 
   // Update products when filtered/sorted list changes
   useEffect(() => {
-    const needsPriceFilter = appliedPriceRange !== null && 
-                            priceBoundsCache !== null &&
-                            (appliedPriceRange[0] !== priceBoundsCache[0] || 
-                             appliedPriceRange[1] !== priceBoundsCache[1]);
+    const needsPriceFilter = appliedPriceRange !== null &&
+      priceBoundsCache !== null &&
+      (appliedPriceRange[0] !== priceBoundsCache[0] ||
+        appliedPriceRange[1] !== priceBoundsCache[1]);
     const hasMultipleFilters = appliedBrands.length > 1 || appliedCategories.length > 1;
-    const needsClientSideFilter = needsPriceFilter || hasMultipleFilters;
-    
+    const isPopularitySort = sortBy === "popularity";
+    const needsClientSideFilter = needsPriceFilter || hasMultipleFilters || isPopularitySort;
+
     // Update products and page info
     if (needsClientSideFilter) {
       setProducts(paginatedProducts);
-      setPageInfo({
+      const newPageInfo = {
         content: paginatedProducts,
         totalPages: totalPages,
         totalElements: filteredAndSortedProducts.length,
-        size: 12,
+        size: 9,
         number: currentPage,
         numberOfElements: paginatedProducts.length,
         first: currentPage === 0,
         last: currentPage >= totalPages - 1,
         empty: paginatedProducts.length === 0,
-      });
+      };
+      setPageInfo(newPageInfo);
+      setCachedData(CACHE_KEYS.PAGE_INFO, newPageInfo);
+      setCachedData(CACHE_KEYS.PRODUCTS, paginatedProducts);
     }
-  }, [paginatedProducts, totalPages, currentPage, filteredAndSortedProducts.length, appliedPriceRange, priceBoundsCache, appliedBrands.length, appliedCategories.length]);
+  }, [paginatedProducts, totalPages, currentPage, filteredAndSortedProducts.length, appliedPriceRange, priceBoundsCache, appliedBrands.length, appliedCategories.length, sortBy]);
 
-  // Reset to first page when applied filters change
+  // Reset to first page and scroll to top when applied filters change
   useEffect(() => {
     setCurrentPage(0);
-  }, [appliedBrands, appliedCategories, appliedSearchQuery, sortBy, appliedPriceRange]);
+    // Scroll to top when filters change (only if not loading)
+    if (!loadingProducts) {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }, [appliedBrands, appliedCategories, appliedSearchQuery, sortBy, appliedPriceRange, loadingProducts]);
   
+  // Scroll to top after loading completes
+  useEffect(() => {
+    if (!loadingProducts && !isInitialLoading) {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }, [loadingProducts, isInitialLoading]);
+
   // Apply filters when sortBy changes (sort is fast, apply immediately)
   useEffect(() => {
     if (allProducts.length > 0) {
@@ -412,57 +876,55 @@ export const Products = () => {
     setSelectedCategory(null); // Clear single selection
   };
 
+  // Sync URL with context state (only when not restoring from URL)
+  useEffect(() => {
+    // Skip if we're currently restoring from URL
+    if (isRestoringFromUrlRef.current) {
+      return;
+    }
+
+    // Check if URL params match current context state
+    const brandIdParam = searchParams.get("brandId");
+    const categoryIdParam = searchParams.get("categoryId");
+    
+    // Determine what URL should be based on context
+    let targetUrl = "/products";
+    
+    if (appliedCategories.length === 1 && appliedBrands.length === 0) {
+      // 1 category, no brands → /products?categoryId=X
+      targetUrl = `/products?categoryId=${appliedCategories[0]}`;
+    } else if (appliedBrands.length === 1 && appliedCategories.length === 0) {
+      // 1 brand, no categories → /products?brandId=X
+      targetUrl = `/products?brandId=${appliedBrands[0]}`;
+    }
+    // Otherwise → /products (no params)
+    
+    // Only update if URL is different
+    const currentUrl = brandIdParam 
+      ? `/products?brandId=${brandIdParam}`
+      : categoryIdParam 
+      ? `/products?categoryId=${categoryIdParam}`
+      : "/products";
+    
+    if (currentUrl !== targetUrl) {
+      navigate(targetUrl, { replace: true });
+    }
+  }, [appliedCategories, appliedBrands, navigate, searchParams]);
+
   // Apply filters (called when user clicks "Lọc" button)
   const handleApplyFilters = () => {
-    setAppliedBrands([...selectedBrands]);
-    setAppliedCategories([...selectedCategories]);
-    setAppliedSearchQuery(searchQuery);
-    if (priceRange !== null) {
-      setAppliedPriceRange([...priceRange]);
-    }
-    setCurrentPage(0);
+    applyFilters();
+    // Scroll to top immediately when filters are applied (before loading starts)
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   // Reset all filters
   const handleResetFilters = () => {
-    setSelectedBrand(null);
-    setSelectedBrands([]);
-    setAppliedBrands([]);
-    setSelectedCategory(null);
-    setSelectedCategories([]);
-    setAppliedCategories([]);
-    setSearchQuery("");
-    setAppliedSearchQuery("");
-    setBrandSearchQuery("");
-    // Reset price range to current bounds (only if bounds are available)
-    if (priceBounds !== null) {
-      setPriceRange([priceBounds[0], priceBounds[1]]);
-      setAppliedPriceRange([priceBounds[0], priceBounds[1]]);
-    } else {
-      setPriceRange(null);
-      setAppliedPriceRange(null);
-    }
-    setSortBy("default");
-    setCurrentPage(0);
+    resetFilters(priceBounds);
     window.history.pushState({}, "", "/products");
+    // Scroll to top when filters are reset
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
-
-  // Check if any filters are active (applied or pending)
-  const hasActiveFilters = appliedBrands.length > 0 ||
-    appliedCategories.length > 0 ||
-    appliedSearchQuery !== "" ||
-    (appliedPriceRange !== null && priceBounds !== null && 
-     (appliedPriceRange[0] !== priceBounds[0] || appliedPriceRange[1] !== priceBounds[1])) ||
-    sortBy !== "default";
-  
-  // Check if there are pending filter changes
-  const hasPendingFilters = 
-    JSON.stringify(selectedBrands.sort()) !== JSON.stringify(appliedBrands.sort()) ||
-    JSON.stringify(selectedCategories.sort()) !== JSON.stringify(appliedCategories.sort()) ||
-    searchQuery !== appliedSearchQuery ||
-    (priceRange !== null && appliedPriceRange !== null && 
-     (priceRange[0] !== appliedPriceRange[0] || priceRange[1] !== appliedPriceRange[1])) ||
-    (priceRange !== null && appliedPriceRange === null);
 
   // Initialize price range when products are loaded
   useEffect(() => {
@@ -480,19 +942,19 @@ export const Products = () => {
       let needsUpdate = false;
       let newMin = priceRange[0];
       let newMax = priceRange[1];
-      
+
       // Clamp min nếu cần (chỉ khi nằm ngoài bounds)
       if (newMin < priceBounds[0] || newMin > priceBounds[1]) {
         newMin = Math.max(priceBounds[0], Math.min(priceBounds[1], newMin));
         needsUpdate = true;
       }
-      
+
       // Clamp max nếu cần (chỉ khi nằm ngoài bounds)
       if (newMax < priceBounds[0] || newMax > priceBounds[1]) {
         newMax = Math.max(priceBounds[0], Math.min(priceBounds[1], newMax));
         needsUpdate = true;
       }
-      
+
       // Đảm bảo min <= max (chỉ khi cần)
       if (newMin > newMax) {
         // Nếu min > max sau khi clamp, đặt lại về bounds
@@ -500,7 +962,7 @@ export const Products = () => {
         newMax = priceBounds[1];
         needsUpdate = true;
       }
-      
+
       // Chỉ update nếu cần (giá trị thực sự nằm ngoài bounds)
       if (needsUpdate) {
         setPriceRange([newMin, newMax]);
@@ -511,19 +973,220 @@ export const Products = () => {
   // Pagination handler
   const handlePageChange = (newPage: number) => {
     setCurrentPage(newPage);
+    // Scroll to top immediately when page changes
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
+  
+  // Calculate hasActiveFilters with price range check (needs priceBoundsCache)
+  const hasActiveFiltersWithPrice = useMemo(() => {
+    const hasPriceFilter = appliedPriceRange !== null &&
+      priceBoundsCache !== null &&
+      (appliedPriceRange[0] !== priceBoundsCache[0] ||
+        appliedPriceRange[1] !== priceBoundsCache[1]);
+    return hasActiveFilters || hasPriceFilter;
+  }, [hasActiveFilters, appliedPriceRange, priceBoundsCache]);
 
-  // Show loading screen until all initial data is loaded
-  if ((loading && products.length === 0)) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50">
-        <div className="w-16 h-16 border-4 border-gray-200 border-t-black rounded-full animate-spin mb-4"></div>
-        <p className="text-gray-600 text-lg">Đang tải dữ liệu...</p>
-        <p className="text-gray-400 text-sm mt-2">Vui lòng đợi trong giây lát</p>
-      </div>
-    );
-  }
+  // Dynamic title and breadcrumbs based on filters
+  const getPageTitle = () => {
+    // Check URL params first (highest priority)
+    const brandIdParam = searchParams.get("brandId");
+    const categoryIdParam = searchParams.get("categoryId");
+    
+    // Nếu có categoryId trong URL
+    if (categoryIdParam) {
+      const categoryId = Number(categoryIdParam);
+      const category = categories.find(c => c.categoryId === categoryId);
+      if (category) return category.name;
+      return "Danh mục"; // Fallback
+    }
+    
+    // Nếu có brandId trong URL
+    if (brandIdParam) {
+      const brandId = Number(brandIdParam);
+      const brand = brands.find(b => b.brandId === brandId);
+      if (brand) return brand.name;
+      return "Thương hiệu"; // Fallback
+    }
+
+    // Nếu không có filter nào (tất cả danh mục và tất cả thương hiệu)
+    if (appliedCategories.length === 0 && appliedBrands.length === 0) {
+      return "Danh sách nước hoa";
+    }
+
+    // Nếu lọc cả danh mục và thương hiệu
+    if (appliedCategories.length > 0 && appliedBrands.length > 0) {
+      return "Danh sách nước hoa";
+    }
+
+    // Nếu chọn 1 danh mục
+    if (appliedCategories.length === 1 && appliedBrands.length === 0) {
+      const category = categories.find(c => c.categoryId === appliedCategories[0]);
+      if (category) return category.name;
+      return "Danh mục"; // Fallback
+    }
+
+    // Nếu chọn 1 thương hiệu
+    if (appliedBrands.length === 1 && appliedCategories.length === 0) {
+      const brand = brands.find(b => b.brandId === appliedBrands[0]);
+      if (brand) return brand.name;
+      return "Thương hiệu"; // Fallback
+    }
+
+    // Nếu chọn nhiều danh mục (không có thương hiệu)
+    if (appliedCategories.length > 1 && appliedBrands.length === 0) {
+      return "Danh mục";
+    }
+
+    // Nếu chọn nhiều thương hiệu (không có danh mục)
+    if (appliedBrands.length > 1 && appliedCategories.length === 0) {
+      return "Thương hiệu";
+    }
+
+    return "Danh sách nước hoa";
+  };
+
+  const getBreadcrumbs = () => {
+    // Check URL params first (highest priority)
+    const brandIdParam = searchParams.get("brandId");
+    const categoryIdParam = searchParams.get("categoryId");
+    
+    // Nếu có categoryId trong URL
+    if (categoryIdParam) {
+      const categoryId = Number(categoryIdParam);
+      const category = categories.find(c => c.categoryId === categoryId);
+      if (category) {
+        return [
+          { label: "Trang chủ", path: "/" },
+          { label: category.name },
+        ];
+      }
+      return [
+        { label: "Trang chủ", path: "/" },
+        { label: "Danh mục" },
+      ];
+    }
+    
+    // Nếu có brandId trong URL
+    if (brandIdParam) {
+      const brandId = Number(brandIdParam);
+      const brand = brands.find(b => b.brandId === brandId);
+      if (brand) {
+        return [
+          { label: "Trang chủ", path: "/" },
+          { label: brand.name },
+        ];
+      }
+      return [
+        { label: "Trang chủ", path: "/" },
+        { label: "Thương hiệu" },
+      ];
+    }
+
+    // Nếu không có filter nào (tất cả danh mục và tất cả thương hiệu)
+    if (appliedCategories.length === 0 && appliedBrands.length === 0) {
+      return [
+        { label: "Trang chủ", path: "/" },
+        { label: "Danh sách nước hoa" },
+      ];
+    }
+
+    // Nếu lọc cả danh mục và thương hiệu
+    if (appliedCategories.length > 0 && appliedBrands.length > 0) {
+      return [
+        { label: "Trang chủ", path: "/" },
+        { label: "Danh sách nước hoa" },
+      ];
+    }
+
+    // Nếu chọn 1 danh mục: "Trang chủ > {danh mục}"
+    if (appliedCategories.length === 1 && appliedBrands.length === 0) {
+      const category = categories.find(c => c.categoryId === appliedCategories[0]);
+      if (category) {
+        return [
+          { label: "Trang chủ", path: "/" },
+          { label: category.name },
+        ];
+      }
+      return [
+        { label: "Trang chủ", path: "/" },
+        { label: "Danh mục" },
+      ];
+    }
+
+    // Nếu chọn 1 thương hiệu: "Trang chủ > {thương hiệu}"
+    if (appliedBrands.length === 1 && appliedCategories.length === 0) {
+      const brand = brands.find(b => b.brandId === appliedBrands[0]);
+      if (brand) {
+        return [
+          { label: "Trang chủ", path: "/" },
+          { label: brand.name },
+        ];
+      }
+      // Fallback nếu chưa load xong brands
+      return [
+        { label: "Trang chủ", path: "/" },
+        { label: "Thương hiệu" },
+      ];
+    }
+
+    // Nếu chọn nhiều danh mục (không có thương hiệu): "Trang chủ > Danh mục"
+    if (appliedCategories.length > 1 && appliedBrands.length === 0) {
+      return [
+        { label: "Trang chủ", path: "/" },
+        { label: "Danh mục" },
+      ];
+    }
+
+    // Nếu chọn nhiều thương hiệu (không có danh mục): "Trang chủ > Thương hiệu"
+    if (appliedBrands.length > 1 && appliedCategories.length === 0) {
+      return [
+        { label: "Trang chủ", path: "/" },
+        { label: "Thương hiệu" },
+      ];
+    }
+
+    // Mặc định: "Trang chủ > Danh mục"
+    return [
+      { label: "Trang chủ", path: "/" },
+      { label: "Danh mục" },
+    ];
+  };
+
+  // Check if all data is loaded - this ensures we wait for ALL data before showing page
+  useEffect(() => {
+    // Only check if we're in initial loading state
+    if (!isInitialLoading) return;
+
+    // Check if all loading states are false AND all data is present in state
+    const allDataLoaded =
+      !loadingBrands &&
+      !loadingCategories &&
+      !loadingPriceBounds &&
+      !loadingInventories &&
+      !loadingProducts &&
+      brands.length > 0 &&
+      categories.length > 0 &&
+      (products.length > 0 || allProducts.length > 0) &&
+      priceBoundsCache !== null;
+    // Note: inventoryMap can be empty (size >= 0), that's ok
+
+    if (allDataLoaded) {
+      setIsInitialLoading(false);
+    }
+  }, [isInitialLoading, loadingBrands, loadingCategories, loadingPriceBounds, loadingInventories, loadingProducts, brands.length, categories.length, products.length, allProducts.length, priceBoundsCache]);
+
+  // // Show loading screen only on initial load
+  // if (isInitialLoading && !loadingProducts) {
+  //   return (
+  //     <div className="fixed z inset-0 bg-white z-50 flex items-center justify-center">
+  //         <div className="bg-white p-8 flex flex-col items-center">
+  //           <div className="w-16 h-16 border-4 border-gray-200 border-t-black rounded-full animate-spin mb-4"></div>
+  //           <p className="text-gray-600 text-lg">Đang tải dữ liệu...</p>
+  //           <p className="text-gray-400 text-sm mt-2">Vui lòng đợi trong giây lát</p>
+  //         </div>
+  //       </div>
+  //   );
+  // }
 
   if (error && products.length === 0) {
     return (
@@ -535,616 +1198,100 @@ export const Products = () => {
   }
 
   return (
-    <div className="bg-gray-50 min-h-screen">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="flex flex-col lg:flex-row gap-6">
-          {/* Sidebar */}
-          <aside className="min-h-[1200px] w-full lg:w-64 bg-white rounded-lg shadow-sm">
-      
-
-            <div className="px-6 py-6">
-              {/* Categories - First Section */}
-              <div className={`mb-6 border-b border-gray-200 ${isCategoriesOpen ? 'pb-6' : 'pb-2'}`}>
-                <button
-                  onClick={() => setIsCategoriesOpen(!isCategoriesOpen)}
-                  className="w-full flex items-center justify-between text-xs font-bold mb-4 text-black uppercase tracking-wider hover:opacity-70 transition-opacity"
-                >
-                  <span>BỘ SƯU TẬP NƯỚC HOA</span>
-                  <svg 
-                    className={`w-4 h-4 text-gray-600 transition-transform ${isCategoriesOpen ? 'rotate-180' : ''}`}
-                    fill="none" 
-                    stroke="currentColor" 
-                    viewBox="0 0 24 24"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
-                <AnimatePresence>
-                  {isCategoriesOpen && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: "auto", opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.3, ease: "easeInOut" }}
-                      style={{ overflow: "hidden" }}
-                    >
-                      <div className="space-y-1">
-                        <FilterCheckbox
-                          label="Tất cả"
-                          checked={selectedCategories.length === 0 && selectedCategory === null}
-                          onChange={() => {
-                            setSelectedCategories([]);
-                            setSelectedCategory(null);
-                          }}
-                        />
-                        {categories.map((cat) => (
-                          <FilterCheckbox
-                            key={cat.categoryId}
-                            label={cat.name}
-                            checked={selectedCategories.includes(cat.categoryId) || selectedCategory === cat.categoryId}
-                            onChange={() => toggleCategory(cat.categoryId)}
-                          />
-                        ))}
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-
-              {/* Brands - Second Section */}
-              <div className={`mb-6 border-b border-gray-200 ${isBrandsOpen ? 'pb-6' : 'pb-3'}`}>
-                <button
-                  onClick={() => setIsBrandsOpen(!isBrandsOpen)}
-                  className="w-full flex items-center justify-between text-xs font-bold mb-3 text-black uppercase tracking-wider hover:opacity-70 transition-opacity"
-                >
-                  <span>THƯƠNG HIỆU</span>
-                  <svg 
-                    className={`w-4 h-4 text-gray-600 transition-transform ${isBrandsOpen ? 'rotate-180' : ''}`}
-                    fill="none" 
-                    stroke="currentColor" 
-                    viewBox="0 0 24 24"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
-                <AnimatePresence>
-                  {isBrandsOpen && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: "auto", opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.3, ease: "easeInOut" }}
-                      style={{ overflow: "hidden" }}
-                    >
-                      <input
-                        type="text"
-                        className="w-full px-3 py-2 border border-gray-300 rounded text-sm mb-3"
-                        placeholder="Tìm kiếm nhanh"
-                        value={brandSearchQuery}
-                        onChange={(e) => setBrandSearchQuery(e.target.value)}
-                      />
-                      <div className="space-y-1 max-h-[280px] overflow-y-auto pr-2">
-                        <FilterCheckbox
-                          label="Tất cả"
-                          checked={selectedBrands.length === 0 && selectedBrand === null}
-                          onChange={() => {
-                            setSelectedBrands([]);
-                            setSelectedBrand(null);
-                          }}
-                        />
-                        {brands
-                          .filter((brand) =>
-                            brand.name.toLowerCase().includes(brandSearchQuery.toLowerCase())
-                          )
-                          .map((brand) => (
-                            <FilterCheckbox
-                              key={brand.brandId}
-                              label={brand.name}
-                              checked={selectedBrands.includes(brand.brandId) || selectedBrand === brand.brandId}
-                              onChange={() => toggleBrand(brand.brandId)}
-                            />
-                          ))}
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-
-              {/* Price Filter - Third Section - Only show when price bounds are loaded */}
-              {priceBounds !== null && priceRange !== null && (() => {
-                // Clamp priceRange values to ensure they're within bounds before rendering
-                const clampedMin = Math.max(priceBounds[0], Math.min(priceBounds[1], priceRange[0]));
-                const clampedMax = Math.max(priceBounds[0], Math.min(priceBounds[1], priceRange[1]));
-                const safeMin = Math.min(clampedMin, clampedMax);
-                const safeMax = Math.max(clampedMin, clampedMax);
-                const displayRange: [number, number] = [safeMin, safeMax];
-                
-                return (
-                <div className={`border-b border-gray-200 ${isPriceOpen ? 'pb-6' : 'pb-2'}`}>
-                  <button
-                    onClick={() => setIsPriceOpen(!isPriceOpen)}
-                    className="w-full flex items-center justify-between text-xs font-bold mb-4 text-black uppercase tracking-wider hover:opacity-70 transition-opacity"
-                  >
-                    <span>GIÁ</span>
-                    <svg 
-                      className={`w-4 h-4 text-gray-600 transition-transform ${isPriceOpen ? 'rotate-180' : ''}`}
-                      fill="none" 
-                      stroke="currentColor" 
-                      viewBox="0 0 24 24"
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </button>
-                  <AnimatePresence>
-                    {isPriceOpen && (
-                      <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: "auto", opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.3, ease: "easeInOut" }}
-                      >
-                        <div className="space-y-4">
-                          {/* Range Slider */}
-                          <div className="space-y-3">
-                      <div 
-                        className="relative h-6  cursor-pointer select-none mx-2"
-                        style={{ userSelect: 'none', WebkitUserSelect: 'none' }}
-                        onMouseDown={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          
-                          const sliderElement = e.currentTarget as HTMLElement;
-                          const rect = sliderElement.getBoundingClientRect();
-                          const clickX = e.clientX - rect.left;
-                          
-                          // Check if clicking on a thumb (within 20px radius)
-                          // Sử dụng displayRange đã được clamp để tính toán vị trí
-                          const minThumbPos = ((displayRange[0] - priceBounds[0]) / (priceBounds[1] - priceBounds[0])) * rect.width;
-                          const maxThumbPos = ((displayRange[1] - priceBounds[0]) / (priceBounds[1] - priceBounds[0])) * rect.width;
-                          const minThumbDistance = Math.abs(clickX - minThumbPos);
-                          const maxThumbDistance = Math.abs(clickX - maxThumbPos);
-                          
-                          // Determine which thumb to drag (only if clicking near a thumb)
-                          let activeThumb: 'min' | 'max' | null = null;
-                          if (minThumbDistance < 20) {
-                            activeThumb = 'min';
-                          } else if (maxThumbDistance < 20) {
-                            activeThumb = 'max';
-                          } else {
-                            // Clicking on track - move nearest thumb (but only on drag, not on click)
-                            activeThumb = minThumbDistance < maxThumbDistance ? 'min' : 'max';
-                          }
-                          
-                          if (!activeThumb) return;
-                          
-                          // 1. CẤU HÌNH KÍCH THƯỚC
-                          const thumbWidth = 12; // w-5 = 20px
-                          const pixelRange = rect.width;
-                          const valueRange = priceBounds[1] - priceBounds[0];
-                          
-                          // 2. TÍNH STEP VÀ KHOẢNG CÁCH TỐI THIỂU (MIN GAP)
-                          // Tính step để làm tròn giá trị - đơn vị nhỏ nhất là 1000
-                          const step = 10000;
-                          
-                          // Tính khoảng cách tối thiểu giữa 2 nút (tương ứng với thumbWidth)
-                          let minDistance = (thumbWidth / pixelRange) * valueRange;
-                          // Làm tròn minDistance theo step để khớp với bước nhảy của slider, tối thiểu là 1000
-                          minDistance = Math.max(step, Math.ceil(minDistance / step) * step);
-                          
-                          let hasMoved = false; // Track if mouse has actually moved
-                          
-                          const handleMove = (moveEvent: MouseEvent) => {
-                            moveEvent.preventDefault();
-                            moveEvent.stopPropagation();
-                            hasMoved = true;
-                            
-                            const moveRect = sliderElement.getBoundingClientRect();
-                            const moveX = moveEvent.clientX - moveRect.left;
-                            const movePercent = Math.max(0, Math.min(1, moveX / moveRect.width));
-                            const moveVal = priceBounds[0] + movePercent * valueRange;
-                            
-                            // Làm tròn giá trị theo step
-                            let steppedMoveVal = Math.round(moveVal / step) * step;
-                            
-                            setPriceRange((currentRange) => {
-                              if (!currentRange) {
-                                // Đảm bảo giá trị nằm trong bounds và làm tròn về bội số của 1000
-                                steppedMoveVal = Math.max(priceBounds[0], Math.min(priceBounds[1], steppedMoveVal));
-                                steppedMoveVal = Math.round(steppedMoveVal / step) * step;
-                                return [steppedMoveVal, steppedMoveVal];
-                              }
-                              
-                              // 3. LOGIC CHẶN ĐÈ LÊN NHAU (QUAN TRỌNG NHẤT)
-                              if (activeThumb === 'min') {
-                                // Nút Min không được vượt quá (Max hiện tại - khoảng cách nút)
-                                const maxAllowed = currentRange[1] - minDistance;
-                                // Lấy giá trị nhỏ hơn giữa vị trí chuột và giới hạn cho phép
-                                let finalMin = Math.min(steppedMoveVal, maxAllowed);
-                                // Đảm bảo không thấp hơn giá sàn và làm tròn lại theo step
-                                finalMin = Math.max(priceBounds[0], finalMin);
-                                finalMin = Math.round(finalMin / step) * step;
-                                finalMin = Math.max(priceBounds[0], finalMin); // Đảm bảo sau khi làm tròn vẫn >= min
-                                return [finalMin, currentRange[1]];
-                              } else {
-                                // Nút Max không được thấp hơn (Min hiện tại + khoảng cách nút)
-                                const minAllowed = currentRange[0] + minDistance;
-                                // Lấy giá trị lớn hơn giữa vị trí chuột và giới hạn cho phép
-                                let finalMax = Math.max(steppedMoveVal, minAllowed);
-                                // Đảm bảo không cao hơn giá trần và làm tròn lại theo step
-                                finalMax = Math.min(priceBounds[1], finalMax);
-                                finalMax = Math.round(finalMax / step) * step;
-                                finalMax = Math.min(priceBounds[1], finalMax); // Đảm bảo sau khi làm tròn vẫn <= max
-                                return [currentRange[0], finalMax];
-                              }
-                            });
-                          };
-                          
-                          const handleUp = (upEvent?: MouseEvent) => {
-                            if (upEvent) {
-                              upEvent.preventDefault();
-                              upEvent.stopPropagation();
-                            }
-                            
-                            // Logic click vào thanh trượt (nếu chưa kéo)
-                            if (!hasMoved && activeThumb) {
-                              const percent = Math.max(0, Math.min(1, clickX / rect.width));
-                              const newVal = priceBounds[0] + percent * valueRange;
-                              
-                              // Làm tròn giá trị theo step
-                              let steppedVal = Math.round(newVal / step) * step;
-                              
-                              setPriceRange((currentRange) => {
-                                if (!currentRange) {
-                                  // Đảm bảo giá trị nằm trong bounds và làm tròn về bội số của 1000
-                                  steppedVal = Math.max(priceBounds[0], Math.min(priceBounds[1], steppedVal));
-                                  steppedVal = Math.round(steppedVal / step) * step;
-                                  return [steppedVal, steppedVal];
-                                }
-                                
-                                if (activeThumb === 'min') {
-                                  // Nút Min không được vượt quá (Max hiện tại - khoảng cách nút)
-                                  const maxAllowed = currentRange[1] - minDistance;
-                                  let finalMin = Math.min(steppedVal, maxAllowed);
-                                  // Đảm bảo không thấp hơn giá sàn và làm tròn lại theo step
-                                  finalMin = Math.max(priceBounds[0], finalMin);
-                                  finalMin = Math.round(finalMin / step) * step;
-                                  finalMin = Math.max(priceBounds[0], finalMin); // Đảm bảo sau khi làm tròn vẫn >= min
-                                  return [finalMin, currentRange[1]];
-                                } else {
-                                  // Nút Max không được thấp hơn (Min hiện tại + khoảng cách nút)
-                                  const minAllowed = currentRange[0] + minDistance;
-                                  let finalMax = Math.max(steppedVal, minAllowed);
-                                  // Đảm bảo không cao hơn giá trần và làm tròn lại theo step
-                                  finalMax = Math.min(priceBounds[1], finalMax);
-                                  finalMax = Math.round(finalMax / step) * step;
-                                  finalMax = Math.min(priceBounds[1], finalMax); // Đảm bảo sau khi làm tròn vẫn <= max
-                                  return [currentRange[0], finalMax];
-                                }
-                              });
-                            }
-                            
-                            document.removeEventListener('mousemove', handleMove);
-                            document.removeEventListener('mouseup', handleUp);
-                            document.body.style.userSelect = '';
-                            document.body.style.cursor = '';
-                          };
-                          
-                          // Prevent text selection and change cursor during drag
-                          document.body.style.userSelect = 'none';
-                          document.body.style.cursor = 'grabbing';
-                          
-                          document.addEventListener('mousemove', handleMove);
-                          document.addEventListener('mouseup', handleUp);
-                        }}
-                      >
-                        {/* Background Track - Thin gray line */}
-                         <div className="absolute w-full h-[6px] bg-gray-300 rounded-full top-1/2 -translate-y-1/2 pointer-events-none" />
-                        {/* Active Range Track - Between the two thumbs - Thin line */}
-                        <div 
-                          className="absolute h-[6px] bg-gray-600 rounded-full top-1/2 -translate-y-1/2 pointer-events-none"
-                          style={{ 
-                            left: `${((displayRange[0] - priceBounds[0]) / (priceBounds[1] - priceBounds[0])) * 100}%`,
-                            width: `${((displayRange[1] - displayRange[0]) / (priceBounds[1] - priceBounds[0])) * 100}%`
-                          }}
-                        />
-                        {/* Slider Thumbs - White circles with gray border - Now clickable */}
-                        <div 
-                          className="absolute w-5 h-5 bg-white rounded-full border-2 border-gray-400 z-40 top-1/2 -translate-y-1/2 -translate-x-1/2 shadow-sm cursor-grab active:cursor-grabbing"
-                          style={{ left: `${((displayRange[0] - priceBounds[0]) / (priceBounds[1] - priceBounds[0])) * 100}%` }}
-                        />
-                        <div 
-                          className="absolute w-5 h-5 bg-white rounded-full border-2 border-gray-400 z-40 top-1/2 -translate-y-1/2 -translate-x-1/2 shadow-sm cursor-grab active:cursor-grabbing"
-                          style={{ left: `${((displayRange[1] - priceBounds[0]) / (priceBounds[1] - priceBounds[0])) * 100}%` }}
-                        />
-                      </div>
-                          {/* Display selected price range - Similar to reference website */}
-                          <div className="text-sm text-gray-700 font-medium text-center">
-                            {formatCurrency(priceRange[0])} đ - {formatCurrency(priceRange[1])} ₫
-                          </div>
-                        </div>
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-                );
-              })()}
-            </div>
-
-            {/* Filter Buttons - Bottom */}
-            <div className=" px-6 space-y-2">
-              <button
-                onClick={handleApplyFilters}
-                disabled={!hasPendingFilters}
-                className={`w-full relative overflow-hidden  py-2.5 px-4 rounded-full font-medium text-sm transition-all ${
-                  hasPendingFilters
-                    ? "bg-black text-white hover:bg-gray-800 cursor-pointer btn-slide-overlay-dark"
-                    : "bg-gray-200 text-gray-400 cursor-not-allowed "
-                }`}>
-                <span className="relative z-10">Lọc</span>
-              </button>
-              {hasActiveFilters && (
-                <button
-                  onClick={handleResetFilters}
-                  className="relative overflow-hidden btn-slide-overlay-dark btn-slide-overlay-white w-full py-2.5 px-4 rounded-full font-medium text-sm bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 transition-all">
-                  <span className="relative z-10">Đặt lại</span>
-                </button>
-              )}
-            </div>
-          </aside>
-
-          {/* Main Content */}
-          <div className="flex-1">
-            {/* Page Header - Split into two sections */}
-            <div className="bg-white rounded-lg shadow-sm p-8 mb-6">
-              <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
-                {/* Left side: Title and Breadcrumb */}
-                <div className="flex-1">
-                  <h1 className="text-4xl font-bold text-black mb-3 leading-tight">
-                    Bộ sưu tập nước hoa
-                  </h1>
-                  <nav className="text-xs md:text-sm flex items-center gap-2">
-                    <Link
-                      to="/"
-                      className="text-gray-500 font-normal hover:text-black transition-colors">
-                      Trang chủ
-                    </Link>
-                    <span className="text-gray-400">/</span>
-                    <span className="text-black font-medium">
-                      Bộ sưu tập nước hoa
-                    </span>
-                  </nav>
-                </div>
-
-                {/* Right side: Search and Results Count */}
-                <div className="flex flex-col items-start gap-3 w-full lg:w-auto lg:items-end">
-                  <div className="text-base text-gray-700 leading-relaxed">
-                    <strong className="text-black text-lg font-semibold">
-                      {pageInfo ? pageInfo.totalElements : 0}
-                    </strong>{" "}
-                    <span className="font-normal">kết quả</span>
-                  </div>
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full sm:w-auto">
-                    <label className="text-base text-gray-700 font-medium whitespace-nowrap leading-relaxed">Sắp xếp:</label>
-                    <select
-                      className="px-4 py-1.5 pr-10 border border-gray-300 rounded-md text-base cursor-pointer bg-white font-normal min-w-[160px] focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent appearance-none bg-[url('data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%23333%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C/polyline%3E%3C/svg%3E')] bg-no-repeat bg-right bg-[length:18px] bg-[position:right_0.5rem_center]"
-                      value={sortBy}
-                      onChange={(e) => setSortBy(e.target.value)}>
-                      <option value="default">Mặc định</option>
-                      <option value="saleoff">Giảm giá</option>
-                      <option value="popularity">Mức độ phổ biến</option>
-                      <option value="rating">Đánh giá</option>
-                      <option value="newest">Mới nhất</option>
-                      <option value="price-asc">Từ thấp đến cao</option>
-                      <option value="price-desc">Từ cao đến thấp</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Brand/Category Info Banner */}
-            {(selectedBrandInfo || selectedCategoryInfo) && (
-              <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="mb-6 bg-white rounded-lg p-6 border border-gray-200 shadow-sm">
-                {selectedBrandInfo && !selectedCategoryInfo && (
-                  <>
-                    <h2 className="text-2xl font-bold text-black mb-2">
-                      {selectedBrandInfo.name}
-                    </h2>
-                    {selectedBrandInfo.description && (
-                      <p className="text-gray-600 text-sm leading-relaxed">
-                        {selectedBrandInfo.description}
-                      </p>
-                    )}
-                    <button
-                      onClick={() => {
-                        setSelectedBrand(null);
-                        window.history.pushState({}, "", "/products");
-                      }}
-                      className="mt-4 text-sm text-gray-500 hover:text-black transition-colors flex items-center gap-1">
-                      <i className="bi bi-x-circle"></i>
-                      Xóa bộ lọc
-                    </button>
-                  </>
-                )}
-                {selectedCategoryInfo && !selectedBrandInfo && (
-                  <>
-                    <h2 className="text-2xl font-bold text-black mb-2">
-                      {selectedCategoryInfo.name}
-                    </h2>
-                    {selectedCategoryInfo.description && (
-                      <p className="text-gray-600 text-sm leading-relaxed">
-                        {selectedCategoryInfo.description}
-                      </p>
-                    )}
-                    <button
-                      onClick={() => {
-                        setSelectedCategory(null);
-                        window.history.pushState({}, "", "/products");
-                      }}
-                      className="mt-4 text-sm text-gray-500 hover:text-black transition-colors flex items-center gap-1">
-                      <i className="bi bi-x-circle"></i>
-                      Xóa bộ lọc
-                    </button>
-                  </>
-                )}
-              </motion.div>
-            )}
-
-            {/* Products Grid */}
-            <AnimatePresence mode="wait">
-              {products.length === 0 ? (
-                <motion.div
-                  key="empty"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="bg-white rounded-lg shadow-sm p-16 text-center">
-                  <i className="bi bi-inbox text-6xl text-gray-300 mb-4 block"></i>
-                  <h4 className="text-xl text-gray-600 mb-2 font-semibold">
-                    Không tìm thấy sản phẩm
-                  </h4>
-                  <p className="text-gray-500 mb-4">
-                    Vui lòng thử lại với bộ lọc khác
-                  </p>
-                  {hasActiveFilters && (
-                    <button
-                      onClick={handleResetFilters}
-                      className="px-4 py-2 bg-black text-white rounded-md hover:bg-gray-800 transition-colors text-sm">
-                      Đặt lại bộ lọc
-                    </button>
-                  )}
-                </motion.div>
-              ) : (
-                <motion.div
-                  key="grid"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-4 gap-4 sm:gap-5">
-                  {products.map((product, index) => {
-                    // Get inventory data from map
-                    const inventoryItem = inventoryMap.get(product.productId);
-                    const inventory: Inventory = {
-                      inventoryId: inventoryItem?.inventoryId || product.productId,
-                      product: product,
-                      quantity: inventoryItem?.quantity || 0,
-                    };
-
-                    return (
-                      <motion.div
-                        key={product.productId}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: index * 0.03 }}
-                        className="[&_.product-image-wrapper]:!p-3 [&_.product-image-wrapper]:!min-h-[180px] 
-                                   sm:[&_.product-image-wrapper]:!p-4 sm:[&_.product-image-wrapper]:!min-h-[200px]
-                                   lg:[&_.product-image-wrapper]:!p-4 lg:[&_.product-image-wrapper]:!min-h-[220px]
-                                   xl:[&_.product-image-wrapper]:!p-5 xl:[&_.product-image-wrapper]:!min-h-[240px]
-                                   [&_.product-image_img]:!max-h-[120px]
-                                   sm:[&_.product-image_img]:!max-h-[130px]
-                                   lg:[&_.product-image_img]:!max-h-[140px]">
-                        <PerfumeCard inventory={inventory} />
-                      </motion.div>
-                    );
-                  })}
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            {/* Pagination */}
-            {pageInfo && pageInfo.totalPages > 1 && (
-              <div className="mt-8 bg-white rounded-lg shadow-sm p-4">
-                <div className="flex justify-center items-center gap-2 flex-wrap">
-                  <button
-                    onClick={() => handlePageChange(currentPage - 1)}
-                    disabled={pageInfo.first || loading}
-                    className="px-4 py-2 rounded-md border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
-                    <i className="bi bi-chevron-left mr-1"></i>
-                    Trước
-                  </button>
-
-                  {/* Page Numbers */}
-                  <div className="flex gap-2">
-                    {Array.from({ length: pageInfo.totalPages }, (_, i) => i).map(
-                      (page) => {
-                        const showPage =
-                          page === 0 ||
-                          page === pageInfo.totalPages - 1 ||
-                          (page >= currentPage - 1 && page <= currentPage + 1);
-
-                        const showEllipsis =
-                          (page === 1 && currentPage > 3) ||
-                          (page === pageInfo.totalPages - 2 &&
-                            currentPage < pageInfo.totalPages - 4);
-
-                        if (showEllipsis) {
-                          return (
-                            <span
-                              key={page}
-                              className="px-3 py-2 text-gray-500 text-sm">
-                              ...
-                            </span>
-                          );
-                        }
-
-                        if (!showPage) return null;
-
-                        return (
-                          <button
-                            key={page}
-                            onClick={() => handlePageChange(page)}
-                            disabled={loading}
-                            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                              page === currentPage
-                                ? "bg-black text-white"
-                                : "border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
-                            } disabled:opacity-50`}>
-                            {page + 1}
-                          </button>
-                        );
-                      }
-                    )}
-                  </div>
-
-                  <button
-                    onClick={() => handlePageChange(currentPage + 1)}
-                    disabled={pageInfo.last || loading}
-                    className="px-4 py-2 rounded-md border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
-                    Sau
-                    <i className="bi bi-chevron-right ml-1"></i>
-                  </button>
-                </div>
-              </div>
-            )}
+    <div className="bg-gray-50 min-h-screen relative">
+      {/* Loading overlay when fetching products (filter/pagination) */}
+      {loadingProducts && !isInitialLoading && (
+        <div className="fixed  inset-0 bg-white z-[99999999] flex items-center justify-center">
+          <div className="bg-white p-8 flex flex-col items-center">
+            <div className="w-16 h-16 border-4 border-gray-200 border-t-black rounded-full animate-spin mb-4"></div>
+            <p className="text-gray-600 text-lg">Đang tải dữ liệu...</p>
+            <p className="text-gray-400 text-sm mt-2">Vui lòng đợi trong giây lát</p>
           </div>
         </div>
-      </div>
+      )}
 
-    
+      <ProductsHeader
+        title={getPageTitle()}
+        breadcrumbs={getBreadcrumbs()}
+        filterKey={`${appliedBrands.join(',')}-${appliedCategories.join(',')}-${appliedSearchQuery}-${sortBy}`}
+        isLoading={loadingProducts && !isInitialLoading}
+      />
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {/* Page Header - Outside of flex container */}
+
+        <div className="flex flex-col lg:flex-row gap-6">
+          {/* Sidebar */}
+          <motion.aside
+            key={`sidebar-${appliedBrands.join(',')}-${appliedCategories.join(',')}-${appliedSearchQuery}`}
+            initial={{ opacity: 0, x: -30 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.5, ease: "easeOut" }}
+          >
+            <ProductsSidebar
+            categories={categories}
+            brands={brands}
+            priceBounds={priceBounds}
+            priceRange={priceRange}
+            selectedBrands={selectedBrands}
+            selectedCategories={selectedCategories}
+            selectedBrand={selectedBrand}
+            selectedCategory={selectedCategory}
+            brandSearchQuery={brandSearchQuery}
+            onToggleBrand={toggleBrand}
+            onToggleCategory={toggleCategory}
+            onClearBrands={() => {
+              setSelectedBrands([]);
+              setSelectedBrand(null);
+            }}
+            onClearCategories={() => {
+              setSelectedCategories([]);
+              setSelectedCategory(null);
+            }}
+            onBrandSearchChange={setBrandSearchQuery}
+            onPriceRangeChange={setPriceRange}
+            onApplyFilters={handleApplyFilters}
+            onResetFilters={handleResetFilters}
+            hasPendingFilters={hasPendingFilters}
+            hasActiveFilters={hasActiveFiltersWithPrice}
+            isLoading={loadingProducts && !isInitialLoading}
+          />
+          </motion.aside>
+
+          {/* Main Content */}
+          <motion.div
+            className="flex-1"
+            initial={{ opacity: 0, x: 30 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.5, delay: 0.1, ease: "easeOut" }}
+          >
+            {/* Toolbar with Sort and Results Count */}
+            <ProductsToolbar
+              pageInfo={pageInfo}
+              sortBy={sortBy}
+              onSortChange={setSortBy}
+            />
+
+            {/* Products Grid */}
+            <ProductsGrid
+              products={products}
+              inventoryMap={inventoryMap}
+              brands={brands}
+              hasActiveFilters={hasActiveFiltersWithPrice}
+              onResetFilters={handleResetFilters}
+              isLoading={loadingProducts}
+            />
+
+            {/* Pagination */}
+            <ProductsPagination
+              pageInfo={pageInfo}
+              currentPage={currentPage}
+              onPageChange={handlePageChange}
+              isLoading={loadingProducts && !isInitialLoading}
+            />
+          </motion.div>
+        </div>
+      </div>
     </div>
   );
 };
-
-interface FilterCheckboxProps {
-  label?: string;
-  checked?: boolean;
-  onChange?: () => void;
-}
-
-const FilterCheckbox = ({ label, checked, onChange }: FilterCheckboxProps) => (
-  <label className="flex items-center cursor-pointer text-sm group py-1.5 px-1 rounded transition-colors hover:bg-gray-50">
-    <div className="relative flex items-center">
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={onChange}
-        className="w-4 h-4 cursor-pointer accent-black border-gray-300 rounded  checked:border-0 outline-none focus:outline-none"
-      />
-    </div>
-    <span className="ml-2 text-gray-700 group-hover:text-black transition-colors">{label}</span>
-  </label>
-);
