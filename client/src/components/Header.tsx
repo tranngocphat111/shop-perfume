@@ -1,9 +1,11 @@
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { motion, useScroll, useMotionValueEvent } from "framer-motion";
+import { motion, useScroll, useMotionValueEvent, AnimatePresence } from "framer-motion";
 import { useState, useEffect } from "react";
 import { useCart } from "../contexts/CartContext";
 import { useAuth } from "../contexts/AuthContext";
 import { useBrands } from "../hooks/useBrands";
+import { useCategories } from "../hooks/useCategories";
+import { useProductsFilter } from "../contexts/ProductsFilterContext";
 
 /**
  * NavLink Component - Dynamically styles links based on header scroll state.
@@ -50,6 +52,8 @@ export const Header = () => {
     availableLetters,
     loading,
   } = useBrands();
+  const { categories } = useCategories();
+  const { resetFilters } = useProductsFilter();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -236,12 +240,40 @@ export const Header = () => {
               Về SPTN Perfume
             </NavLink>
 
-            {/* Dropdown: Bộ sưu tập nước hoa */}
-            <div className="relative group">
-              <button
-                onMouseEnter={() => setOpenDropdown("products")}
+            {/* Dropdown: Danh mục*/}
+            <div 
+              className="relative group"
+              onMouseEnter={() => setOpenDropdown("products")}
+              onMouseLeave={() => setOpenDropdown(null)}
+            >
+              <Link
+                to="/products"
+                onClick={(e) => {
+                  // Reset filters directly from context when clicking on "Danh mục"
+                  // Try to get priceBounds from sessionStorage if available
+                  let priceBounds: [number, number] | null = null;
+                  try {
+                    const cached = sessionStorage.getItem('products_cache_price_bounds');
+                    if (cached) {
+                      priceBounds = JSON.parse(cached);
+                    }
+                  } catch (err) {
+                    // Ignore error, use null
+                  }
+                  
+                  // Reset filters in context
+                  resetFilters(priceBounds);
+                  
+                  // Always navigate to /products without params
+                  if (location.pathname === "/products") {
+                    e.preventDefault();
+                    // Force navigation to /products without params
+                    navigate("/products", { replace: true });
+                  }
+                  // Otherwise, let Link handle navigation normally
+                }}
                 className={`transition-all font-normal duration-300 text-sm md:text-base ${textColor} ${hoverTextColor} flex items-center gap-1`}>
-                Bộ sưu tập nước hoa
+                Danh mục 
                 <svg
                   className="w-4 h-4"
                   fill="none"
@@ -254,47 +286,49 @@ export const Header = () => {
                     d="M19 9l-7 7-7-7"
                   />
                 </svg>
-              </button>
+              </Link>
 
-              {openDropdown === "products" && (
-                <motion.div
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  onMouseEnter={() => setOpenDropdown("products")}
-                  onMouseLeave={() => setOpenDropdown(null)}
-                  className="absolute top-full left-0 mt-2 w-56 bg-white shadow-lg rounded-sm py-2 border border-gray-100 z-50">
-                  <Link
-                    to="/products"
-                    onClick={() => setOpenDropdown(null)}
-                    className="block font-normal px-4 py-2 text-sm text-gray-800 hover:bg-gray-100 transition-colors">
-                    Tất cả sản phẩm
-                  </Link>
-                  <Link
-                    to="/products?q=nam"
-                    onClick={() => setOpenDropdown(null)}
-                    className="block font-normal px-4 py-2 text-sm text-gray-800 hover:bg-gray-100 transition-colors">
-                    Nước hoa nam
-                  </Link>
-                  <Link
-                    to="/products?q=nữ"
-                    onClick={() => setOpenDropdown(null)}
-                    className="block font-normal px-4 py-2 text-sm text-gray-800 hover:bg-gray-100 transition-colors">
-                    Nước hoa nữ
-                  </Link>
-                  <Link
-                    to="/products?q=unisex"
-                    onClick={() => setOpenDropdown(null)}
-                    className="block font-normal px-4 py-2 text-sm text-gray-800 hover:bg-gray-100 transition-colors">
-                    Nước hoa unisex
-                  </Link>
-                </motion.div>
-              )}
+              {/* Bridge element to connect parent and dropdown */}
+              <AnimatePresence>
+                {openDropdown === "products" && (
+                  <>
+                    <div className="absolute top-full left-0 w-full h-4" />
+                    <motion.div
+                      key="products-dropdown"
+                      initial={{ opacity: 0, y: -20, scale: 0.96 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -15, scale: 0.96 }}
+                      transition={{ 
+                        type: "spring",
+                        stiffness: 280,
+                        damping: 30,
+                        mass: 0.9
+                      }}
+                      className="absolute top-full left-0 mt-4 w-52 bg-white backdrop-blur-md shadow-xl rounded-xl py-3 p-2 border border-gray-200/50 z-50">
+                      {categories.map((category) => (
+                        <Link
+                          key={category.categoryId}
+                          to={`/products?categoryId=${category.categoryId}`}
+                          onClick={() => {
+                            setOpenDropdown(null);
+                          }}
+                          className="block font-normal px-4 py-2 text-sm text-gray-800 hover:bg-gray-100 transition-colors">
+                          {category.name}
+                        </Link>
+                      ))}
+                    </motion.div>
+                  </>
+                )}
+              </AnimatePresence>
             </div>
 
             {/* Dropdown: Thương hiệu */}
-            <div className="relative group">
+            <div 
+              className="relative group"
+              onMouseEnter={() => setOpenDropdown("brands")}
+              onMouseLeave={() => setOpenDropdown(null)}
+            >
               <button
-                onMouseEnter={() => setOpenDropdown("brands")}
                 className={`transition-all font-normal duration-300 text-sm md:text-base ${textColor} ${hoverTextColor} flex items-center gap-1`}>
                 Thương hiệu
                 <svg
@@ -311,13 +345,24 @@ export const Header = () => {
                 </svg>
               </button>
 
-              {openDropdown === "brands" && (
-                <motion.div
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  onMouseEnter={() => setOpenDropdown("brands")}
-                  onMouseLeave={() => setOpenDropdown(null)}
-                  className="fixed font-normal left-0 right-0 top-[80px] mx-auto w-[90vw] max-w-5xl bg-white shadow-2xl rounded-lg py-8 px-10 border border-gray-200 z-50">
+              {/* Bridge element to connect parent and dropdown */}
+              <AnimatePresence>
+                {openDropdown === "brands" && (
+                  <>
+                    <div className="absolute top-full left-0 right-0 h-4" />
+                    <motion.div
+                      key="brands-dropdown"
+                      initial={{ opacity: 0, y: -20, scale: 0.96 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -15, scale: 0.96 }}
+                      transition={{ 
+                        type: "spring",
+                        stiffness: 280,
+                        damping: 30,
+                        mass: 0.9
+                      }}
+                      className="fixed font-normal left-0 right-0 mt-4 mx-auto w-[90vw] max-w-5xl bg-white backdrop-blur-md shadow-2xl rounded-xl py-8 px-10 border border-gray-200/50 z-50"
+                    >
                   {loading ? (
                     <div className="text-center py-8 text-gray-500">
                       Đang tải thương hiệu...
@@ -325,14 +370,14 @@ export const Header = () => {
                   ) : (
                     <>
                       {/* Alphabet filter */}
-                      <div className="flex flex-wrap justify-center gap-2 pb-5 border-b border-gray-200 mb-6">
+                      <div className="flex flex-nowrap justify-start gap-1.5 pb-5 border-b border-gray-200 mb-6 overflow-x-auto scrollbar-hide min-w-0">
                         <button
                           onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
                             setSelectedLetter(null);
                           }}
-                          className={`px-4 py-2 text-sm rounded-full transition-colors font-normal ${
+                          className={`px-2.5 py-1 text-xs rounded-full transition-colors font-normal whitespace-nowrap flex-shrink-0 ${
                             selectedLetter === null
                               ? "bg-black text-white"
                               : "border border-gray-300 hover:bg-gray-100 hover:border-gray-400 text-gray-700"
@@ -379,7 +424,7 @@ export const Header = () => {
                                 }
                               }}
                               disabled={!hasBrands}
-                              className={`px-4 py-2 text-sm rounded-full transition-colors font-normal ${
+                              className={`w-7 h-7 text-xs rounded-full transition-colors font-normal flex items-center justify-center flex-shrink-0 ${
                                 selectedLetter === letter
                                   ? "bg-black text-white"
                                   : hasBrands
@@ -467,8 +512,10 @@ export const Header = () => {
                       </div>
                     </>
                   )}
-                </motion.div>
-              )}
+                    </motion.div>
+                  </>
+                )}
+              </AnimatePresence>
             </div>
 
             <NavLink
