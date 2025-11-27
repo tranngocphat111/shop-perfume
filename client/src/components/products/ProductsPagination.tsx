@@ -41,6 +41,10 @@ export const ProductsPagination = ({
     return null;
   }
 
+  // Use pageInfo.number as source of truth, fallback to currentPage
+  // This ensures we're always in sync with backend pagination
+  const actualCurrentPage = pageInfo.number !== undefined ? pageInfo.number : currentPage;
+
   return (
     <motion.div
       className="mt-8 bg-white rounded-lg shadow-sm p-4"
@@ -54,8 +58,8 @@ export const ProductsPagination = ({
     >
       <div className="flex justify-center items-center gap-2 flex-wrap">
         <button
-          onClick={() => onPageChange(currentPage - 1)}
-          disabled={pageInfo.first}
+          onClick={() => onPageChange(actualCurrentPage - 1)}
+          disabled={pageInfo.first || actualCurrentPage === 0}
           className="px-4 py-2 rounded-md border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
           <i className="bi bi-chevron-left mr-1"></i>
           Trước
@@ -68,12 +72,12 @@ export const ProductsPagination = ({
               const showPage =
                 page === 0 ||
                 page === pageInfo.totalPages - 1 ||
-                (page >= currentPage - 1 && page <= currentPage + 1);
+                (page >= actualCurrentPage - 1 && page <= actualCurrentPage + 1);
 
               const showEllipsis =
-                (page === 1 && currentPage > 3) ||
+                (page === 1 && actualCurrentPage > 3) ||
                 (page === pageInfo.totalPages - 2 &&
-                  currentPage < pageInfo.totalPages - 4);
+                  actualCurrentPage < pageInfo.totalPages - 4);
 
               if (showEllipsis) {
                 return (
@@ -92,7 +96,7 @@ export const ProductsPagination = ({
                   key={page}
                   onClick={() => onPageChange(page)}
                   className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                    page === currentPage
+                    page === actualCurrentPage
                       ? "bg-black text-white"
                       : "border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
                   } disabled:opacity-50`}>
@@ -104,8 +108,8 @@ export const ProductsPagination = ({
         </div>
 
         <button
-          onClick={() => onPageChange(currentPage + 1)}
-          disabled={pageInfo.last}
+          onClick={() => onPageChange(actualCurrentPage + 1)}
+          disabled={pageInfo.last || actualCurrentPage >= pageInfo.totalPages - 1}
           className="px-4 py-2 rounded-md border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
           Sau
           <i className="bi bi-chevron-right ml-1"></i>

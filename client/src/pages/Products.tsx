@@ -461,17 +461,22 @@ export const Products = () => {
   // Track last fetch params to avoid unnecessary refetches
   const lastFetchParamsRef = useRef<string | null>(null);
   const isInitialFetchRef = useRef(true);
+  // Track if pageInfo was updated by handlePageChange to avoid double update
+  const pageInfoUpdatedByHandlerRef = useRef(false);
 
   // Fetch products from backend - optimized for speed
-  const fetchProducts = useCallback(async (force = false) => {
-    // Create a key for current fetch params
+  const fetchProducts = useCallback(async (force = false, page: number = 0) => {
+    // Use provided page (always required)
+    const pageToFetch = page;
+    
+    // Create a key for current fetch params (without currentPage for filter changes)
     const fetchKey = JSON.stringify({
       appliedBrands,
       appliedCategories,
       appliedSearchQuery,
       sortBy,
       appliedPriceRange,
-      currentPage,
+      page: pageToFetch,
     });
 
     // Skip if we're fetching with the same params (unless forced or initial fetch)
@@ -537,7 +542,7 @@ export const Products = () => {
       const backendSortDirection = isPopularitySort ? undefined : sortDirection;
       
       const response = await productService.getProductPage(
-        needsClientSideFilter ? 0 : currentPage,
+        needsClientSideFilter ? 0 : pageToFetch,
         pageSize,
         backendSortField,
         backendSortDirection,
@@ -567,7 +572,7 @@ export const Products = () => {
     } finally {
       setLoadingProducts(false);
     }
-  }, [appliedBrands, appliedCategories, appliedSearchQuery, sortBy, appliedPriceRange, priceBoundsCache, currentPage]);
+  }, [appliedBrands, appliedCategories, appliedSearchQuery, sortBy, appliedPriceRange, priceBoundsCache]); // Removed currentPage to avoid infinite loop
 
   // Listen for reset filters event (must be after fetchProducts is defined)
   useEffect(() => {
@@ -580,7 +585,7 @@ export const Products = () => {
       navigate("/products", { replace: true });
       // Force fetch products after reset
       setTimeout(() => {
-        fetchProducts(true); // Force fetch
+        fetchProducts(true); // Force fetch, reset to page 0
         isRestoringFromUrlRef.current = false;
       }, 100);
     };
@@ -725,15 +730,15 @@ export const Products = () => {
     return filtered;
   }, [allProducts, appliedPriceRange, sortBy, priceBoundsCache, appliedBrands, appliedCategories, appliedSearchQuery, salesRankMap]);
 
-  // Paginate filtered products
-  const paginatedProducts = useMemo(() => {
-    const itemsPerPage = 9;
-    const startIndex = currentPage * itemsPerPage;
-    const endIndex = startIndex + itemsPerPage;
-    return filteredAndSortedProducts.slice(startIndex, endIndex);
-  }, [filteredAndSortedProducts, currentPage]);
+  // Note: paginatedProducts is now calculated directly in handlePageChange and useEffect
+  // to avoid race conditions and ensure consistency
 
-  const totalPages = Math.ceil(filteredAndSortedProducts.length / 9);
+  // Calculate totalPages correctly (always >= 1, even if no products)
+  const totalPages = useMemo(() => {
+    const itemsPerPage = 9;
+    const total = filteredAndSortedProducts.length;
+    return total === 0 ? 1 : Math.ceil(total / itemsPerPage);
+  }, [filteredAndSortedProducts.length]);
 
   // Cache current page when it changes
   useEffect(() => {
@@ -742,8 +747,10 @@ export const Products = () => {
 
   // Note: Filter state caching is now handled by ProductsFilterContext
 
-  // Fetch products when filters change (but not on initial mount)
+  // Track if component has mounted
   const hasMountedRef = useRef(false);
+  
+  // Fetch products when filters change (but not on initial mount)
   useEffect(() => {
     // Skip on initial mount - initial products are loaded separately
     if (!hasMountedRef.current) {
@@ -753,9 +760,10 @@ export const Products = () => {
 
     // Only fetch if not in initial loading (to avoid double fetch)
     if (!isInitialLoading) {
-      fetchProducts();
+      fetchProducts(false, 0); // Reset to page 0 when filters change
     }
-  }, [fetchProducts, isInitialLoading]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [appliedBrands, appliedCategories, appliedSearchQuery, sortBy, appliedPriceRange, isInitialLoading]);
 
   // Initial products fetch - must complete before showing page
   useEffect(() => {
@@ -783,7 +791,7 @@ export const Products = () => {
       } else {
         // No cache, fetch from API (force initial fetch)
         try {
-          await fetchProducts(true);
+          await fetchProducts(true, currentPage);
         } finally {
           if (isMounted) setLoadingProducts(false);
         }
@@ -798,8 +806,17 @@ export const Products = () => {
     };
   }, []); // Only run once on mount
 
-  // Update products when filtered/sorted list changes
+  // Update products and pageInfo when filtered/sorted list changes (for client-side pagination)
+  // This effect handles filter/sort changes for client-side pagination
+  // Note: page changes are handled directly in handlePageChange to avoid race conditions and double updates
   useEffect(() => {
+    // Skip if pageInfo was just updated by handlePageChange to avoid double update
+    if (pageInfoUpdatedByHandlerRef.current) {
+      // Reset flag after skipping
+      pageInfoUpdatedByHandlerRef.current = false;
+      return;
+    }
+    
     const needsPriceFilter = appliedPriceRange !== null &&
       priceBoundsCache !== null &&
       (appliedPriceRange[0] !== priceBoundsCache[0] ||
@@ -808,34 +825,53 @@ export const Products = () => {
     const isPopularitySort = sortBy === "popularity";
     const needsClientSideFilter = needsPriceFilter || hasMultipleFilters || isPopularitySort;
 
-    // Update products and page info
+    // Update products and page info for client-side pagination
+    // Only run when filters/sort change, not when currentPage changes (that's handled in handlePageChange)
     if (needsClientSideFilter) {
-      setProducts(paginatedProducts);
+      // Use currentPage from closure - it will be the latest value when filters change
+      // Ensure currentPage is within valid range
+      const validCurrentPage = Math.max(0, Math.min(currentPage, totalPages - 1));
+      if (validCurrentPage !== currentPage) {
+        setCurrentPage(validCurrentPage);
+        return; // Will re-run after currentPage is updated
+      }
+      
+      // Calculate paginated products for current page
+      const itemsPerPage = 9;
+      const startIndex = validCurrentPage * itemsPerPage;
+      const endIndex = startIndex + itemsPerPage;
+      const currentPaginatedProducts = filteredAndSortedProducts.slice(startIndex, endIndex);
+      
+      // Update products and pageInfo
+      setProducts(currentPaginatedProducts);
       const newPageInfo = {
-        content: paginatedProducts,
+        content: currentPaginatedProducts,
         totalPages: totalPages,
         totalElements: filteredAndSortedProducts.length,
         size: 9,
-        number: currentPage,
-        numberOfElements: paginatedProducts.length,
-        first: currentPage === 0,
-        last: currentPage >= totalPages - 1,
-        empty: paginatedProducts.length === 0,
+        number: validCurrentPage,
+        numberOfElements: currentPaginatedProducts.length,
+        first: validCurrentPage === 0,
+        last: validCurrentPage >= totalPages - 1,
+        empty: currentPaginatedProducts.length === 0,
       };
       setPageInfo(newPageInfo);
       setCachedData(CACHE_KEYS.PAGE_INFO, newPageInfo);
-      setCachedData(CACHE_KEYS.PRODUCTS, paginatedProducts);
+      setCachedData(CACHE_KEYS.PRODUCTS, currentPaginatedProducts);
     }
-  }, [paginatedProducts, totalPages, currentPage, filteredAndSortedProducts.length, appliedPriceRange, priceBoundsCache, appliedBrands.length, appliedCategories.length, sortBy]);
+  }, [filteredAndSortedProducts, totalPages, appliedPriceRange, priceBoundsCache, appliedBrands, appliedCategories, sortBy]); // Removed currentPage - page changes are handled in handlePageChange, this only runs when filters/sort change
 
   // Reset to first page and scroll to top when applied filters change
   useEffect(() => {
-    setCurrentPage(0);
+    // Only reset if not already on page 0
+    if (currentPage !== 0) {
+      setCurrentPage(0);
+    }
     // Scroll to top when filters change (only if not loading)
     if (!loadingProducts) {
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
-  }, [appliedBrands, appliedCategories, appliedSearchQuery, sortBy, appliedPriceRange, loadingProducts]);
+  }, [appliedBrands, appliedCategories, appliedSearchQuery, sortBy, appliedPriceRange, loadingProducts, currentPage]);
   
   // Scroll to top after loading completes
   useEffect(() => {
@@ -971,11 +1007,69 @@ export const Products = () => {
   }, [priceBoundsCache]); // Chỉ chạy khi priceBoundsCache thay đổi (khi mount), không chạy khi priceRange thay đổi
 
   // Pagination handler
-  const handlePageChange = (newPage: number) => {
-    setCurrentPage(newPage);
+  const handlePageChange = useCallback((newPage: number) => {
+    // Validate page number
+    const needsPriceFilter = appliedPriceRange !== null &&
+      priceBoundsCache !== null &&
+      (appliedPriceRange[0] !== priceBoundsCache[0] ||
+        appliedPriceRange[1] !== priceBoundsCache[1]);
+    const hasMultipleFilters = appliedBrands.length > 1 || appliedCategories.length > 1;
+    const isPopularitySort = sortBy === "popularity";
+    const needsClientSideFilter = needsPriceFilter || hasMultipleFilters || isPopularitySort;
+    
+    if (needsClientSideFilter) {
+      // Client-side pagination: validate against totalPages
+      // Ensure we have the latest totalPages value
+      const itemsPerPage = 9;
+      const calculatedTotalPages = filteredAndSortedProducts.length === 0 
+        ? 1 
+        : Math.ceil(filteredAndSortedProducts.length / itemsPerPage);
+      const maxPage = Math.max(0, calculatedTotalPages - 1);
+      const validPage = Math.max(0, Math.min(newPage, maxPage));
+      
+      // Calculate paginated products for the new page immediately
+      const startIndex = validPage * itemsPerPage;
+      const endIndex = startIndex + itemsPerPage;
+      const newPaginatedProducts = filteredAndSortedProducts.slice(startIndex, endIndex);
+      
+      // Mark that we're updating pageInfo so useEffect doesn't update it again
+      pageInfoUpdatedByHandlerRef.current = true;
+      
+      // Update state immediately
+      setCurrentPage(validPage);
+      setProducts(newPaginatedProducts);
+      
+      // Update pageInfo immediately so ProductsPagination component gets the correct page number
+      const newPageInfo = {
+        content: newPaginatedProducts,
+        totalPages: calculatedTotalPages,
+        totalElements: filteredAndSortedProducts.length,
+        size: itemsPerPage,
+        number: validPage,
+        numberOfElements: newPaginatedProducts.length,
+        first: validPage === 0,
+        last: validPage >= maxPage,
+        empty: newPaginatedProducts.length === 0,
+      };
+      setPageInfo(newPageInfo);
+      setCachedData(CACHE_KEYS.PAGE_INFO, newPageInfo);
+      setCachedData(CACHE_KEYS.PRODUCTS, newPaginatedProducts);
+      
+      // Flag will be reset in useEffect when it checks and skips
+    } else {
+      // Server-side pagination: validate against pageInfo
+      let validPage = Math.max(0, newPage);
+      if (pageInfo) {
+        const maxPage = Math.max(0, pageInfo.totalPages - 1);
+        validPage = Math.max(0, Math.min(newPage, maxPage));
+      }
+      setCurrentPage(validPage);
+      // Fetch immediately for server-side pagination (always fetch, don't check conditions)
+      fetchProducts(false, validPage);
+    }
     // Scroll to top immediately when page changes
     window.scrollTo({ top: 0, behavior: "smooth" });
-  };
+  }, [appliedPriceRange, priceBoundsCache, appliedBrands, appliedCategories, sortBy, filteredAndSortedProducts, totalPages, pageInfo, fetchProducts]);
   
   // Calculate hasActiveFilters with price range check (needs priceBoundsCache)
   const hasActiveFiltersWithPrice = useMemo(() => {
