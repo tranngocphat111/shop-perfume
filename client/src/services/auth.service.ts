@@ -15,7 +15,6 @@ export interface RegisterRequest {
 
 export interface AuthResponse {
   token: string;
-  refreshToken: string;
   type: string;
   userId: number;
   name: string;
@@ -23,17 +22,11 @@ export interface AuthResponse {
   role: string;
 }
 
-export interface TokenRefreshResponse {
-  accessToken: string;
-  refreshToken: string;
-  type: string;
-}
-
 class AuthService {
   private readonly TOKEN_KEY = "auth_token";
-  private readonly REFRESH_TOKEN_KEY = "refresh_token";
   private readonly USER_KEY = "user_info";
-  private refreshPromise: Promise<TokenRefreshResponse> | null = null;
+  // REFRESH TOKEN - COMMENTED OUT
+  // private refreshPromise: Promise<TokenRefreshResponse> | null = null;
 
   async login(credentials: LoginRequest): Promise<AuthResponse> {
     const response = await apiService.post<AuthResponse>(
@@ -43,7 +36,6 @@ class AuthService {
 
     // Lưu token và thông tin user vào localStorage
     this.setToken(response.token);
-    this.setRefreshToken(response.refreshToken);
     this.setUser(response);
 
     return response;
@@ -57,30 +49,13 @@ class AuthService {
 
     // Lưu token và thông tin user vào localStorage
     this.setToken(response.token);
-    this.setRefreshToken(response.refreshToken);
     this.setUser(response);
 
     return response;
   }
 
-  async logout(): Promise<void> {
-    try {
-      const refreshToken = this.getRefreshToken();
-      if (refreshToken) {
-        // Call logout API to revoke refresh token
-        await apiService.post("/auth/logout", { refreshToken });
-      }
-    } catch (error) {
-      console.error("Logout API failed:", error);
-    } finally {
-      // Always clear local storage
-      this.clearAuth();
-    }
-  }
-
-  clearAuth(): void {
+  logout(): void {
     localStorage.removeItem(this.TOKEN_KEY);
-    localStorage.removeItem(this.REFRESH_TOKEN_KEY);
     localStorage.removeItem(this.USER_KEY);
   }
 
@@ -90,14 +65,6 @@ class AuthService {
 
   setToken(token: string): void {
     localStorage.setItem(this.TOKEN_KEY, token);
-  }
-
-  getRefreshToken(): string | null {
-    return localStorage.getItem(this.REFRESH_TOKEN_KEY);
-  }
-
-  setRefreshToken(token: string): void {
-    localStorage.setItem(this.REFRESH_TOKEN_KEY, token);
   }
 
   getUser(): AuthResponse | null {
@@ -118,17 +85,15 @@ class AuthService {
   isAuthenticated(): boolean {
     const token = this.getToken();
     if (!token) return false;
-    
     // Check if token is expired
     if (this.isTokenExpired()) {
       return false;
     }
-    
     return true;
   }
 
   isAdmin(): boolean {
-    const user = this.getUser();
+    const user = this.getUser(); // Get user from localStorage
     return user?.role === "ADMIN";
   }
 
@@ -141,14 +106,14 @@ class AuthService {
       // Decode JWT token (without verification, just to check expiration)
       const payload = JSON.parse(atob(token.split(".")[1]));
       const expirationTime = payload.exp * 1000; // Convert to milliseconds
-      // Add 30 seconds buffer to refresh before actual expiration
-      return Date.now() >= expirationTime - 30000;
+      return Date.now() >= expirationTime;
     } catch {
       return true; // If can't parse, consider it expired
     }
   }
 
-  // Check if token will expire soon (within 5 minutes)
+  // Check if token will expire soon (within 2 minutes)
+  // Reduced from 5 minutes to avoid refreshing too early
   isTokenExpiringSoon(): boolean {
     const token = this.getToken();
     if (!token) return true;
@@ -156,8 +121,8 @@ class AuthService {
     try {
       const payload = JSON.parse(atob(token.split(".")[1]));
       const expirationTime = payload.exp * 1000;
-      const fiveMinutes = 5 * 60 * 1000;
-      return Date.now() >= expirationTime - fiveMinutes;
+      const twoMinutes = 2 * 60 * 1000; // 2 minutes in milliseconds
+      return Date.now() >= expirationTime - twoMinutes;
     } catch {
       return true;
     }
@@ -166,7 +131,6 @@ class AuthService {
   // Get valid token (refresh if needed)
   async getValidToken(): Promise<string | null> {
     const token = this.getToken();
-    
     if (!token) {
       return null;
     }
@@ -180,59 +144,98 @@ class AuthService {
     return token;
   }
 
+  // REFRESH TOKEN - COMMENTED OUT
   // Refresh access token using refresh token
-  async refreshToken(): Promise<boolean> {
-    // If there's already a refresh in progress, wait for it
-    if (this.refreshPromise) {
-      try {
-        await this.refreshPromise;
-        return true;
-      } catch {
-        return false;
-      }
-    }
+  async refreshToken(_delayClear: boolean = false): Promise<boolean> {
+    // REFRESH TOKEN DISABLED
+    return false;
 
-    const refreshToken = this.getRefreshToken();
-    if (!refreshToken) {
-      this.clearAuth();
-      return false;
-    }
+    // REFRESH TOKEN CODE - COMMENTED OUT
+    // // If there's already a refresh in progress, wait for it
+    // if (this.refreshPromise) {
+    //   try {
+    //     await this.refreshPromise;
+    //     // Check if token was actually refreshed
+    //     const newToken = this.getToken();
+    //     return newToken !== null;
+    //   } catch {
+    //     // Clear promise on error so next attempt can proceed
+    //     this.refreshPromise = null;
+    //     return false;
+    //   }
+    // }
 
-    try {
-      // Create a promise for this refresh attempt
-      this.refreshPromise = apiService.post<TokenRefreshResponse>(
-        "/auth/refresh",
-        { refreshToken }
-      );
+    // const refreshToken = this.getRefreshToken();
+    // if (!refreshToken) {
+    //   // If delayClear is true, don't clear auth here - let handle401Error do it
+    //   // This allows the delay to work properly
+    //   if (!delayClear) {
+    //     this.clearAuth();
+    //   }
+    //   return false;
+    // }
 
-      const response = await this.refreshPromise;
+    // try {
+    //   // Create a promise for this refresh attempt
+    //   this.refreshPromise = apiService.post<TokenRefreshResponse>(
+    //     "/auth/refresh",
+    //     { refreshToken }
+    //   );
 
-      // Update tokens
-      this.setToken(response.accessToken);
-      this.setRefreshToken(response.refreshToken);
+    //   const response = await this.refreshPromise;
 
-      console.log("Token refreshed successfully");
-      return true;
-    } catch (error) {
-      console.error("Token refresh failed:", error);
-      this.clearAuth();
-      return false;
-    } finally {
-      this.refreshPromise = null;
-    }
+    //   // Update tokens
+    //   this.setToken(response.accessToken);
+    //   this.setRefreshToken(response.refreshToken);
+
+    //   // Log token preview to verify it's saved
+    //   const tokenPreview =
+    //     response.accessToken.length > 30
+    //       ? `${response.accessToken.substring(
+    //           0,
+    //           20
+    //         )}...${response.accessToken.substring(
+    //           response.accessToken.length - 10
+    //         )}`
+    //       : response.accessToken.substring(0, 30);
+    //   console.log("Token refreshed successfully. New token:", tokenPreview);
+
+    //   // Verify token is saved
+    //   const savedToken = this.getToken();
+    //   const savedTokenPreview =
+    //     savedToken && savedToken.length > 30
+    //       ? `${savedToken.substring(0, 20)}...${savedToken.substring(
+    //           savedToken.length - 10
+    //         )}`
+    //       : savedToken?.substring(0, 30);
+    //   console.log("Saved token in localStorage:", savedTokenPreview);
+
+    //   // Clear promise on success
+    //   this.refreshPromise = null;
+    //   return true;
+    // } catch (error) {
+    //   console.error("Token refresh failed:", error);
+    //   // Clear promise on error
+    //   this.refreshPromise = null;
+    //   // If delayClear is true, don't clear auth here - let handle401Error do it
+    //   // This allows the delay to work properly
+    //   if (!delayClear) {
+    //     this.clearAuth();
+    //   }
+    //   return false;
+    // }
   }
 
   // Validate token on app load
   async validateAndRefreshToken(): Promise<boolean> {
     const token = this.getToken();
-    
     if (!token) {
       return false;
     }
 
-    // If token is expired or expiring soon, refresh it
-    if (this.isTokenExpired() || this.isTokenExpiringSoon()) {
-      return await this.refreshToken();
+    // If token is expired, it's invalid
+    if (this.isTokenExpired()) {
+      return false;
     }
 
     return true;

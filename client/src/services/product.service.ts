@@ -28,6 +28,9 @@ export interface UpdateProductRequest {
 }
 
 export const productService = {
+    async getTotalSize(): Promise<number> {
+        return apiService.get('/products/size');
+    },
     async getProductPage(
         page: number,
         size: number,

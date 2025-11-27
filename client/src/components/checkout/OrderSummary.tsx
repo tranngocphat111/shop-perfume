@@ -1,5 +1,5 @@
 import React from 'react';
-import { FaTruck, FaCheckCircle, FaExclamationCircle } from 'react-icons/fa';
+import { FaCheckCircle, FaExclamationCircle } from 'react-icons/fa';
 import type { CartItem } from '../../types';
 import { getPrimaryImageUrl, formatCurrency } from '../../utils/helpers';
 
@@ -71,10 +71,6 @@ export const OrderSummary: React.FC<OrderSummaryProps> = ({
             {formatCurrency(subtotal)} ₫
           </span>
         </div>
-        <div className="flex justify-between text-base">
-          <span className="text-gray-600">Phí vận chuyển</span>
-          <span className="font-medium text-green-600">Miễn phí</span>
-        </div>
       </div>
 
       {/* Total */}
@@ -137,12 +133,6 @@ export const OrderSummary: React.FC<OrderSummaryProps> = ({
       )}
 
       {/* Shipping Note */}
-      <div className="mt-6 p-4 bg-gray-50 rounded-lg text-center">
-        <div className="flex items-center justify-center gap-2 text-sm text-gray-600">
-          <FaTruck className="text-green-600" />
-          <span>Giá trên chưa bao gồm phí vận chuyển</span>
-        </div>
-      </div>
 
       <style>{`
         .custom-scrollbar::-webkit-scrollbar {

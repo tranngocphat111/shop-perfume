@@ -35,6 +35,19 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
     // Timeout for QR payment: 30 minutes in milliseconds
     private static final long QR_PAYMENT_TIMEOUT_MS = 30 * 60 * 1000;
 
+
+    @Override
+    public Long getTotalSize() {
+        Long totalSize = orderRepository.count();
+        log.info("Get total size: {}", totalSize);
+        return totalSize;
+    }
+
+    @Override
+    public double getTotalRevenue() {
+        return orderRepository.getTotalRevenue(PaymentStatus.PAID);
+    };
+
     @Transactional
     @Override
     public OrderResponse createOrder(OrderCreateRequest request) {
@@ -272,6 +285,7 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
     }
     
     @Override
+    @Transactional(readOnly = true)
     public List<OrderResponse> getOrdersByEmail(String email) {
         List<Order> orders = orderRepository.findByGuestEmailOrderByOrderDateDesc(email);
         return orders.stream()
@@ -280,6 +294,7 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
     }
     
     @Override
+    @Transactional(readOnly = true)
     public List<OrderResponse> getOrdersByUserId(Integer userId) {
         List<Order> orders = orderRepository.findByUserIdOrderByOrderDateDesc(userId);
         return orders.stream()

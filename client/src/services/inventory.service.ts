@@ -23,6 +23,9 @@ export interface InventoryItem {
 }
 
 export const inventoryService = {
+    async getLowStockItem(): Promise<number> {
+        return apiService.get<number>('/inventories/lowStock');
+    },
     async getInventoryPage(
         page: number,
         size: number

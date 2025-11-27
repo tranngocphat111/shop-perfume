@@ -31,7 +31,7 @@ export const PurchaseInvoices = () => {
 
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [modalMode, setModalMode] = useState<"add" | "edit">("add");
+  const [modalMode, setModalMode] = useState<"add" | "edit" | "view">("add");
   const [selectedInvoice, setSelectedInvoice] =
     useState<PurchaseInvoiceFormData | null>(null);
 
@@ -196,40 +196,32 @@ export const PurchaseInvoices = () => {
     },
   ];
 
+  const getInvoiceDetailsForModal = async (id: number) => {
+    const invoice = await purchaseInvoiceService.getInvoiceById(id);
+    const details =
+      invoice.details && invoice.details.length > 0
+        ? invoice.details
+        : await purchaseInvoiceService.getInvoiceDetailById(id);
+
+    return {
+      purchaseInvoiceId: invoice.purchaseInvoiceId,
+      supplierId: invoice.supplier.supplierId,
+      email: invoice.email,
+      status: invoice.status,
+      details: details.map((detail) => ({
+        productId: detail.product.productId,
+        quantity: detail.quantity,
+        importPrice: detail.importPrice,
+      })),
+    } as PurchaseInvoiceFormData;
+  };
+
   const handleView = async (item: PurchaseInvoiceData) => {
     try {
-      const invoiceDetails = await purchaseInvoiceService.getInvoiceById(
-        item.id
-      );
-
-      // Create a detailed alert message
-      const detailsText = invoiceDetails.details
-        .map(
-          (detail, index) =>
-            `${index + 1}. ${detail.product.name}\n   Quantity: ${
-              detail.quantity
-            } | Price: ${detail.importPrice.toLocaleString(
-              "vi-VN"
-            )} đ | Subtotal: ${detail.subTotal.toLocaleString("vi-VN")} đ`
-        )
-        .join("\n\n");
-
-      const message = `📦 Purchase Invoice Details
-
-Invoice ID: ${invoiceDetails.purchaseInvoiceId}
-Supplier: ${invoiceDetails.supplier.name}
-Email: ${invoiceDetails.email}
-Status: ${invoiceDetails.status}
-
-📋 Products:
-${detailsText}
-
-💰 Total Amount: ${invoiceDetails.totalAmount.toLocaleString("vi-VN")} đ
-
-Created: ${new Date(invoiceDetails.createdAt).toLocaleString()}
-Created By: ${invoiceDetails.createdBy || "System"}`;
-
-      alert(message);
+      const formData = await getInvoiceDetailsForModal(item.id);
+      setSelectedInvoice(formData);
+      setModalMode("view");
+      setIsModalOpen(true);
     } catch (err) {
       console.error("Error fetching invoice details:", err);
       alert("❌ Failed to load invoice details. Please try again.");
@@ -238,21 +230,7 @@ Created By: ${invoiceDetails.createdBy || "System"}`;
 
   const handleEdit = async (item: PurchaseInvoiceData) => {
     try {
-      const invoiceDetails = await purchaseInvoiceService.getInvoiceById(
-        item.id
-      );
-
-      const formData: PurchaseInvoiceFormData = {
-        supplierId: invoiceDetails.supplier.supplierId,
-        email: invoiceDetails.email,
-        status: invoiceDetails.status,
-        details: invoiceDetails.details.map((detail) => ({
-          productId: detail.product.productId,
-          quantity: detail.quantity,
-          importPrice: detail.importPrice,
-        })),
-      };
-
+      const formData = await getInvoiceDetailsForModal(item.id);
       setSelectedInvoice(formData);
       setModalMode("edit");
       setIsModalOpen(true);
@@ -270,8 +248,11 @@ Created By: ${invoiceDetails.createdBy || "System"}`;
 
   const handleModalSubmit = async (data: PurchaseInvoiceFormData) => {
     try {
-      console.log("Modal submit data:", data);
-
+      if (modalMode === "view") {
+        setIsModalOpen(false);
+        setSelectedInvoice(null);
+        return;
+      }
       if (modalMode === "add") {
         // Validate
         if (data.supplierId === 0) {
@@ -287,25 +268,24 @@ Created By: ${invoiceDetails.createdBy || "System"}`;
           return;
         }
 
-        const created = await purchaseInvoiceService.createInvoice(data);
+        const { purchaseInvoiceId: _unused, ...payload } = data;
+        const created = await purchaseInvoiceService.createInvoice(payload);
         alert(
           `✅ Purchase invoice created successfully!\n\nInvoice ID: ${
             created.purchaseInvoiceId
           }\nTotal: ${created.totalAmount.toLocaleString("vi-VN")} đ`
         );
       } else {
-        // For edit mode, we need the invoice ID
-        if (!selectedInvoice) {
+        const invoiceId =
+          data.purchaseInvoiceId || selectedInvoice?.purchaseInvoiceId;
+        if (!invoiceId) {
           alert("⚠️ No invoice selected for editing!");
           return;
         }
-
-        // Note: You may need to pass the invoice ID from selectedInvoice
-        // For now, showing alert that edit needs invoice ID
-        alert("⚠️ Edit functionality requires invoice ID implementation");
-        return;
+        const { purchaseInvoiceId: _unused, ...payload } = data;
+        await purchaseInvoiceService.updateInvoice(invoiceId, payload);
+        alert("✅ Invoice updated successfully!");
       }
-
       setIsModalOpen(false);
       setSelectedInvoice(null);
       await fetchInvoices(currentPage, pageSize, sortField, sortDirection);
@@ -383,7 +363,7 @@ Created By: ${invoiceDetails.createdBy || "System"}`;
           sortDirection={sortDirection === "ASC" ? "asc" : "desc"}
         />
 
-        {/* Add/Edit Modal */}
+        Add/Edit Modal
         <PurchaseInvoiceModal
           isOpen={isModalOpen}
           onClose={() => {

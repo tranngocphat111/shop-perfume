@@ -5,7 +5,6 @@ import iuh.fit.server.security.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -95,34 +94,12 @@ public class SecurityConfig {
                     
                     // Other public endpoints
                     .requestMatchers("/auth/**").permitAll()
-                    .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
-                    
-                    // Products - GET public (anyone can view), WRITE admin only
-                    .requestMatchers(HttpMethod.GET, "/products/**").permitAll()
-                    .requestMatchers(HttpMethod.POST, "/products/**").hasRole("ADMIN")
-                    .requestMatchers(HttpMethod.PUT, "/products/**").hasRole("ADMIN")
-                    .requestMatchers(HttpMethod.DELETE, "/products/**").hasRole("ADMIN")
-                    
-                    // Inventories - GET public (anyone can view), WRITE admin only
-                    .requestMatchers(HttpMethod.GET, "/inventories/**").permitAll()
-                    .requestMatchers(HttpMethod.POST, "/inventories/**").hasRole("ADMIN")
-                    .requestMatchers(HttpMethod.PUT, "/inventories/**").hasRole("ADMIN")
-                    .requestMatchers(HttpMethod.DELETE, "/inventories/**").hasRole("ADMIN")
-                    
-                    // Brands - GET public (anyone can view), WRITE admin only
-                    .requestMatchers(HttpMethod.GET, "/brands/**").permitAll()
-                    .requestMatchers(HttpMethod.POST, "/brands/**").hasRole("ADMIN")
-                    .requestMatchers(HttpMethod.PUT, "/brands/**").hasRole("ADMIN")
-                    .requestMatchers(HttpMethod.DELETE, "/brands/**").hasRole("ADMIN")
-                    
-                    // Categories - GET public (anyone can view), WRITE admin only
-                    .requestMatchers(HttpMethod.GET, "/categories/**").permitAll()
-                    .requestMatchers(HttpMethod.POST, "/categories/**").hasRole("ADMIN")
-                    .requestMatchers(HttpMethod.PUT, "/categories/**").hasRole("ADMIN")
-                    .requestMatchers(HttpMethod.DELETE, "/categories/**").hasRole("ADMIN")
-                    
-                    // Suppliers - Admin only (all methods)
+                    .requestMatchers("/products/**").permitAll()
+                    .requestMatchers("/inventories/**").permitAll()
+                    .requestMatchers("/brands/**").permitAll()
+                    .requestMatchers("/categories/**").permitAll()
                     .requestMatchers("/admin/suppliers/**").hasRole("ADMIN")
+                    .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
 
                     // Protected endpoints
                     .requestMatchers("/carts/**").authenticated()

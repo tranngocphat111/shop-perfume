@@ -2,16 +2,21 @@ import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { useState, useRef, useEffect } from 'react';
 import { formatCurrency } from '../../utils/helpers';
+import { couponService, type Coupon } from '../../services/coupon.service';
 
 interface CartSummaryProps {
   total: number;
   itemCount: number;
   discount?: number;
+  onCouponApply?: (coupon: Coupon | null, discountAmount: number) => void;
 }
 
-export const CartSummary = ({ total, itemCount, discount = 0 }: CartSummaryProps) => {
+export const CartSummary = ({ total, itemCount, discount = 0, onCouponApply }: CartSummaryProps) => {
   const [couponCode, setCouponCode] = useState('');
   const [isSticky, setIsSticky] = useState(false);
+  const [selectedCoupon, setSelectedCoupon] = useState<Coupon | null>(null);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const normalSummaryRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -37,12 +42,44 @@ export const CartSummary = ({ total, itemCount, discount = 0 }: CartSummaryProps
     };
   }, []);
 
-  const handleApplyCoupon = () => {
+
+  const handleApplyCoupon = async () => {
     if (!couponCode.trim()) {
-      alert('Vui lòng nhập mã khuyến mãi');
+      setErrorMessage('Vui lòng nhập mã khuyến mãi');
       return;
     }
-    alert('Chức năng áp dụng mã khuyến mãi đang được phát triển');
+
+    setIsLoading(true);
+    setErrorMessage('');
+
+    try {
+      const validation = await couponService.validateCoupon(couponCode.trim().toUpperCase(), total);
+      
+      if (validation.valid && validation.coupon) {
+        setSelectedCoupon(validation.coupon);
+        setCouponCode(validation.coupon.code);
+        const discountAmount = validation.discountAmount || (total * validation.coupon.discountPercent) / 100;
+        onCouponApply?.(validation.coupon, discountAmount);
+      } else {
+        setErrorMessage(validation.message || 'Mã giảm giá không hợp lệ');
+        setSelectedCoupon(null);
+        onCouponApply?.(null, 0);
+      }
+    } catch (error) {
+      setErrorMessage('Có lỗi xảy ra khi áp dụng mã giảm giá');
+      setSelectedCoupon(null);
+      onCouponApply?.(null, 0);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+
+  const handleRemoveCoupon = () => {
+    setCouponCode('');
+    setSelectedCoupon(null);
+    setErrorMessage('');
+    onCouponApply?.(null, 0);
   };
 
   return (
@@ -62,17 +99,39 @@ export const CartSummary = ({ total, itemCount, discount = 0 }: CartSummaryProps
               <input
                 type="text"
                 value={couponCode}
-                onChange={(e) => setCouponCode(e.target.value)}
+                onChange={(e) => {
+                  setCouponCode(e.target.value);
+                  setErrorMessage('');
+                }}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    handleApplyCoupon();
+                  }
+                }}
                 placeholder="Nhập mã khuyến mãi"
                 className="w-full sm:w-[220px] md:w-[280px] py-2.5 md:py-3 pl-4 md:pl-5 pr-24 md:pr-28 border border-gray-300 rounded-full text-sm outline-none transition-all"
               />
-              <button
-                onClick={handleApplyCoupon}
-                className="absolute right-1.5 top-1/2 -translate-y-1/2 py-1.5 md:py-[6px] px-3 md:px-5 rounded-full border border-gray-800 text-gray-800  transition-all duration-200 text-xs md:text-sm  whitespace-nowrap btn-slide-overlay"
-              >
-                <span>Xác nhận</span>
-              </button>
+              {selectedCoupon ? (
+                <button
+                  onClick={handleRemoveCoupon}
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 py-1.5 md:py-[6px] px-3 md:px-5 rounded-full border border-gray-800 text-gray-800 transition-all duration-200 text-xs md:text-sm whitespace-nowrap btn-slide-overlay"
+                >
+                  <span>Hủy</span>
+                </button>
+              ) : (
+                <button
+                  onClick={handleApplyCoupon}
+                  disabled={isLoading}
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 py-1.5 md:py-[6px] px-3 md:px-5 rounded-full border border-gray-800 text-gray-800 transition-all duration-200 text-xs md:text-sm whitespace-nowrap btn-slide-overlay disabled:opacity-50"
+                >
+                  <span>{isLoading ? '...' : 'Xác nhận'}</span>
+                </button>
+              )}
             </div>
+            {/* Error message */}
+            {errorMessage && (
+              <p className="text-xs text-red-600 absolute top-full mt-1 left-0 sm:left-[120px]">{errorMessage}</p>
+            )}
           </div>
 
           {/* Center: Summary Info */}
@@ -129,23 +188,41 @@ export const CartSummary = ({ total, itemCount, discount = 0 }: CartSummaryProps
         >
           <div className="w-11/12 lg:w-4/5 mx-auto py-4 md:py-6">
             <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4 lg:gap-6">
-              {/* Left: Coupon Section */}
+              {/* Left: Coupon Section - Sticky */}
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 flex-shrink-0">
                 <label className="font-semibold text-gray-700 text-sm md:text-base whitespace-nowrap">Mã khuyến mãi:</label>
                 <div className="relative w-full sm:w-auto">
                   <input
                     type="text"
                     value={couponCode}
-                    onChange={(e) => setCouponCode(e.target.value)}
+                    onChange={(e) => {
+                      setCouponCode(e.target.value);
+                      setErrorMessage('');
+                    }}
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter') {
+                        handleApplyCoupon();
+                      }
+                    }}
                     placeholder="Nhập mã khuyến mãi"
                     className="w-full sm:w-[220px] md:w-[280px] py-2.5 md:py-3 pl-4 md:pl-5 pr-24 md:pr-28 border border-gray-300 rounded-full text-sm outline-none transition-all"
                   />
-                  <button
-                    onClick={handleApplyCoupon}
-                    className=" absolute right-1.5 top-1/2 -translate-y-1/2 py-1.5 md:py-[6px] px-3 md:px-5 rounded-full border border-gray-800 text-gray-800 transition-all duration-200 text-xs md:text-sm  whitespace-nowrap btn-slide-overlay"
-                  >
-                    <span>Xác nhận</span>
-                  </button>
+                  {selectedCoupon ? (
+                    <button
+                      onClick={handleRemoveCoupon}
+                      className="absolute right-1.5 top-1/2 -translate-y-1/2 py-1.5 md:py-[6px] px-3 md:px-5 rounded-full border border-gray-800 text-gray-800 transition-all duration-200 text-xs md:text-sm whitespace-nowrap btn-slide-overlay"
+                    >
+                      <span>Hủy</span>
+                    </button>
+                  ) : (
+                    <button
+                      onClick={handleApplyCoupon}
+                      disabled={isLoading}
+                      className="absolute right-1.5 top-1/2 -translate-y-1/2 py-1.5 md:py-[6px] px-3 md:px-5 rounded-full border border-gray-800 text-gray-800 transition-all duration-200 text-xs md:text-sm whitespace-nowrap btn-slide-overlay disabled:opacity-50"
+                    >
+                      <span>{isLoading ? '...' : 'Xác nhận'}</span>
+                    </button>
+                  )}
                 </div>
               </div>
 

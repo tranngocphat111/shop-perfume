@@ -9,6 +9,7 @@ import org.mapstruct.ReportingPolicy;
 @Mapper(componentModel = "spring", unmappedTargetPolicy = ReportingPolicy.IGNORE, uses = {ProductMapper.class})
 public interface CartItemMapper {
     @Mapping(source = "cart.cartId", target = "cartId")
+    @Mapping(source = "product.unitPrice", target = "unitPrice")
     CartItemResponse toResponse(CartItem cartItem);
 
 }

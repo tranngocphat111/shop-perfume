@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Link, useNavigate, Navigate } from "react-router-dom";
 import { authService } from "../../services/auth.service";
 import { useAuth } from "../../contexts/AuthContext";
+import { useCart } from "../../contexts/CartContext";
 
 const getErrorMessage = (error: unknown): string => {
   if (error && typeof error === "object" && "message" in error) {
@@ -22,6 +23,7 @@ const Login: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { login, isAuthenticated } = useAuth();
+  const { mergeCartOnLogin } = useCart();
 
   // Redirect if already logged in
   if (isAuthenticated) {
@@ -47,14 +49,15 @@ const Login: React.FC = () => {
       // Chỉ customer mới đăng nhập qua trang này
       if (response.role === "ADMIN") {
         setError("Vui lòng sử dụng trang đăng nhập dành cho quản trị viên.");
-        await authService.logout();
+        authService.logout();
         setLoading(false);
         return;
       }
 
-      login(response.token, response);
+      // Merge cart before navigating
+      await login(response.token, response, () => mergeCartOnLogin(response.userId));
       navigate("/");
-    } catch (err: any) {
+    } catch (err) {
       console.error("Login error:", err);
       setError(getErrorMessage(err));
     } finally {

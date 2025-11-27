@@ -1,3 +1,4 @@
+
 export interface PageResponse<T> {
   content: T[];
   totalPages: number;
@@ -91,7 +92,7 @@ export interface PurchaseInvoice {
     email: string;
     phone: string;
   };
-  details: PurchaseInvoiceDetail[];
+  details?: PurchaseInvoiceDetail[];
 }
 
 export interface PurchaseInvoiceDetail {
@@ -114,6 +115,7 @@ export interface PurchaseInvoiceDetail {
 }
 
 export interface PurchaseInvoiceFormData {
+  purchaseInvoiceId?: number;
   supplierId: number;
   email: string;
   status: "PENDING" | "COMPLETED" | "CANCELLED";
@@ -127,6 +129,7 @@ export interface PurchaseInvoiceFormData {
 export interface CartItem {
   product: Product;
   quantity: number;
+  stockQuantity?: number; // Số lượng tồn kho
 }
 
 export interface Cart {
@@ -252,6 +255,22 @@ export interface OrderResponse {
     subTotal: number;
   }>;
 }
+
+// 
+export interface UserResponse {
+  userId: string;
+  name: string;
+  email: string;
+  status: "CUSTOMER" | "ADMIN";
+  avatar?: string;
+  createdAt: string;
+  lastUpdated: string;
+  orders?: Order[];
+  // reviews?: Review[];
+  cart?: Cart;
+  // roles?: Role[];
+}
+
 
 // QR Payment types
 export interface QRPaymentInfo {

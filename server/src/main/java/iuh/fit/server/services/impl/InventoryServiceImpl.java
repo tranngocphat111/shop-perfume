@@ -1,17 +1,10 @@
 package iuh.fit.server.services.impl;
 
 import iuh.fit.server.dto.response.InventoryResponse;
-import iuh.fit.server.dto.response.ProductResponse;
 import iuh.fit.server.mapper.InventoryMapper;
-import iuh.fit.server.mapper.ProductMapper;
 import iuh.fit.server.model.entity.Inventory;
-import iuh.fit.server.model.entity.Product;
-import iuh.fit.server.repository.BrandRepository;
-import iuh.fit.server.repository.CategoryRepository;
 import iuh.fit.server.repository.InventoryRepository;
 import iuh.fit.server.repository.OrderItemRepository;
-import iuh.fit.server.repository.ProductRepository;
-import iuh.fit.server.services.ProductService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -33,6 +26,12 @@ public class InventoryServiceImpl implements iuh.fit.server.services.InventorySe
     private final InventoryMapper inventoryMapper;
     private final InventoryRepository inventoryRepository;
     private final OrderItemRepository orderItemRepository;
+
+
+    @Override
+    public Long getLowStockItem() {
+        return inventoryRepository.getLowStockItem();
+    }
 
     @Override
     public List<InventoryResponse> findAll() {
