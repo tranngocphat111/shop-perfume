@@ -366,8 +366,10 @@ export const ProductsSidebar = ({
                         />
                       </div>
                       {/* Display selected price range */}
-                      <div className="text-sm text-gray-700 font-medium text-center">
-                        {formatCurrency(priceRange[0])} đ - {formatCurrency(priceRange[1])} ₫
+                      <div className="text-center">
+                        <span className="text-lg font-semibold text-gray-900">
+                          {formatCurrency(priceRange[0])} đ - {formatCurrency(priceRange[1])} ₫
+                        </span>
                       </div>
                     </div>
                   </motion.div>

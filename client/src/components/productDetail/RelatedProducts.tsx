@@ -7,11 +7,13 @@ import { getPrimaryImageUrl, formatCurrency } from "../../utils/helpers";
 interface RelatedProductsProps {
   relatedProducts: Product[];
   sameCategoryProducts: Product[];
+  isLoading?: boolean;
 }
 
 export const RelatedProducts = ({
   relatedProducts,
   sameCategoryProducts,
+  isLoading = false,
 }: RelatedProductsProps) => {
   return (
     <motion.div
@@ -27,11 +29,23 @@ export const RelatedProducts = ({
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-50px" }}
           transition={{ duration: 0.4, delay: 0.5 }}>
-          <h2 className="flex items-center gap-2 font-medium text-base text-black mb-4 py-4">
-            <Tag className="w-5 h-5" />
+          <h2 className="flex items-center gap-2 font-medium text-lg text-black mb-4 py-4">
+            <Tag className="w-6 h-6" />
             <span>Sản phẩm cùng thương hiệu</span>
           </h2>
-          {relatedProducts.length > 0 ? (
+          {isLoading ? (
+            <div className="space-y-3">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="flex items-center gap-3 p-2 rounded-lg animate-pulse">
+                  <div className="w-20 h-20 bg-gray-200 rounded border border-gray-200 flex-shrink-0"></div>
+                  <div className="flex-1 min-w-0">
+                    <div className="h-5 bg-gray-200 rounded mb-2"></div>
+                    <div className="h-4 bg-gray-200 rounded w-24"></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : relatedProducts.length > 0 ? (
             <div className="space-y-3">
               {relatedProducts.map((relatedProduct, index) => {
                 const imageUrl = getPrimaryImageUrl(relatedProduct);
@@ -58,11 +72,11 @@ export const RelatedProducts = ({
                         />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h3 className="text-sm font-medium text-gray-900 group-hover:text-black line-clamp-2 mb-1">
+                        <h3 className="text-lg font-medium text-gray-900 group-hover:text-black line-clamp-2 ">
                           {relatedProduct.name}
                         </h3>
                         {showPrice ? (
-                          <p className="text-sm font-semibold text-black">
+                          <p className="text-lg font-normal text-gray-500">
                             {formatCurrency(relatedProduct.unitPrice)} ₫
                           </p>
                         ) : (
@@ -87,11 +101,23 @@ export const RelatedProducts = ({
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-50px" }}
           transition={{ duration: 0.4, delay: 0.6 }}>
-          <h2 className="flex items-center gap-2 font-medium text-base text-black mb-4 py-4">
-            <Sparkles className="w-5 h-5" />
+          <h2 className="flex items-center gap-2 font-medium text-lg text-black mb-4 py-4">
+            <Sparkles className="w-6 h-6" />
             <span>Sản phẩm cùng loại</span>
           </h2>
-          {sameCategoryProducts.length > 0 ? (
+          {isLoading ? (
+            <div className="space-y-3">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="flex items-center gap-3 p-2 rounded-lg animate-pulse">
+                  <div className="w-20 h-20 bg-gray-200 rounded border border-gray-200 flex-shrink-0"></div>
+                  <div className="flex-1 min-w-0">
+                    <div className="h-5 bg-gray-200 rounded mb-2"></div>
+                    <div className="h-4 bg-gray-200 rounded w-24"></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : sameCategoryProducts.length > 0 ? (
             <div className="space-y-3">
               {sameCategoryProducts.map((categoryProduct, index) => {
                 const imageUrl = getPrimaryImageUrl(categoryProduct);
@@ -118,11 +144,11 @@ export const RelatedProducts = ({
                         />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h3 className="text-sm font-medium text-gray-900 group-hover:text-black line-clamp-2 mb-1">
+                        <h3 className="text-lg font-medium text-gray-900 group-hover:text-black line-clamp-2 mb-1">
                           {categoryProduct.name}
                         </h3>
                         {showPrice ? (
-                          <p className="text-sm font-semibold text-black">
+                          <p className="text-lg font-normal text-gray-500">
                             {formatCurrency(categoryProduct.unitPrice)} ₫
                           </p>
                         ) : (

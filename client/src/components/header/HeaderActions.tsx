@@ -100,7 +100,8 @@ export const HeaderActions = ({
             <motion.span
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
-              className="absolute -top-2 -right-2 bg-red-500 text-white w-4 h-4 rounded-full flex items-center justify-center text-xs font-medium">
+              className="absolute -top-2 -right-2 bg-red-500 text-white w-4 h-4 rounded-full flex items-center justify-center text-xs font-normal"
+              style={{ fontFamily: "var(--font-family-sans)" }}>
               {cartCount}
             </motion.span>
           )}

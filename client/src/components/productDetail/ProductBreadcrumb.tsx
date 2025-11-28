@@ -25,7 +25,7 @@ export const ProductBreadcrumb = ({ product }: ProductBreadcrumbProps) => {
           <Link
             to="/products"
             className="text-gray-500 font-normal hover:text-black transition-colors">
-            Sản phẩm
+            {product.category.name}
           </Link>
           <span className="text-gray-400">/</span>
           <Link
@@ -34,7 +34,7 @@ export const ProductBreadcrumb = ({ product }: ProductBreadcrumbProps) => {
             {product.brand.name}
           </Link>
           <span className="text-gray-400">/</span>
-          <span className="text-black font-medium line-clamp-1">
+          <span className="text-black font-medium text-base md:text-lg line-clamp-1">
             {product.name}
           </span>
         </nav>

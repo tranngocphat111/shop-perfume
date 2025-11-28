@@ -53,7 +53,7 @@ export const OrderSummary: React.FC<OrderSummaryProps> = ({
                   </h4>
                   <p className="text-sm text-gray-500">× {item.quantity}</p>
                 </div>
-                <div className="text-base font-semibold text-gray-900 whitespace-nowrap">
+                <div className="text-lg md:text-xl font-semibold text-gray-900 whitespace-nowrap">
                   {formatCurrency(item.product.unitPrice * item.quantity)} ₫
                 </div>
               </div>

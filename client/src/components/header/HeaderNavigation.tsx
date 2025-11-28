@@ -72,7 +72,7 @@ export const HeaderNavigation = ({
               }`}></span>
           </Link>
           <NavLink to="/about" isScrolled={isScrolled} isCompact={isCompact}>
-            Về SPTN Perfume
+            Giới thiệu
           </NavLink>
 
           <CategoriesDropdown
