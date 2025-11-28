@@ -259,9 +259,6 @@ export const Addresses = () => {
       {success && (
         <div className="mb-4 p-3 bg-green-50 text-green-700 rounded">{success}</div>
       )}
-      {error && (
-        <div className="mb-4 p-3 bg-red-50 text-red-700 rounded">{error}</div>
-      )}
 
       <div className="space-y-3">
         {addresses.map((a) => (
@@ -434,6 +431,11 @@ export const Addresses = () => {
                 <span>Đặt làm địa chỉ mặc định</span>
               </label>
             </div>
+            {error && (
+              <div className="px-6 py-3 bg-red-50 border-l-4 border-red-500">
+                <p className="text-sm text-red-700">{error}</p>
+              </div>
+            )}
             <div className="p-4 border-t flex gap-2 justify-end">
               <button
                 type="button"

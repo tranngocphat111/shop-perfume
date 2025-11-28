@@ -12,11 +12,12 @@ interface ApiError {
 // Helper function to clear auth without importing authService (avoid circular dependency)
 const clearAuthData = () => {
   localStorage.removeItem("auth_token");
+  localStorage.removeItem("refresh_token");
   localStorage.removeItem("user_info");
 };
 
 // Helper function to get auth headers
-const getAuthHeaders = async (): Promise<Record<string, string>> => {
+const getAuthHeaders = (): Record<string, string> => {
   const token = localStorage.getItem("auth_token");
   const headers: Record<string, string> = {};
 
@@ -27,70 +28,126 @@ const getAuthHeaders = async (): Promise<Record<string, string>> => {
   return headers;
 };
 
-// Handle 401 errors - redirect to login
-const handle401Error = async <T>(endpoint: string): Promise<T> => {
-  console.error("[API] ❌ Unauthorized (401). Redirecting to login...");
+// Helper to refresh token (avoid circular dependency)
+const attemptTokenRefresh = async (): Promise<boolean> => {
+  const refreshToken = localStorage.getItem("refresh_token");
+  if (!refreshToken) {
+    return false;
+  }
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ refreshToken }),
+    });
+
+    if (!response.ok) {
+      return false;
+    }
+
+    const data = await response.json();
+
+    // Update tokens
+    localStorage.setItem("auth_token", data.accessToken);
+    localStorage.setItem("refresh_token", data.refreshToken);
+
+    // Update user info
+    const userInfo = localStorage.getItem("user_info");
+    if (userInfo) {
+      try {
+        const user = JSON.parse(userInfo);
+        user.token = data.accessToken;
+        user.refreshToken = data.refreshToken;
+        localStorage.setItem("user_info", JSON.stringify(user));
+      } catch {
+        // Ignore parse errors
+      }
+    }
+
+    return true;
+  } catch (error) {
+    console.error("Token refresh failed:", error);
+    return false;
+  }
+};
+
+// Handle 401 errors - try refresh token first, then redirect
+const handle401Error = async <T>(
+  endpoint: string,
+  originalRequest?: () => Promise<T>
+): Promise<T> => {
+  // Try to refresh token first
+  const refreshed = await attemptTokenRefresh();
+
+  if (refreshed && originalRequest) {
+    // Retry the original request with new token
+    try {
+      return await originalRequest();
+    } catch (retryError) {
+      // If retry still fails, proceed to logout
+      console.error("Request failed after token refresh:", retryError);
+    }
+  }
+
+  // If refresh failed or retry failed, clear auth and redirect
   clearAuthData();
-  // Redirect to admin login if it's an admin endpoint, otherwise regular login
   const isAdminEndpoint = endpoint.includes("/admin/");
   window.location.href = isAdminEndpoint ? "/admin/login" : "/login";
   return Promise.reject(new Error("Unauthorized"));
 };
 
+// Helper to parse error response
+const parseErrorResponse = async (response: Response) => {
+  try {
+    return await response.json();
+  } catch {
+    return {};
+  }
+};
+
+// Helper to create ApiError
+const createApiError = (
+  errorData: unknown,
+  status: number
+): ApiError & { response?: { data?: unknown } } => {
+  const data = errorData as { message?: string };
+  return {
+    message: data?.message || `HTTP error! status: ${status}`,
+    status,
+    response: { data: errorData },
+  };
+};
+
 export const apiService = {
   async get<T>(endpoint: string): Promise<T> {
-    try {
+    const makeRequest = async (): Promise<T> => {
       const fullUrl = `${API_BASE_URL}${endpoint}`;
-      const headers = { ...(await getAuthHeaders()) };
-
-      // Only log non-polling requests (payment check is called frequently)
-      const isPollingRequest = endpoint.includes("/payment/check-qr");
-      if (!isPollingRequest) {
-        console.log("[API] 🔵 GET Request:", fullUrl);
-      }
-
-      const response = await fetch(fullUrl, {
-        headers,
-      });
+      const headers = getAuthHeaders();
+      const response = await fetch(fullUrl, { headers });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        console.error("[API] ❌ GET Error:", {
-          url: fullUrl,
-          status: response.status,
-          error: errorData,
-        });
+        const errorData = await parseErrorResponse(response);
 
-        // Handle 401 Unauthorized
+        // Handle 401 Unauthorized - try refresh token first
         if (response.status === 401 && !endpoint.includes("/auth/")) {
-          return handle401Error(endpoint);
+          return handle401Error(endpoint, makeRequest);
         }
 
-        throw {
-          message:
-            errorData.message || `HTTP error! status: ${response.status}`,
-          status: response.status,
-          response: { data: errorData },
-        } as ApiError & { response?: { data?: unknown } };
+        throw createApiError(errorData, response.status);
       }
 
-      const data = await response.json();
+      return response.json();
+    };
 
-      // Only log non-polling requests or if payment status changed
-      if (!isPollingRequest || data.paid || data.cancelled) {
-        console.log("[API] ✅ GET Response:", {
-          url: fullUrl,
-          status: response.status,
-          data: data,
-        });
-      }
-
-      return data;
+    try {
+      return await makeRequest();
     } catch (error) {
       if ((error as ApiError).status) {
         throw error;
       }
-      console.error("[API] ❌ GET Network Error:", error);
       throw new Error("Network error. Please check your connection.");
     }
   },
@@ -100,18 +157,14 @@ export const apiService = {
     data: unknown,
     options?: { headers?: Record<string, string> }
   ): Promise<T> {
-    try {
+    const makeRequest = async (): Promise<T> => {
       const fullUrl = `${API_BASE_URL}${endpoint}`;
       const isFormData = data instanceof FormData;
       const headers: Record<string, string> = {
-        ...(await getAuthHeaders()),
+        ...getAuthHeaders(),
         ...(isFormData ? {} : { "Content-Type": "application/json" }),
         ...options?.headers,
       };
-
-      console.log("[API] 🔵 POST Request:", fullUrl);
-      console.log("[API] 🔵 Request Data:", isFormData ? "[FormData]" : data);
-      console.log("[API] 🔵 Headers:", headers);
 
       const response = await fetch(fullUrl, {
         method: "POST",
@@ -120,40 +173,25 @@ export const apiService = {
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        console.error("[API] ❌ POST Error:", {
-          url: fullUrl,
-          status: response.status,
-          error: errorData,
-          requestData: isFormData ? "[FormData]" : data,
-        });
+        const errorData = await parseErrorResponse(response);
 
-        // Handle 401 Unauthorized
+        // Handle 401 Unauthorized - try refresh token first
         if (response.status === 401 && !endpoint.includes("/auth/")) {
-          return handle401Error(endpoint);
+          return handle401Error(endpoint, makeRequest);
         }
 
-        throw {
-          message:
-            errorData.message || `HTTP error! status: ${response.status}`,
-          status: response.status,
-          response: { data: errorData },
-        } as ApiError & { response?: { data?: unknown } };
+        throw createApiError(errorData, response.status);
       }
 
-      const responseData = await response.json();
-      console.log("[API] ✅ POST Response:", {
-        url: fullUrl,
-        status: response.status,
-        data: responseData,
-      });
+      return response.json();
+    };
 
-      return responseData;
+    try {
+      return await makeRequest();
     } catch (error) {
       if ((error as ApiError).status) {
         throw error;
       }
-      console.error("[API] ❌ POST Network Error:", error);
       throw new Error("Network error. Please check your connection.");
     }
   },
@@ -163,11 +201,11 @@ export const apiService = {
     data: unknown,
     options?: { headers?: Record<string, string> }
   ): Promise<T> {
-    try {
+    const makeRequest = async (): Promise<T> => {
       const fullUrl = `${API_BASE_URL}${endpoint}`;
       const isFormData = data instanceof FormData;
       const headers: Record<string, string> = {
-        ...(await getAuthHeaders()), // Await async call
+        ...getAuthHeaders(),
         ...(isFormData ? {} : { "Content-Type": "application/json" }),
         ...options?.headers,
       };
@@ -179,21 +217,21 @@ export const apiService = {
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
+        const errorData = await parseErrorResponse(response);
 
-        // Handle 401 Unauthorized
+        // Handle 401 Unauthorized - try refresh token first
         if (response.status === 401 && !endpoint.includes("/auth/")) {
-          return handle401Error(endpoint);
+          return handle401Error(endpoint, makeRequest);
         }
 
-        throw {
-          message:
-            errorData.message || `HTTP error! status: ${response.status}`,
-          status: response.status,
-          response: { data: errorData },
-        } as ApiError & { response?: { data?: unknown } };
+        throw createApiError(errorData, response.status);
       }
+
       return response.json();
+    };
+
+    try {
+      return await makeRequest();
     } catch (error) {
       if ((error as ApiError).status) {
         throw error;
@@ -203,30 +241,31 @@ export const apiService = {
   },
 
   async delete<T>(endpoint: string): Promise<T> {
-    try {
-      const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    const makeRequest = async (): Promise<T> => {
+      const fullUrl = `${API_BASE_URL}${endpoint}`;
+      const headers = getAuthHeaders();
+
+      const response = await fetch(fullUrl, {
         method: "DELETE",
-        headers: {
-          ...(await getAuthHeaders()), // Await async call
-        },
+        headers,
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
+        const errorData = await parseErrorResponse(response);
 
-        // Handle 401 Unauthorized
+        // Handle 401 Unauthorized - try refresh token first
         if (response.status === 401 && !endpoint.includes("/auth/")) {
-          return handle401Error(endpoint);
+          return handle401Error(endpoint, makeRequest);
         }
 
-        throw {
-          message:
-            errorData.message || `HTTP error! status: ${response.status}`,
-          status: response.status,
-          response: { data: errorData },
-        } as ApiError & { response?: { data?: unknown } };
+        throw createApiError(errorData, response.status);
       }
+
       return response.json();
+    };
+
+    try {
+      return await makeRequest();
     } catch (error) {
       if ((error as ApiError).status) {
         throw error;

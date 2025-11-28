@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { addressService, type Address } from '../../services/address.service';
 import type { CheckoutFormData, Province, District, Ward, ProvinceDetail, DistrictDetail } from '../../types';
-import { FaMapMarkerAlt, FaChevronDown, FaChevronUp } from 'react-icons/fa';
+import { FaMapMarkerAlt, FaChevronDown, FaChevronUp, FaSync  } from 'react-icons/fa';
+import { GoSync } from "react-icons/go";
 
 interface AddressSelectorProps {
   formData: CheckoutFormData;
@@ -164,15 +165,15 @@ export const AddressSelector: React.FC<AddressSelectorProps> = ({
 
   return (
     <div className="mb-6">
-      <div className="flex items-center justify-between mb-3">
-        <label className="block text-sm font-medium text-gray-700">
-          <FaMapMarkerAlt className="inline mr-2" />
+      <div className="flex items-center justify-between mb-4">
+        <label className="flex items-center text-base font-semibold text-gray-900">
+          <FaMapMarkerAlt className="mr-2 text-gray-600" />
           Chọn địa chỉ đã lưu
         </label>
         <button
           type="button"
           onClick={() => setIsOpen(!isOpen)}
-          className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1"
+          className="px-4 py-2 text-sm font-medium text-white bg-black rounded-lg hover:bg-gray-800 transition-colors flex items-center gap-2 shadow-sm hover:shadow-md"
         >
           {isOpen ? (
             <>
@@ -182,48 +183,50 @@ export const AddressSelector: React.FC<AddressSelectorProps> = ({
           ) : (
             <>
               <FaChevronDown className="text-xs" />
-              Xem địa chỉ
+              Địa chỉ khác
             </>
           )}
         </button>
       </div>
 
       {isOpen && (
-        <div className="space-y-2 max-h-64 overflow-y-auto border border-gray-200 rounded-lg p-3 bg-gray-50">
+        <div className="space-y-3 max-h-80 overflow-y-auto border-2 border-gray-200 rounded-xl p-4 bg-white shadow-sm">
           {addresses.map((address) => (
             <div
               key={address.id}
               onClick={() => handleSelectAddress(address)}
-              className={`p-3 border-2 rounded-lg cursor-pointer transition-all ${
+              className={`p-4 border-2 rounded-xl cursor-pointer transition-all duration-200 ${
                 selectedAddressId === address.id
-                  ? 'border-blue-500 bg-blue-50'
-                  : 'border-gray-200 bg-white hover:border-gray-300'
+                  ? 'border-black bg-gray-100 shadow-md'
+                  : 'border-gray-200 bg-gray-50 hover:border-gray-400 hover:bg-gray-100 hover:shadow-sm'
               }`}
             >
               <div className="flex items-start justify-between">
                 <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <p className="font-semibold text-gray-900">{address.recipientName}</p>
+                  <div className="flex items-center gap-2 mb-2">
+                    <p className="font-semibold text-gray-900 text-base">{address.recipientName}</p>
                     {address.isDefault && (
-                      <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded">
+                      <span className="px-2.5 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">
                         Mặc định
                       </span>
                     )}
                   </div>
-                  <p className="text-sm text-gray-600 mb-1">{address.phone}</p>
-                  <p className="text-sm text-gray-700">
+                  <p className="text-sm text-gray-600 mb-1.5">{address.phone}</p>
+                  <p className="text-sm text-gray-700 leading-relaxed">
                     {address.addressLine}, {address.ward}, {address.district}, {address.city}
                   </p>
                 </div>
                 {selectedAddressId === address.id && (
-                  <div className="ml-3 text-blue-600">
-                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                      <path
-                        fillRule="evenodd"
-                        d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
+                  <div className="ml-4 flex-shrink-0">
+                    <div className="w-6 h-6 bg-black rounded-full flex items-center justify-center">
+                      <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                        <path
+                          fillRule="evenodd"
+                          d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                    </div>
                   </div>
                 )}
               </div>
@@ -233,21 +236,29 @@ export const AddressSelector: React.FC<AddressSelectorProps> = ({
       )}
 
       {selectedAddress && !isOpen && (
-        <div className="p-3 border border-gray-200 rounded-lg bg-gray-50">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-semibold text-gray-900">{selectedAddress.recipientName}</p>
-              <p className="text-sm text-gray-600">{selectedAddress.phone}</p>
-              <p className="text-sm text-gray-700">
+        <div className="p-4 border-2 border-gray-200 rounded-xl bg-gray-50 shadow-sm">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-2">
+                <p className="font-semibold text-gray-900 text-base">{selectedAddress.recipientName}</p>
+                {selectedAddress.isDefault && (
+                  <span className="px-2.5 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">
+                    Mặc định
+                  </span>
+                )}
+              </div>
+              <p className="text-sm text-gray-600 mb-1.5">{selectedAddress.phone}</p>
+              <p className="text-sm text-gray-700 leading-relaxed">
                 {selectedAddress.addressLine}, {selectedAddress.ward}, {selectedAddress.district}, {selectedAddress.city}
               </p>
             </div>
             <button
               type="button"
               onClick={() => setIsOpen(true)}
-              className="text-sm text-blue-600 hover:text-blue-700"
+              className="p-2 text-white bg-black border-2 border-black rounded-lg hover:bg-gray-800 transition-colors flex-shrink-0 shadow-sm hover:shadow-md flex items-center justify-center"
+              title="Đổi địa chỉ"
             >
-              Đổi
+              <GoSync  className="w-5 h-5" />
             </button>
           </div>
         </div>

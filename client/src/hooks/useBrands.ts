@@ -12,11 +12,6 @@ export const useBrands = () => {
       try {
         setLoading(true);
         const brands = await productService.getAllBrands();
-        console.log('✅ Fetched brands:', brands);
-        console.log('Total brands:', brands?.length);
-        brands?.forEach(b => {
-          console.log(`Brand: ${b.name} (ID: ${b.brandId}), URL: ${b.url || 'NO URL'}`);
-        });
         setBrands(brands || []);
         setError(null);
       } catch (err) {

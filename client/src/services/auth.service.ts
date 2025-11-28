@@ -15,6 +15,7 @@ export interface RegisterRequest {
 
 export interface AuthResponse {
   token: string;
+  refreshToken?: string;
   type: string;
   userId: number;
   name: string;
@@ -22,11 +23,17 @@ export interface AuthResponse {
   role: string;
 }
 
+export interface TokenRefreshResponse {
+  accessToken: string;
+  refreshToken: string;
+  type: string;
+}
+
 class AuthService {
   private readonly TOKEN_KEY = "auth_token";
+  private readonly REFRESH_TOKEN_KEY = "refresh_token";
   private readonly USER_KEY = "user_info";
-  // REFRESH TOKEN - COMMENTED OUT
-  // private refreshPromise: Promise<TokenRefreshResponse> | null = null;
+  private refreshPromise: Promise<TokenRefreshResponse> | null = null;
 
   async login(credentials: LoginRequest): Promise<AuthResponse> {
     const response = await apiService.post<AuthResponse>(
@@ -36,6 +43,9 @@ class AuthService {
 
     // Lưu token và thông tin user vào localStorage
     this.setToken(response.token);
+    if (response.refreshToken) {
+      this.setRefreshToken(response.refreshToken);
+    }
     this.setUser(response);
 
     return response;
@@ -49,14 +59,37 @@ class AuthService {
 
     // Lưu token và thông tin user vào localStorage
     this.setToken(response.token);
+    if (response.refreshToken) {
+      this.setRefreshToken(response.refreshToken);
+    }
     this.setUser(response);
 
     return response;
   }
 
-  logout(): void {
-    localStorage.removeItem(this.TOKEN_KEY);
-    localStorage.removeItem(this.USER_KEY);
+  async logout(): Promise<void> {
+    try {
+      // Gọi API logout để revoke tất cả refresh tokens trên server
+      const token = this.getToken();
+      if (token) {
+        // Try to call logout endpoint, but don't fail if it errors
+        // (user might already be logged out or token expired)
+        try {
+          await apiService.post("/auth/logout", {});
+        } catch (error) {
+          // Ignore errors - user might already be logged out
+          console.log("Logout API call failed (user may already be logged out):", error);
+        }
+      }
+    } catch (error) {
+      // Ignore errors - clear local storage anyway
+      console.log("Error during logout:", error);
+    } finally {
+      // Always clear local storage
+      localStorage.removeItem(this.TOKEN_KEY);
+      localStorage.removeItem(this.REFRESH_TOKEN_KEY);
+      localStorage.removeItem(this.USER_KEY);
+    }
   }
 
   getToken(): string | null {
@@ -80,6 +113,14 @@ class AuthService {
 
   setUser(user: AuthResponse): void {
     localStorage.setItem(this.USER_KEY, JSON.stringify(user));
+  }
+
+  getRefreshToken(): string | null {
+    return localStorage.getItem(this.REFRESH_TOKEN_KEY);
+  }
+
+  setRefreshToken(refreshToken: string): void {
+    localStorage.setItem(this.REFRESH_TOKEN_KEY, refreshToken);
   }
 
   isAuthenticated(): boolean {
@@ -112,8 +153,8 @@ class AuthService {
     }
   }
 
-  // Check if token will expire soon (within 2 minutes)
-  // Reduced from 5 minutes to avoid refreshing too early
+  // Check if token will expire soon (within 5 minutes)
+  // Với access token 30 phút, refresh khi còn 5 phút để đảm bảo không bị gián đoạn
   isTokenExpiringSoon(): boolean {
     const token = this.getToken();
     if (!token) return true;
@@ -121,10 +162,25 @@ class AuthService {
     try {
       const payload = JSON.parse(atob(token.split(".")[1]));
       const expirationTime = payload.exp * 1000;
-      const twoMinutes = 2 * 60 * 1000; // 2 minutes in milliseconds
-      return Date.now() >= expirationTime - twoMinutes;
+      const fiveMinutes = 5 * 60 * 1000; // 5 minutes in milliseconds
+      return Date.now() >= expirationTime - fiveMinutes;
     } catch {
       return true;
+    }
+  }
+
+  // Tính toán thời gian còn lại của token (milliseconds)
+  getTokenTimeRemaining(): number | null {
+    const token = this.getToken();
+    if (!token) return null;
+
+    try {
+      const payload = JSON.parse(atob(token.split(".")[1]));
+      const expirationTime = payload.exp * 1000;
+      const remaining = expirationTime - Date.now();
+      return remaining > 0 ? remaining : 0;
+    } catch {
+      return null;
     }
   }
 
@@ -144,86 +200,67 @@ class AuthService {
     return token;
   }
 
-  // REFRESH TOKEN - COMMENTED OUT
   // Refresh access token using refresh token
+  // Race condition được xử lý: nếu đang refresh, các request khác sẽ chờ
   async refreshToken(_delayClear: boolean = false): Promise<boolean> {
-    // REFRESH TOKEN DISABLED
-    return false;
+    // Nếu đang có refresh request đang chạy, chờ nó hoàn thành
+    if (this.refreshPromise) {
+      try {
+        await this.refreshPromise;
+        // Kiểm tra token đã được refresh chưa
+        const newToken = this.getToken();
+        return newToken !== null && !this.isTokenExpired();
+      } catch {
+        // Nếu refresh thất bại, clear promise để có thể thử lại
+        this.refreshPromise = null;
+        return false;
+      }
+    }
 
-    // REFRESH TOKEN CODE - COMMENTED OUT
-    // // If there's already a refresh in progress, wait for it
-    // if (this.refreshPromise) {
-    //   try {
-    //     await this.refreshPromise;
-    //     // Check if token was actually refreshed
-    //     const newToken = this.getToken();
-    //     return newToken !== null;
-    //   } catch {
-    //     // Clear promise on error so next attempt can proceed
-    //     this.refreshPromise = null;
-    //     return false;
-    //   }
-    // }
+    const refreshToken = this.getRefreshToken();
+    if (!refreshToken) {
+      // If delayClear is true, don't clear auth here - let handle401Error do it
+      if (!_delayClear) {
+        this.logout();
+      }
+      return false;
+    }
 
-    // const refreshToken = this.getRefreshToken();
-    // if (!refreshToken) {
-    //   // If delayClear is true, don't clear auth here - let handle401Error do it
-    //   // This allows the delay to work properly
-    //   if (!delayClear) {
-    //     this.clearAuth();
-    //   }
-    //   return false;
-    // }
+    try {
+      // Create a promise for this refresh attempt
+      this.refreshPromise = apiService.post<TokenRefreshResponse>(
+        "/auth/refresh",
+        { refreshToken }
+      );
 
-    // try {
-    //   // Create a promise for this refresh attempt
-    //   this.refreshPromise = apiService.post<TokenRefreshResponse>(
-    //     "/auth/refresh",
-    //     { refreshToken }
-    //   );
+      const response = await this.refreshPromise;
 
-    //   const response = await this.refreshPromise;
+      // Update tokens
+      this.setToken(response.accessToken);
+      this.setRefreshToken(response.refreshToken);
 
-    //   // Update tokens
-    //   this.setToken(response.accessToken);
-    //   this.setRefreshToken(response.refreshToken);
+      // Update user info with new token (keep other user data)
+      const user = this.getUser();
+      if (user) {
+        user.token = response.accessToken;
+        this.setUser(user);
+      }
 
-    //   // Log token preview to verify it's saved
-    //   const tokenPreview =
-    //     response.accessToken.length > 30
-    //       ? `${response.accessToken.substring(
-    //           0,
-    //           20
-    //         )}...${response.accessToken.substring(
-    //           response.accessToken.length - 10
-    //         )}`
-    //       : response.accessToken.substring(0, 30);
-    //   console.log("Token refreshed successfully. New token:", tokenPreview);
+      console.log("Token refreshed successfully");
 
-    //   // Verify token is saved
-    //   const savedToken = this.getToken();
-    //   const savedTokenPreview =
-    //     savedToken && savedToken.length > 30
-    //       ? `${savedToken.substring(0, 20)}...${savedToken.substring(
-    //           savedToken.length - 10
-    //         )}`
-    //       : savedToken?.substring(0, 30);
-    //   console.log("Saved token in localStorage:", savedTokenPreview);
-
-    //   // Clear promise on success
-    //   this.refreshPromise = null;
-    //   return true;
-    // } catch (error) {
-    //   console.error("Token refresh failed:", error);
-    //   // Clear promise on error
-    //   this.refreshPromise = null;
-    //   // If delayClear is true, don't clear auth here - let handle401Error do it
-    //   // This allows the delay to work properly
-    //   if (!delayClear) {
-    //     this.clearAuth();
-    //   }
-    //   return false;
-    // }
+      // Clear promise on success
+      this.refreshPromise = null;
+      return true;
+    } catch (error) {
+      console.error("Token refresh failed:", error);
+      // Clear promise on error
+      this.refreshPromise = null;
+      // If delayClear is true, don't clear auth here - let handle401Error do it
+      if (!_delayClear) {
+        this.logout();
+      }
+      return false;
+    }
   }
 
   // Validate token on app load
@@ -233,9 +270,10 @@ class AuthService {
       return false;
     }
 
-    // If token is expired, it's invalid
+    // If token is expired, try to refresh it
     if (this.isTokenExpired()) {
-      return false;
+      const refreshed = await this.refreshToken();
+      return refreshed;
     }
 
     return true;

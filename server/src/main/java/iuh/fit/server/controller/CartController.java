@@ -3,7 +3,6 @@ package iuh.fit.server.controller;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import iuh.fit.server.dto.request.CartItemRequest;
-import iuh.fit.server.dto.request.CartRequest;
 import iuh.fit.server.dto.response.CartItemResponse;
 import iuh.fit.server.dto.response.CartResponse;
 import iuh.fit.server.services.CartItemService;

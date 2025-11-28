@@ -22,6 +22,11 @@ export const cartService = {
     return apiService.post<CartResponse>(`/carts/user/${userId}/merge`, sessionCartItems);
   },
 
+  // Sync cart items (replace all items in cart)
+  syncCart: async (userId: number, cartItems: CartItemRequest[]): Promise<CartResponse> => {
+    return apiService.post<CartResponse>(`/carts/user/${userId}/sync`, cartItems);
+  },
+
   // Add item to cart
   addToCart: async (productId: number, quantity: number = 1) => {
     return apiService.post<CartItem[]>('/cart/add', { productId, quantity });

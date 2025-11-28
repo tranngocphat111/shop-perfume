@@ -37,22 +37,22 @@ export const Home = () => {
 
   const categories: HomeCategory[] = [
     {
-      name: "Woman",
+      name: "Nữ",
       image:
         "https://lanperfume.com/wp-content/uploads/2025/11/danh-muc-nuoc-hoa-nu-Edited.jpg",
-      link: "/products?gender=nu",
+      link: "/products?categoryId=1",
     },
     {
       name: "Unisex",
       image:
         "https://lanperfume.com/wp-content/uploads/2025/11/danh-muc-nuoc-hoa-unisex.jpeg",
-      link: "/products?gender=unisex",
+      link: "/products?categoryId=3",
     },
     {
-      name: "Man",
+      name: "Nam",
       image:
         "https://lanperfume.com/wp-content/uploads/2025/11/danh-muc-nuoc-hoa-nam.jpg",
-      link: "/products?gender=nam",
+      link: "/products?categoryId=2",
     },
   ];
 

@@ -58,5 +58,8 @@ public class OrderCreateRequest {
     @NotNull(message = "Tổng tiền không được để trống")
     @DecimalMin(value = "0.0", inclusive = false, message = "Tổng tiền phải lớn hơn 0")
     private Double totalAmount;
+    
+    // User coupon ID (optional - chỉ có khi user đã chọn coupon)
+    private Integer userCouponId;
 }
 

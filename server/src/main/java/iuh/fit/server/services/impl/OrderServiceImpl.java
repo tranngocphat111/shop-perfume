@@ -31,6 +31,8 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
     private final PaymentRepository paymentRepository;
     private final ProductRepository productRepository;
     private final OrderMapper orderMapper;
+    private final iuh.fit.server.services.UserCouponService userCouponService;
+    private final iuh.fit.server.repository.UserCouponRepository userCouponRepository;
     
     // Timeout for QR payment: 30 minutes in milliseconds
     private static final long QR_PAYMENT_TIMEOUT_MS = 30 * 60 * 1000;
@@ -111,8 +113,46 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
         shipment.setOrder(order);
         order.setShipment(shipment);
 
-        // Save order (cascade will save orderItems, payment, and shipment)
+        // Save order first (cascade will save orderItems, payment, and shipment)
         Order savedOrder = orderRepository.save(order);
+        
+        // Xử lý user coupon nếu có
+        if (request.getUserCouponId() != null) {
+            try {
+                log.info("Processing user coupon: userCouponId={}, orderId={}", 
+                        request.getUserCouponId(), savedOrder.getOrderId());
+                
+                // Lấy UserCoupon để verify và mark as USED
+                Optional<iuh.fit.server.model.entity.UserCoupon> userCouponOpt = 
+                        userCouponRepository.findById(request.getUserCouponId());
+                
+                if (userCouponOpt.isPresent()) {
+                    iuh.fit.server.model.entity.UserCoupon userCoupon = userCouponOpt.get();
+                    
+                    // Verify status is AVAILABLE
+                    if (userCoupon.getStatus() == iuh.fit.server.model.enums.CouponStatus.AVAILABLE) {
+                        // Mark as USED
+                        userCoupon.setStatus(iuh.fit.server.model.enums.CouponStatus.USED);
+                        userCoupon.setUsedAt(new Date());
+                        userCoupon.setOrder(savedOrder);
+                        userCouponRepository.save(userCoupon);
+                        
+                        // Set coupon reference in order
+                        savedOrder.setCoupon(userCoupon.getCoupon());
+                        orderRepository.save(savedOrder);
+                        
+                        log.info("✅ User coupon marked as USED: {}", request.getUserCouponId());
+                    } else {
+                        log.warn("⚠️ User coupon is not AVAILABLE: status={}", userCoupon.getStatus());
+                    }
+                } else {
+                    log.warn("⚠️ User coupon not found: {}", request.getUserCouponId());
+                }
+            } catch (Exception e) {
+                log.error("❌ Error processing user coupon", e);
+                // Don't fail order creation if coupon processing fails
+            }
+        }
 
 
         // Map to response using OrderMapper
@@ -285,6 +325,7 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
     }
     
     @Override
+    @Transactional(readOnly = true)
     public List<OrderResponse> getOrdersByEmail(String email) {
         List<Order> orders = orderRepository.findByGuestEmailOrderByOrderDateDesc(email);
         return orders.stream()
@@ -293,6 +334,7 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
     }
     
     @Override
+    @Transactional(readOnly = true)
     public List<OrderResponse> getOrdersByUserId(Integer userId) {
         List<Order> orders = orderRepository.findByUserIdOrderByOrderDateDesc(userId);
         return orders.stream()
@@ -388,6 +430,21 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
                 payment.setPaymentDate(new Date());
                 paymentRepository.save(payment);
                 log.info("🎉 Payment status updated successfully! Order ID: {}", orderId);
+                
+                // Tự động tặng coupon cho user nếu đạt điều kiện
+                if (order.getUser() != null) {
+                    try {
+                        log.info("🎁 Auto giving coupons to user {} after order {}", 
+                                order.getUser().getUserId(), orderId);
+                        userCouponService.autoGiveCouponsAfterOrder(
+                                order.getUser().getUserId(), 
+                                order.getTotalAmount());
+                    } catch (Exception e) {
+                        log.error("❌ Error auto giving coupons", e);
+                        // Don't fail the payment if coupon giving fails
+                    }
+                }
+                
                 return true;
             } else {
                 log.warn("⚠️ Payment status is not PENDING. Current status: {}. Order ID: {}", 

@@ -11,10 +11,12 @@ import 'swiper/css/free-mode';
 import 'swiper/css/pagination';
 
 import { useBestSellers } from "../../hooks/useBestSellers";
+import { useBrands } from "../../hooks/useBrands";
 import { PerfumeCard } from "../PerfumeCard";
 
 export const BestSellersSection = () => {
   const { bestSellers, loading } = useBestSellers();
+  const { brands } = useBrands();
 
   // Limit to 8 products for best sellers
   const products = bestSellers.slice(0, 8);
@@ -34,7 +36,7 @@ export const BestSellersSection = () => {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6 }}
-          className="text-section-title text-center mb-16"
+          className="text-section-title text-center mb-16 capitalize"
         >
           Sản phẩm bán chạy
         </motion.h2>
@@ -75,7 +77,7 @@ export const BestSellersSection = () => {
                 preventClicks={false}
                 preventClicksPropagation={false}
                 touchStartPreventDefault={false}
-                touchMoveStop={false}
+                touchMoveStopPropagation={false}
                 pagination={{
                   clickable: true,
                   dynamicBullets: false,
@@ -123,7 +125,7 @@ export const BestSellersSection = () => {
                     }}
                     style={{ pointerEvents: 'auto', width: '100%', height: '100%' }}
                   >
-                    <PerfumeCard inventory={inventory} />
+                    <PerfumeCard inventory={inventory} brands={brands} />
                   </motion.div>
                 </SwiperSlide>
               ))}

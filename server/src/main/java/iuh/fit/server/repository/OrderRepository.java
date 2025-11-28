@@ -11,11 +11,12 @@ import java.util.List;
 
 @Repository
 public interface OrderRepository extends JpaRepository<Order, Integer> {
-    // Find orders by user email (for guest orders)
-    List<Order> findByGuestEmailOrderByOrderDateDesc(String email);
+    // Find orders by user email (for guest orders) - with fetch join to avoid lazy initialization
+    @Query("SELECT DISTINCT o FROM Order o LEFT JOIN FETCH o.orderItems oi LEFT JOIN FETCH oi.product LEFT JOIN FETCH o.payment LEFT JOIN FETCH o.shipment WHERE o.guestEmail = :email ORDER BY o.orderDate DESC")
+    List<Order> findByGuestEmailOrderByOrderDateDesc(@Param("email") String email);
     
-    // Find orders by user ID
-    @Query("SELECT o FROM Order o WHERE o.user.userId = :userId ORDER BY o.orderDate DESC")
+    // Find orders by user ID - with fetch join to avoid lazy initialization
+    @Query("SELECT DISTINCT o FROM Order o LEFT JOIN FETCH o.orderItems oi LEFT JOIN FETCH oi.product LEFT JOIN FETCH o.payment LEFT JOIN FETCH o.shipment WHERE o.user.userId = :userId ORDER BY o.orderDate DESC")
     List<Order> findByUserIdOrderByOrderDateDesc(@Param("userId") Integer userId);
 
 

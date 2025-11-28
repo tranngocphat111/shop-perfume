@@ -1,16 +1,27 @@
 import { motion } from "framer-motion";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useCart } from "../contexts/CartContext";
 import { Link } from "react-router-dom";
 import { EmptyCart } from "../components/cart/EmptyCart";
 import { CartTable } from "../components/cart/CartTable";
 import { CartSummary } from "../components/cart/CartSummary";
-import type { Coupon } from "../services/coupon.service";
 
 export const Cart = () => {
-  const { cart, removeFromCart, updateQuantity, getCartTotal } = useCart();
-  const [discount, setDiscount] = useState(0);
-  const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
+  const { 
+    cart, 
+    removeFromCart, 
+    updateQuantity, 
+    getCartTotal,
+    appliedUserCouponId,
+    discount,
+    setAppliedUserCouponId,
+    setDiscount
+  } = useCart();
+
+  // Auto scroll to top when component mounts
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
 
   const handleQuantityChange = (productId: number, newQuantity: number) => {
     if (newQuantity < 1) {
@@ -19,31 +30,25 @@ export const Cart = () => {
     }
     updateQuantity(productId, newQuantity);
     
-    // Re-validate coupon if applied
-    if (appliedCoupon) {
-      const total = getCartTotal();
-      if (total < appliedCoupon.minOrderValue) {
-        setDiscount(0);
-        setAppliedCoupon(null);
-      }
+    // Reset coupon when cart changes (will be re-validated by CartSummary)
+    if (appliedUserCouponId) {
+      setDiscount(0);
+      setAppliedUserCouponId(null);
     }
   };
 
   const handleRemove = (productId: number) => {
     removeFromCart(productId);
     
-    // Re-validate coupon if applied
-    if (appliedCoupon) {
-      const total = getCartTotal();
-      if (total < appliedCoupon.minOrderValue) {
-        setDiscount(0);
-        setAppliedCoupon(null);
-      }
+    // Reset coupon when cart changes
+    if (appliedUserCouponId) {
+      setDiscount(0);
+      setAppliedUserCouponId(null);
     }
   };
 
-  const handleCouponApply = (coupon: Coupon | null, discountAmount: number) => {
-    setAppliedCoupon(coupon);
+  const handleCouponApply = (userCouponId: number | null, discountAmount: number) => {
+    setAppliedUserCouponId(userCouponId);
     setDiscount(discountAmount);
   };
 
