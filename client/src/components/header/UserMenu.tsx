@@ -1,10 +1,13 @@
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
+import { Coins } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
+import { type UserInfo } from "../../services/user.service";
 
 interface UserMenuProps {
   isAuthenticated: boolean;
   user: { name: string; email: string; role: string } | null;
+  userInfo: UserInfo | null;
   showUserMenu: boolean;
   setShowUserMenu: (value: boolean) => void;
   isScrolled: boolean;
@@ -13,6 +16,7 @@ interface UserMenuProps {
 export const UserMenu = ({
   isAuthenticated,
   user,
+  userInfo,
   showUserMenu,
   setShowUserMenu,
   isScrolled,
@@ -57,45 +61,60 @@ export const UserMenu = ({
             <motion.div
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
-              <div className="px-4 py-2 border-b border-gray-200">
-                <p className="text-sm font-semibold text-gray-900 truncate">
+              className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-xl border border-gray-100 py-1.5 z-50">
+              <div className="px-3 py-2.5 border-b border-gray-100">
+                <p className="text-sm font-semibold text-gray-900 truncate mb-0.5">
                   {user.name}
                 </p>
-                <p className="text-xs text-gray-500 truncate">
+                <p className="text-xs text-gray-500 truncate mb-2">
                   {user.email}
                 </p>
+                
+                {/* Loyalty Points Display */}
+                {userInfo && (
+                  <div className="flex items-center gap-2 px-2.5 py-1.5 bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-200/60 rounded-md">
+                    <div className="flex-shrink-0 w-6 h-6 rounded-full bg-amber-100 flex items-center justify-center">
+                      <Coins size={12} className="text-amber-600" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold text-amber-900 leading-tight">
+                        {userInfo.loyaltyPoints.toLocaleString('vi-VN')} điểm
+                      </p>
+                    </div>
+                  </div>
+                )}
+                
                 {user.role === "ADMIN" && (
-                  <span className="inline-block mt-1 px-2 py-0.5 bg-purple-100 text-purple-700 text-xs rounded-full">
+                  <span className="inline-block mt-1.5 px-2 py-0.5 bg-purple-100 text-purple-700 text-xs rounded-full">
                     Admin
                   </span>
                 )}
               </div>
               <Link
                 to="/profile"
-                className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                className="flex items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                 onClick={() => setShowUserMenu(false)}>
-                <i className="bi bi-person mr-2"></i> Thông tin cá nhân
+                <i className="bi bi-person text-xs mr-2 w-4"></i> Thông tin cá nhân
               </Link>
               <Link
                 to="/my-orders"
-                className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                className="flex items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                 onClick={() => setShowUserMenu(false)}>
-                <i className="bi bi-bag mr-2"></i> Đơn hàng của tôi
+                <i className="bi bi-bag text-xs mr-2 w-4"></i> Đơn hàng của tôi
               </Link>
               {user.role === "ADMIN" && (
                 <Link
                   to="/admin"
-                  className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                  className="flex items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                   onClick={() => setShowUserMenu(false)}>
-                  <i className="bi bi-speedometer2 mr-2"></i> Quản trị
+                  <i className="bi bi-speedometer2 text-xs mr-2 w-4"></i> Quản trị
                 </Link>
               )}
-              <hr className="my-2" />
+              <hr className="my-1 border-gray-100" />
               <button
                 onClick={handleLogout}
-                className="flex items-center w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50">
-                <i className="bi bi-box-arrow-right mr-2"></i> Đăng xuất
+                className="flex items-center w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors">
+                <i className="bi bi-box-arrow-right text-xs mr-2 w-4"></i> Đăng xuất
               </button>
             </motion.div>
           )}
