@@ -26,6 +26,7 @@ import java.util.List;
 public class UserCouponController {
 
     private final UserCouponService userCouponService;
+    private final iuh.fit.server.repository.UserRepository userRepository;
 
     /**
      * GET /api/user-coupons/my-coupons - Lấy danh sách coupon có thể sử dụng của user
@@ -73,17 +74,20 @@ public class UserCouponController {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || !authentication.isAuthenticated() || 
             authentication.getPrincipal().equals("anonymousUser")) {
+            log.debug("No authentication found");
             return null;
         }
         
         try {
-            // Assuming principal is a UserDetails with userId as name or a custom User object
             Object principal = authentication.getPrincipal();
             if (principal instanceof org.springframework.security.core.userdetails.UserDetails) {
-                String username = ((org.springframework.security.core.userdetails.UserDetails) principal).getUsername();
-                // If username is email, need to look up user by email
-                // For now, assume it's userId as string
-                return Integer.parseInt(username);
+                String email = ((org.springframework.security.core.userdetails.UserDetails) principal).getUsername();
+                log.debug("Getting user ID for email: {}", email);
+                
+                // Lookup user by email to get userId
+                return userRepository.findByEmail(email)
+                        .map(iuh.fit.server.model.entity.User::getUserId)
+                        .orElse(null);
             }
         } catch (Exception e) {
             log.error("Error getting user ID from security context", e);

@@ -1,10 +1,10 @@
 import { motion } from "framer-motion";
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { useCart } from "../contexts/CartContext";
 import { Link } from "react-router-dom";
 import { EmptyCart } from "../components/cart/EmptyCart";
 import { CartTable } from "../components/cart/CartTable";
-import { CartSummary } from "../components/cart/CartSummary";
+import CartSummary from "../components/cart/CartSummary";
 
 export const Cart = () => {
   const { 
@@ -76,6 +76,23 @@ export const Cart = () => {
           <EmptyCart />
         ) : (
           <>
+            {/* Header Section */}
+            <div className="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                  </svg>
+                  Giỏ hàng & Ưu đãi
+                </h1>
+                <p className="text-gray-500 mt-1">Chọn mã giảm giá và kiểm tra lại giá trị đơn hàng</p>
+              </div>
+              <div className="text-right hidden md:block">
+                <p className="text-sm text-gray-500">Tổng tạm tính ({cart.items.length} món)</p>
+                <p className="text-xl font-bold">{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(getCartTotal())}</p>
+              </div>
+            </div>
+
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}

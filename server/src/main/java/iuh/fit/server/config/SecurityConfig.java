@@ -106,6 +106,7 @@ public class SecurityConfig {
                     .requestMatchers("/orders/**").authenticated()
                     .requestMatchers("/addresses/**").authenticated()
                     .requestMatchers("/users/me").authenticated()
+                    .requestMatchers("/user-coupons/**").authenticated() // User coupon endpoints
 
                     // Admin endpoints
                     .requestMatchers("/admin/**").hasRole("ADMIN")

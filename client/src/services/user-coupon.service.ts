@@ -30,9 +30,20 @@ export const userCouponService = {
    */
   getMyCoupons: async (): Promise<UserCoupon[]> => {
     try {
+      // Kiểm tra token trước khi gọi API
+      const token = localStorage.getItem('auth_token');
+      if (!token) {
+        console.warn('No auth token found - skipping coupon load');
+        return [];
+      }
+      
       return await apiService.get<UserCoupon[]>('/user-coupons/my-coupons');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching user coupons:', error);
+      // Nếu 401, throw lỗi để CartSummary xử lý
+      if (error?.status === 401) {
+        throw error;
+      }
       return [];
     }
   },
