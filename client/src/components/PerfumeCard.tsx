@@ -206,7 +206,7 @@ export const PerfumeCard = ({ inventory, brands = [] }: ProductCardProps) => {
       {/* Product Info */}
       <div className="product-info space-y-1">
         <h3
-          className={`text-[11px] sm:text-xs md:text-sm font-normal text-gray-900 line-clamp-2 min-h-[1.75rem] sm:min-h-[2rem] leading-relaxed transition-colors ${
+          className={`text-sm sm:text-base md:text-lg font-normal text-gray-900 line-clamp-2 min-h-[2rem] sm:min-h-[2.5rem] leading-relaxed transition-colors ${
             isHovered ? "text-gray-600" : ""
           }`}>
           {product.name}
@@ -214,11 +214,11 @@ export const PerfumeCard = ({ inventory, brands = [] }: ProductCardProps) => {
 
         <div className="product-price">
           {showPrice ? (
-            <span className="text-xs sm:text-sm md:text-base font-medium text-black">
+            <span className="text-base sm:text-lg md:text-xl font-semibold text-black">
               {formatCurrency(product.unitPrice)}&nbsp;₫
             </span>
           ) : (
-            <span className="text-xs sm:text-sm md:text-base font-normal text-gray-500">
+            <span className="text-base sm:text-lg md:text-xl font-normal text-gray-500">
               Liên hệ
             </span>
           )}

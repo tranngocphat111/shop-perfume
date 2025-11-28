@@ -16,12 +16,12 @@ export const AboutSection = () => {
               Về SPTN Perfume
             </h2>
             <div className="w-24 h-1 bg-black mb-8"></div>
-            <p className="text-body text-gray-700 mb-6">
+            <p className="text-base text-gray-700 mb-6">
               Sứ mệnh của SPTN Perfume chính là việc kiến tạo một thương hiệu
               mang đến cho khách hàng những trải nghiệm hương thơm độc đáo,
               mang đậm dấu ấn cá nhân.
             </p>
-            <p className="text-body text-gray-700 mb-8">
+            <p className="text-base text-gray-700 mb-8">
               Để hiện thực hóa điều này, SPTN Perfume xây dựng triết lý kinh
               doanh của mình trên bốn trụ cột vững chắc: "𝐒tyle - 𝐏remium -
               𝐓imeless - 𝐍ostalgia".

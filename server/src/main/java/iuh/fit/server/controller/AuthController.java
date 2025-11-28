@@ -1,8 +1,10 @@
 package iuh.fit.server.controller;
 
+import iuh.fit.server.dto.request.ForgotPasswordRequest;
 import iuh.fit.server.dto.request.LoginRequest;
 import iuh.fit.server.dto.request.RefreshTokenRequest;
 import iuh.fit.server.dto.request.RegisterRequest;
+import iuh.fit.server.dto.request.ResetPasswordRequest;
 import iuh.fit.server.dto.response.AuthResponse;
 import iuh.fit.server.dto.response.TokenRefreshResponse;
 import iuh.fit.server.dto.response.UserInfoResponse;
@@ -115,6 +117,25 @@ public class AuthController {
             log.error("Error getting current user info", e);
             return ResponseEntity.status(500).build();
         }
+     * Quên mật khẩu - gửi email reset password
+     * Public endpoint
+     */
+    @PostMapping("/forgot-password")
+    @Operation(summary = "Quên mật khẩu", description = "Gửi email chứa link đặt lại mật khẩu")
+    public ResponseEntity<Void> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+        authService.forgotPassword(request);
+        return ResponseEntity.ok().build();
+    }
+    
+    /**
+     * Đặt lại mật khẩu với token
+     * Public endpoint
+     */
+    @PostMapping("/reset-password")
+    @Operation(summary = "Đặt lại mật khẩu", description = "Đặt lại mật khẩu mới bằng token từ email")
+    public ResponseEntity<Void> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        authService.resetPassword(request);
+        return ResponseEntity.ok().build();
     }
 }
 

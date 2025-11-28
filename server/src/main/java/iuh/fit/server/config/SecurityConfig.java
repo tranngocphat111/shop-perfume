@@ -83,8 +83,11 @@ public class SecurityConfig {
                     .requestMatchers("/webhooks/sepay/logs", "/webhooks/sepay/logs/**").permitAll()
                     
                     // Authentication endpoints (login, register, refresh are public)
-                    .requestMatchers("/auth/login", "/auth/register", "/auth/refresh").permitAll()
+//                     .requestMatchers("/auth/login", "/auth/register", "/auth/refresh").permitAll()
                     .requestMatchers("/auth/me").authenticated() // /auth/me requires authentication
+                    // Authentication endpoints
+                    .requestMatchers("/auth/**").permitAll()
+                    .requestMatchers("/api/auth/**").permitAll() // Support context-path=/api
                     
                     // Guest checkout - allow public access
                     .requestMatchers("/orders/create").permitAll()

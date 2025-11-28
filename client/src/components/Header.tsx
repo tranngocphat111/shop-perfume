@@ -1,11 +1,9 @@
-import { Link, useNavigate, useLocation } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import { motion, useScroll, useMotionValueEvent, AnimatePresence } from "framer-motion";
-import { useState, useEffect, useRef } from "react";
-import { useCart } from "../contexts/CartContext";
+import { useState, useEffect } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { useBrands } from "../hooks/useBrands";
 import { useCategories } from "../hooks/useCategories";
-import { useProductsFilter } from "../contexts/ProductsFilterContext";
 import { useSearch } from "../contexts/SearchContext";
 import { getPrimaryImageUrl, formatCurrency } from "../utils/helpers";
 import { userService, type UserInfo } from "../services/user.service";
@@ -43,6 +41,10 @@ const NavLink = ({
       }`}></span>
   </Link>
 );
+import { HeaderLogo } from "./header/HeaderLogo";
+import { HeaderNavigation } from "./header/HeaderNavigation";
+import { HeaderSearch } from "./header/HeaderSearch";
+import { HeaderActions } from "./header/HeaderActions";
 
 /**
  * Header Component - Combines dynamic scrolling effects and auth management.
@@ -55,21 +57,15 @@ export const Header = () => {
     brands: allBrands,
     groupedBrands,
     availableLetters,
-    loading,
+    loading: brandsLoading,
   } = useBrands();
   const { categories } = useCategories();
-  const { resetFilters } = useProductsFilter();
-  const { searchProducts, searchResults, isLoading: isSearchLoading, totalResults, clearSearch } = useSearch();
-  const navigate = useNavigate();
+  const { clearSearch } = useSearch();
   const location = useLocation();
 
-  const cartCount = getCartCount();
   const isHomePage = location.pathname === "/";
-  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const searchContainerRef = useRef<HTMLDivElement>(null);
-  const searchInputRef = useRef<HTMLInputElement>(null);
 
-  // Scroll/Motion States (from V1)
+  // Scroll/Motion States
   const [isScrolled, setIsScrolled] = useState(false); // Controls background color
   const [hasScrolled, setHasScrolled] = useState(false); // Controls shadow (only when scrolling)
   const [isCompact, setIsCompact] = useState(false);
@@ -77,12 +73,11 @@ export const Header = () => {
   const [lastScrollY, setLastScrollY] = useState(0);
   const [forceShowHeader, setForceShowHeader] = useState(false);
 
-  // Menu/Dropdown States (from V1 and V2)
+  // Menu/Dropdown States
   const [openDropdown, setOpenDropdown] = useState<string | null>(null); // "products", "brands", or null
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearchInputFocused, setIsSearchInputFocused] = useState(false);
-  const [selectedLetter, setSelectedLetter] = useState<string | null>(null);
   const [showUserMenu, setShowUserMenu] = useState(false);
 
   const { scrollY } = useScroll();
@@ -161,29 +156,17 @@ export const Header = () => {
     }
   }, [isHomePage]);
 
-  const handleLogout = () => {
-    logout();
-    navigate("/");
-    setShowUserMenu(false);
-  };
-
   // Close user menu when clicking outside
   useEffect(() => {
     const handleOutsideClick = (event: MouseEvent) => {
-      // Simple logic to close menus on click outside. For production, use a ref.
       const target = event.target as HTMLElement;
       if (showUserMenu && !target.closest(".user-menu-container")) {
         setShowUserMenu(false);
       }
-      // Close search dropdown when clicking outside
-      if (showSearch && searchContainerRef.current && !searchContainerRef.current.contains(target)) {
-        // Don't close search bar, just clear results if needed
-        // The search bar stays open until user clicks close button or ESC
-      }
     };
     document.addEventListener("mousedown", handleOutsideClick);
     return () => document.removeEventListener("mousedown", handleOutsideClick);
-  }, [showUserMenu, showSearch]);
+  }, [showUserMenu]);
 
   // Close search when pressing ESC
   useEffect(() => {
@@ -201,10 +184,7 @@ export const Header = () => {
   // Close search and blur input when header is hidden
   useEffect(() => {
     if (!isVisible && showSearch) {
-      // Blur input if it's focused
-      if (searchInputRef.current && document.activeElement === searchInputRef.current) {
-        searchInputRef.current.blur();
-      }
+      // Blur input if it's focused - this needs to be handled in HeaderSearch component
       // Reset focus state
       setIsSearchInputFocused(false);
       // Close search
@@ -213,33 +193,6 @@ export const Header = () => {
       clearSearch();
     }
   }, [isVisible, showSearch, clearSearch]);
-
-  // Debounced search
-  useEffect(() => {
-    if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current);
-    }
-
-    if (searchQuery.trim() && showSearch) {
-      searchTimeoutRef.current = setTimeout(() => {
-        searchProducts(searchQuery);
-      }, 300); // 300ms debounce
-    } else if (!searchQuery.trim()) {
-      clearSearch();
-    }
-
-    return () => {
-      if (searchTimeoutRef.current) {
-        clearTimeout(searchTimeoutRef.current);
-      }
-    };
-  }, [searchQuery, showSearch, searchProducts, clearSearch]);
-
-  // Determine text color based on scroll state
-  const textColor = isScrolled ? "text-gray-700" : "text-white";
-  const hoverTextColor = isScrolled
-    ? "hover:text-black"
-    : "hover:text-gray-200";
 
   return (
     <motion.header
@@ -254,7 +207,6 @@ export const Header = () => {
       className={`fixed top-0 left-0 right-0 z-50 transition-shadow duration-300 ${
         hasScrolled ? "shadow-md" : ""
       }`}
-      // The backdropFilter logic is kept for potential future use, though currently 'none'
       style={{
         backdropFilter: isScrolled ? "blur(8px)" : "none",
         WebkitBackdropFilter: isScrolled ? "blur(8px)" : "none",
@@ -265,728 +217,57 @@ export const Header = () => {
         }`}>
         <div className="flex justify-between items-center">
           {/* Logo */}
-          <Link
-            to="/"
-            onClick={() => {
-              if (location.pathname === "/") {
-                window.scrollTo({ top: 0, behavior: "smooth" });
-              }
-            }}
-            className="transition-all duration-300 hover:opacity-80">
-            <img
-              src={
-                isScrolled
-                  ? "https://res.cloudinary.com/piin/image/upload/v1763985017/logo/SPTN-BLACK.png"
-                  : "https://res.cloudinary.com/piin/image/upload/v1763985017/logo/SPTN-WHITE.png"
-              }
-              alt="LAN Perfume Logo"
-              className={`transition-all duration-300 ${
-                isCompact ? "h-20 md:h-22" : "h-22 md:h-24"
-              }`}
-            />
-          </Link>
+          <HeaderLogo isScrolled={isScrolled} isCompact={isCompact} />
 
-          {/* Navigation - Hidden when search is active */}
+          {/* Navigation and Search Bar - Animated */}
           <AnimatePresence mode="wait">
             {!showSearch && (
-              <motion.nav
+              <HeaderNavigation
                 key="navigation"
-                initial={{ opacity: 0, x: -20, scale: 0.95 }}
-                animate={{ opacity: 1, x: 0, scale: 1 }}
-                exit={{ opacity: 0, x: 20, scale: 0.95 }}
-                transition={{ 
-                  type: "spring",
-                  stiffness: 300,
-                  damping: 30,
-                  mass: 0.8
-                }}
-                className="hidden lg:flex items-center space-x-6">
-                <Link
-                  to="/"
-                  onClick={() => {
-                    if (location.pathname === "/") {
-                      window.scrollTo({ top: 0, behavior: "smooth" });
-                    }
-                  }}
-                  className={`font-normal transition-all duration-300 relative group text-sm md:text-base ${
-                    isScrolled
-                      ? "text-gray-700 hover:text-black"
-                      : "text-white hover:text-gray-200"
-                  }`}>
-                  Trang chủ
-                  <span
-                    className={`absolute -bottom-1 left-0 w-0 h-0.5 transition-all group-hover:w-full ${
-                      isScrolled ? "bg-black" : "bg-white"
-                    }`}></span>
-                </Link>
-                <NavLink to="/about" isScrolled={isScrolled} isCompact={isCompact}>
-                  Về SPTN Perfume
-                </NavLink>
+                categories={categories}
+                allBrands={allBrands}
+                groupedBrands={groupedBrands}
+                availableLetters={availableLetters}
+                brandsLoading={brandsLoading}
+                openDropdown={openDropdown}
+                setOpenDropdown={setOpenDropdown}
+                showSearch={showSearch}
+                isScrolled={isScrolled}
+                isCompact={isCompact}
+              />
+            )}
 
-                {/* Dropdown: Danh mục*/}
-                <div 
-                  className="relative group"
-                  onMouseEnter={() => setOpenDropdown("products")}
-                  onMouseLeave={() => setOpenDropdown(null)}
-                >
-                  <Link
-                    to="/products"
-                    onClick={(e) => {
-                      // Reset filters directly from context when clicking on "Danh mục"
-                      // Try to get priceBounds from sessionStorage if available
-                      let priceBounds: [number, number] | null = null;
-                      try {
-                        const cached = sessionStorage.getItem('products_cache_price_bounds');
-                        if (cached) {
-                          priceBounds = JSON.parse(cached);
-                        }
-                      } catch (err) {
-                        // Ignore error, use null
-                      }
-                      
-                      // Reset filters in context
-                      resetFilters(priceBounds);
-                      
-                      // Always navigate to /products without params
-                      if (location.pathname === "/products") {
-                        e.preventDefault();
-                        // Force navigation to /products without params
-                        navigate("/products", { replace: true });
-                      }
-                      // Otherwise, let Link handle navigation normally
-                    }}
-                    className={`transition-all font-normal duration-300 text-sm md:text-base ${textColor} ${hoverTextColor} flex items-center gap-1`}>
-                    Danh mục 
-                    <svg
-                      className="w-4 h-4"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24">
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M19 9l-7 7-7-7"
-                      />
-                    </svg>
-                  </Link>
+            {showSearch && (
+              <HeaderSearch
+                key="search"
+                showSearch={showSearch}
+                searchQuery={searchQuery}
+                setSearchQuery={setSearchQuery}
+                setShowSearch={setShowSearch}
+                isScrolled={isScrolled}
+                isCompact={isCompact}
+                isSearchInputFocused={isSearchInputFocused}
+                setIsSearchInputFocused={setIsSearchInputFocused}
+                isVisible={isVisible}
+              />
+            )}
+          </AnimatePresence>
 
-                  {/* Bridge element to connect parent and dropdown */}
-                  <AnimatePresence>
-                    {openDropdown === "products" && (
-                      <>
-                        <div className="absolute top-full left-0 w-full h-4" />
-                        <motion.div
-                          key="products-dropdown"
-                          initial={{ opacity: 0, y: -20, scale: 0.96 }}
-                          animate={{ opacity: 1, y: 0, scale: 1 }}
-                          exit={{ opacity: 0, y: -15, scale: 0.96 }}
-                          transition={{ 
-                            type: "spring",
-                            stiffness: 280,
-                            damping: 30,
-                            mass: 0.9
-                          }}
-                          className="absolute top-full left-0 mt-4 w-52 bg-white shadow-md rounded-sm py-3 p-2 border border-gray-200/50 z-50">
-                          {categories.map((category) => (
-                            <Link
-                              key={category.categoryId}
-                              to={`/products?categoryId=${category.categoryId}`}
-                              onClick={() => {
-                                setOpenDropdown(null);
-                              }}
-                              className="block font-normal px-4 py-2 text-sm text-gray-800 hover:bg-gray-100 transition-colors">
-                              {category.name}
-                            </Link>
-                          ))}
-                        </motion.div>
-                      </>
-                    )}
-                  </AnimatePresence>
-                </div>
-
-                {/* Dropdown: Thương hiệu */}
-                <div 
-                  className="relative group"
-                  onMouseEnter={() => setOpenDropdown("brands")}
-                  onMouseLeave={() => setOpenDropdown(null)}
-                >
-                  <button
-                    className={`transition-all font-normal duration-300 text-sm md:text-base ${textColor} ${hoverTextColor} flex items-center gap-1`}>
-                    Thương hiệu
-                    <svg
-                      className="w-4 h-4"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24">
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M19 9l-7 7-7-7"
-                      />
-                    </svg>
-                  </button>
-
-                  {/* Bridge element to connect parent and dropdown */}
-                  <AnimatePresence>
-                    {openDropdown === "brands" && (
-                      <>
-                        <div className="absolute top-full left-0 right-0 h-4" />
-                        <motion.div
-                          key="brands-dropdown"
-                          initial={{ opacity: 0, y: -20, scale: 0.96 }}
-                          animate={{ opacity: 1, y: 0, scale: 1 }}
-                          exit={{ opacity: 0, y: -15, scale: 0.96 }}
-                          transition={{ 
-                            type: "spring",
-                            stiffness: 280,
-                            damping: 30,
-                            mass: 0.9
-                          }}
-                          className="fixed font-normal left-0 right-0 mt-4 mx-auto w-[90vw] max-w-5xl bg-white backdrop-blur-md shadow-md rounded-sm py-8 px-10 border border-gray-200/50 z-50"
-                        >
-                        {loading ? (
-                          <div className="text-center py-8 text-gray-500">
-                            Đang tải thương hiệu...
-                          </div>
-                        ) : (
-                          <>
-                            {/* Alphabet filter */}
-                            <div className="flex flex-nowrap justify-start gap-1.5 pb-5 border-b border-gray-200 mb-6 overflow-x-auto scrollbar-hide min-w-0">
-                              <button
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  setSelectedLetter(null);
-                                }}
-                                className={`px-2.5 py-1 text-xs rounded-full transition-colors font-normal whitespace-nowrap flex-shrink-0 ${
-                                  selectedLetter === null
-                                    ? "bg-black text-white"
-                                    : "border border-gray-300 hover:bg-gray-100 hover:border-gray-400 text-gray-700"
-                                }`}>
-                                All
-                              </button>
-                              {[
-                                "A",
-                                "B",
-                                "C",
-                                "D",
-                                "E",
-                                "F",
-                                "G",
-                                "H",
-                                "I",
-                                "J",
-                                "K",
-                                "L",
-                                "M",
-                                "N",
-                                "O",
-                                "P",
-                                "Q",
-                                "R",
-                                "S",
-                                "T",
-                                "U",
-                                "V",
-                                "W",
-                                "X",
-                                "Y",
-                                "Z",
-                              ].map((letter) => {
-                                const hasBrands = availableLetters.includes(letter);
-                                return (
-                                  <button
-                                    key={letter}
-                                    onClick={(e) => {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      if (hasBrands) {
-                                        setSelectedLetter(letter);
-                                      }
-                                    }}
-                                    disabled={!hasBrands}
-                                    className={`w-7 h-7 text-xs rounded-full transition-colors font-normal flex items-center justify-center flex-shrink-0 ${
-                                      selectedLetter === letter
-                                        ? "bg-black text-white"
-                                        : hasBrands
-                                        ? "border border-gray-300 hover:bg-gray-100 hover:border-gray-400 text-gray-700"
-                                        : "border border-gray-200 text-gray-300 cursor-not-allowed"
-                                    }`}>
-                                    {letter}
-                                  </button>
-                                );
-                              })}
-                            </div>
-
-                            {/* Brand list */}
-                            <div className="max-h-[350px] overflow-y-auto pr-2">
-                              {selectedLetter === null ? (
-                                // Show all brands grouped by letter when "All" is selected
-                                <div className="space-y-6">
-                                  {availableLetters.sort().map((letter) => {
-                                    const letterBrands =
-                                      (
-                                        groupedBrands as Record<
-                                          string,
-                                          typeof allBrands
-                                        >
-                                      )[letter] || [];
-                                    if (letterBrands.length === 0) return null;
-
-                                    return (
-                                      <div key={letter}>
-                                        {/* Letter heading */}
-                                        <h3 className="text-xl font-normal text-gray-900 mb-3">
-                                          {letter}
-                                        </h3>
-                                        {/* Brands in 5 columns */}
-                                        <div className="grid grid-cols-5 gap-x-8 gap-y-2">
-                                          {letterBrands.map(
-                                            (brand: (typeof allBrands)[0]) => (
-                                              <Link
-                                                key={brand.brandId}
-                                                to={`/products?brandId=${brand.brandId}`}
-                                                onClick={() => setOpenDropdown(null)}
-                                                className="text-sm font-normal text-gray-800 hover:text-black hover:underline py-1.5 px-2 rounded hover:bg-gray-50 transition-colors">
-                                                {brand.name}
-                                              </Link>
-                                            )
-                                          )}
-                                        </div>
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              ) : (
-                                // Show filtered brands by selected letter
-                                <div className="grid grid-cols-5 gap-x-8 gap-y-3">
-                                  {(
-                                    (
-                                      groupedBrands as Record<
-                                        string,
-                                        typeof allBrands
-                                      >
-                                    )[selectedLetter] || []
-                                  ).map((brand: (typeof allBrands)[0]) => (
-                                    <Link
-                                      key={brand.brandId}
-                                      to={`/products?brandId=${brand.brandId}`}
-                                      onClick={() => setOpenDropdown(null)}
-                                      className="text-sm font-normal text-gray-800 hover:text-black hover:underline py-2 px-3 rounded hover:bg-gray-50 transition-colors">
-                                      {brand.name}
-                                    </Link>
-                                  ))}
-                                </div>
-                              )}
-
-                              {selectedLetter !== null &&
-                                (!(groupedBrands as Record<string, typeof allBrands>)[
-                                  selectedLetter
-                                ] ||
-                                  (groupedBrands as Record<string, typeof allBrands>)[
-                                    selectedLetter
-                                  ].length === 0) && (
-                                  <div className="text-center py-8 text-gray-500">
-                                    Không có thương hiệu nào
-                                  </div>
-                                )}
-                            </div>
-                          </>
-                        )}
-                          </motion.div>
-                        </>
-                      )}
-                    </AnimatePresence>
-                  </div>
-
-                  <NavLink
-                    to="/contact"
-                    isScrolled={isScrolled}
-                    isCompact={isCompact}>
-                    Liên hệ
-                  </NavLink>
-                </motion.nav>
-              )}
-
-           {/* Inline Search Bar - Optimized */}
-          {showSearch && (
-            <motion.div
-              key="search"
-              initial={{ opacity: 0, width: "80%" }}
-              animate={{ opacity: 1, width: "100%" }}
-              exit={{ opacity: 0, width: "80%" }}
-              transition={{ type: "spring", stiffness: 300, damping: 30 }}
-              className="hidden lg:flex flex-1 justify-center items-center mx-6 relative z-50"
-            >
-              <div ref={searchContainerRef} className={`w-full transition-all duration-300 ${isCompact ? 'max-w-xl' : 'max-w-2xl'} relative group`}>
-                
-                {/* Search Input Container - Added 'group' to enable child targeting */}
-                <div className="relative rounded-full transition-all duration-300 group">
-                  {/* Search Icon Left */}
-                  <svg
-                    className={`absolute left-4 top-1/2 -translate-y-1/2 transition-all duration-300 ${
-                      isCompact ? "w-4 h-4" : "w-5 h-5"
-                    } ${
-                      // Logic màu icon: Chưa scroll + chưa focus -> trắng. Focus -> đen. Đã scroll -> xám/đen
-                      !isScrolled 
-                        ? "text-white/70 group-focus-within:text-gray-500" 
-                        : "text-gray-400 group-focus-within:text-gray-500"
-                    }`}
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
-                  
-                  <input
-                    ref={searchInputRef}
-                    name="search"
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && searchQuery.trim()) {
-                        navigate(`/products?q=${searchQuery.trim()}`);
-                        setShowSearch(false);
-                        setSearchQuery("");
-                        clearSearch();
-                      }
-                    }}
-                    onFocus={() => {
-                      setIsSearchInputFocused(true);
-                      if (searchQuery.trim()) searchProducts(searchQuery);
-                    }}
-                    onBlur={(e) => {
-                      // Close dropdown when input loses focus
-                      // Use setTimeout to allow click events on dropdown to fire first
-                      setTimeout(() => {
-                        // Check if the new focus target is not within the search container
-                        const relatedTarget = e.relatedTarget as HTMLElement;
-                        if (!searchContainerRef.current?.contains(relatedTarget)) {
-                          setIsSearchInputFocused(false);
-                          // Clear search results when losing focus
-                          clearSearch();
-                        }
-                      }, 200);
-                    }}
-                    placeholder="Tìm kiếm mùi hương..."
-                    autoComplete="off"
-                    autoCorrect="off"
-                    autoCapitalize="off"
-                    spellCheck="false"
-                    className={`w-full rounded-full border px-10 transition-all duration-300 focus:outline-none 
-                      ${isCompact ? "py-2 text-sm" : "py-3 text-base"}
-                      ${
-                        !isScrolled 
-                          ? "bg-white/10 border-white/30 text-white placeholder-white/70 focus:bg-white focus:text-gray-900 focus:placeholder-gray-400 focus:border-transparent" 
-                          : "bg-gray-50  border-gray-200 text-gray-800 placeholder-gray-400 focus:bg-white"
-                      }
-                      focus:ring-1 focus:ring-black/10 focus:shadow-lg 
-                    `}
-                    autoFocus
-                  />
-
-                  {/* Clear/Close Button */}
-                  <button
-                    onClick={() => {
-                      setShowSearch(false);
-                      setSearchQuery("");
-                      clearSearch();
-                    }}
-                    className={`absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full transition-all duration-200 group-focus-within:text-gray-500   ${
-                        !isScrolled ? "text-white/70 hover:text-white hover:bg-white/20 group-focus-within:hover:bg-gray-200" : "text-gray-500 hover:text-gray-500 hover:bg-gray-100 hover:focus:bg-gray-200"
-                    }`}
-                  >
-                    <svg className={`${isCompact ? "w-4 h-4" : "w-5 h-5"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
-
-                {/* Search Results Dropdown */}
-                <AnimatePresence>
-                  {searchQuery.trim() && isSearchInputFocused && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 10, scale: 0.98 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: 10, scale: 0.98 }}
-                      transition={{ duration: 0.2 }}
-                      // Changed shadow-2xl to shadow-lg for a lighter shadow
-                      className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden z-50"
-                    >
-                        {isSearchLoading ? (
-                        <div className="p-8 text-center text-gray-400">
-                          <div className="inline-block animate-spin rounded-full h-4 w-4 border-2 border-gray-300 border-t-black mb-2"></div>
-                          <p className="text-xs font-medium tracking-wide uppercase">Đang tìm kiếm</p>
-                        </div>
-                      ) : searchResults.length > 0 ? (
-                        <div className="flex flex-col">
-                          <div className="px-5 py-2.5 border-b border-gray-50 bg-gray-50/50">
-                            <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Sản phẩm gợi ý</span>
-                          </div>
-
-                          <div className="max-h-[350px] overflow-y-auto custom-scrollbar py-1 px-4">
-                            {searchResults.slice(0, 4).map((product) => (
-                              <Link
-                                key={product.productId}
-                                to={`/products/${product.productId}`}
-                                onMouseDown={(e) => {
-                                  // Prevent blur event from firing before click
-                                  e.preventDefault();
-                                  setShowSearch(false);
-                                  setSearchQuery("");
-                                  clearSearch();
-                                  setIsSearchInputFocused(false);
-                                }}
-                                className="group flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 transition-all duration-200 mb-1 last:mb-0"
-                              >
-                                <div className="relative w-12 h-12 rounded-md overflow-hidden bg-white border border-gray-100 group-hover:border-gray-200 transition-colors flex-shrink-0">
-                                  <img
-                                    src={getPrimaryImageUrl(product)}
-                                    alt={product.name}
-                                    className="w-full h-full object-cover mix-blend-multiply"
-                                  />
-                                </div>
-                                <div className="flex-1 min-w-0 flex flex-col justify-center">
-                                  <h4 className="text-sm font-medium text-gray-900 truncate group-hover:text-black transition-colors">
-                                    {product.name}
-                                  </h4>
-                                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mt-0.5 truncate">
-                                    {product.brand.name}
-                                  </p>
-                                </div>
-                                <div className="text-right flex-shrink-0 pl-2">
-                                  {product.unitPrice > 0 ? (
-                                    <span className="text-sm font-semibold text-gray-900">
-                                      {formatCurrency(product.unitPrice)}
-                                    </span>
-                                  ) : (
-                                    <span className="text-[10px] font-medium text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded-full">
-                                      Liên hệ
-                                    </span>
-                                  )}
-                                </div>
-                              </Link>
-                            ))}
-                          </div>
-
-                          {totalResults > 4 && (
-                            <Link
-                              to={`/products?q=${encodeURIComponent(searchQuery.trim())}`}
-                              onMouseDown={(e) => {
-                                // Prevent blur event from firing before click
-                                e.preventDefault();
-                                setShowSearch(false);
-                                setSearchQuery("");
-                                clearSearch();
-                                setIsSearchInputFocused(false);
-                              }}
-                              className="block py-3 text-center text-xs font-semibold text-gray-600 hover:text-black hover:bg-gray-50 border-t border-gray-100 transition-colors"
-                            >
-                              Xem tất cả <span className="font-bold">{totalResults}</span> kết quả
-                            </Link>
-                          )}
-                        </div>
-                      ) : (
-                        <div className="p-6 text-center">
-                          <p className="text-sm text-gray-900 font-medium">Không tìm thấy kết quả</p>
-                        </div>
-                      )}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            </motion.div>
-          )}
-            </AnimatePresence>
-
-            {/* Actions */}
-            <div className="flex items-center space-x-4 md:space-x-6">
-              {/* Search Icon */}
-              <motion.button
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => {
-                  setShowSearch(!showSearch);
-                  setOpenDropdown(null); // Close any open dropdowns
-                  if (!showSearch) {
-                    // Opening search, clear previous results
-                    clearSearch();
-                  } else {
-                    // Closing search
-                    setSearchQuery("");
-                    clearSearch();
-                  }
-                }}
-                className={`transition-colors p-2 rounded-full ${textColor} ${hoverTextColor}`}>
-                <svg
-                  className="w-6 h-6"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                  />
-                </svg>
-              </motion.button>
-
-              {/* User Menu / Login */}
-              <div className="relative user-menu-container">
-                {isAuthenticated && user ? (
-                  // Authenticated User Menu (from V2)
-                  <>
-                    <motion.button
-                      whileHover={{ scale: 1.1 }}
-                      whileTap={{ scale: 0.95 }}
-                      onClick={() => setShowUserMenu(!showUserMenu)}
-                      className={`transition-colors p-2 rounded-full ${textColor} ${hoverTextColor}`}>
-                      <svg
-                        className="w-6 h-6"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24">
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                        />
-                      </svg>
-                    </motion.button>
-
-                    {/* Dropdown Menu */}
-                    {showUserMenu && (
-                      <motion.div
-                        initial={{ opacity: 0, y: -10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
-                        <div className="px-4 py-2 border-b border-gray-200">
-                          <p className="text-sm font-semibold text-gray-900 truncate">
-                            {user.name}
-                          </p>
-                          <p className="text-xs text-gray-500 truncate">
-                            {user.email}
-                          </p>
-                          {userInfo && (
-                            <div className="flex items-center gap-1.5 mt-2 px-2 py-1 bg-amber-50 border border-amber-200 rounded-md">
-                              <Coins size={12} className="text-amber-600" />
-                              <span className="text-xs font-bold text-amber-800">
-                                {userInfo.loyaltyPoints.toLocaleString('vi-VN')}
-                              </span>
-                              <span className="text-xs text-amber-700">điểm</span>
-                            </div>
-                          )}
-                          {user.role === "ADMIN" && (
-                            <span className="inline-block mt-1 px-2 py-0.5 bg-purple-100 text-purple-700 text-xs rounded-full">
-                              Admin
-                            </span>
-                          )}
-                        </div>
-                        <Link
-                          to="/profile"
-                          className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                          onClick={() => setShowUserMenu(false)}>
-                          <i className="bi bi-person mr-2"></i> Thông tin cá nhân
-                        </Link>
-                        <Link
-                          to="/my-orders"
-                          className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                          onClick={() => setShowUserMenu(false)}>
-                          <i className="bi bi-bag mr-2"></i> Đơn hàng của tôi
-                        </Link>
-                        {user.role === "ADMIN" && (
-                          <Link
-                            to="/admin"
-                            className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                            onClick={() => setShowUserMenu(false)}>
-                            <i className="bi bi-speedometer2 mr-2"></i> Quản trị
-                          </Link>
-                        )}
-                        <hr className="my-2" />
-                        <button
-                          onClick={handleLogout}
-                          className="flex items-center w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50">
-                          <i className="bi bi-box-arrow-right mr-2"></i> Đăng xuất
-                        </button>
-                      </motion.div>
-                    )}
-                  </>
-                ) : (
-                  // Unauthenticated Login Link (adapted from V1/V2)
-                  <motion.div
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.95 }}>
-                    <Link
-                      to="/login"
-                      className={`transition-colors p-2 rounded-full ${textColor} ${hoverTextColor}`}>
-                      <svg
-                        className="w-6 h-6"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24">
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                        />
-                      </svg>
-                    </Link>
-                  </motion.div>
-                )}
-              </div>
-
-              {/* Cart Icon with Badge (from V1 and V2) */}
-              <motion.div
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className="relative">
-                <Link
-                  to="/cart"
-                  className={`transition-colors rounded-full ${textColor} ${hoverTextColor}`}>
-                  <svg
-                    className="w-6 h-6"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24">
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"
-                    />
-                  </svg>
-                  {cartCount > 0 && (
-                    <motion.span
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      className="absolute -top-2 -right-2 bg-red-500 text-white w-4 h-4 rounded-full flex items-center justify-center text-xs font-medium">
-                      {cartCount}
-                    </motion.span>
-                  )}
-                </Link>
-              </motion.div>
-
-              {/* Tra cứu đơn hàng Button */}
-              <Link
-                to="/my-orders"
-                className={`px-4 py-2 rounded-full font-normal text-sm transition-all duration-300 ${
-                  isScrolled
-                    ? "bg-black text-white hover:bg-gray-800"
-                    : "bg-white text-gray-900 hover:bg-gray-100"
-                }`}
-              >
-                Tra cứu đơn hàng
-              </Link>
-            </div>
-          </div>
+          {/* Actions */}
+          <HeaderActions
+            showSearch={showSearch}
+            setShowSearch={setShowSearch}
+            setOpenDropdown={setOpenDropdown}
+            clearSearch={clearSearch}
+            setSearchQuery={setSearchQuery}
+            isAuthenticated={isAuthenticated}
+            user={user}
+            showUserMenu={showUserMenu}
+            setShowUserMenu={setShowUserMenu}
+            isScrolled={isScrolled}
+          />
         </div>
-      </motion.header>
-    );
-  };
+      </div>
+    </motion.header>
+  );
+};

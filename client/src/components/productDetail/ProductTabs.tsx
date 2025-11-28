@@ -94,32 +94,32 @@ export const ProductTabs = ({ product }: ProductTabsProps) => {
         <nav className="flex gap-8 -mb-px">
           <button
             onClick={() => setActiveTab("description")}
-            className={`flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-base transition-colors ${
+            className={`flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-lg transition-colors ${
               activeTab === "description"
                 ? "border-black text-black"
                 : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
             }`}>
-            <FileText className="w-5 h-5" />
+            <FileText className="w-6 h-6" />
             <span>Mô tả sản phẩm</span>
           </button>
           <button
             onClick={() => setActiveTab("usage")}
-            className={`flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-base transition-colors ${
+            className={`flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-lg transition-colors ${
               activeTab === "usage"
                 ? "border-black text-black"
                 : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
             }`}>
-            <Info className="w-5 h-5" />
+            <Info className="w-6 h-6" />
             <span>Sử dụng và bảo quản</span>
           </button>
           <button
             onClick={() => setActiveTab("policy")}
-            className={`flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-base transition-colors ${
+            className={`flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-lg transition-colors ${
               activeTab === "policy"
                 ? "border-black text-black"
                 : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
             }`}>
-            <Shield className="w-5 h-5" />
+            <Shield className="w-6 h-6" />
             <span>Chính sách</span>
           </button>
         </nav>
