@@ -79,7 +79,7 @@ export const HeroCarousel = ({ slides }: HeroCarouselProps) => {
                     y: currentSlide === index ? 0 : 20,
                   }}
                   transition={{ delay: 1.1, duration: 1 }}
-                  className="text-4xl md:text-6xl lg:text-7xl whitespace-nowrap tracking-tight font-normal"
+                  className="text-5xl md:text-7xl lg:text-8xl whitespace-nowrap tracking-tight font-normal"
                 >
                   {slide.title}
                 </motion.h1>

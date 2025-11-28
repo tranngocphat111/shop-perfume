@@ -83,7 +83,7 @@ export const ProductsHeader = ({
                   {item.label}
                 </Link>
               ) : (
-                <span className="text-black font-medium">{item.label}</span>
+                <span className="text-black font-medium  text-base md:text-lg">{item.label}</span>
               )}
               {index < breadcrumbs.length - 1 && (
                 <span className="text-black">{'>'}</span>

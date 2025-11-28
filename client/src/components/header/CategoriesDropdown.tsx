@@ -28,7 +28,7 @@ export const CategoriesDropdown = ({
 
   return (
     <div
-      className="relative group"
+      className="relative group "
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
     >

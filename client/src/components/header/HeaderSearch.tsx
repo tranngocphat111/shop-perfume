@@ -140,9 +140,10 @@ export const HeaderSearch = ({
                   ? "bg-white/10 border-white/30 text-white placeholder-white/70 focus:bg-white focus:text-gray-900 focus:placeholder-gray-400 focus:border-transparent" 
                   : "bg-gray-50  border-gray-200 text-gray-800 placeholder-gray-400 focus:bg-white"
               }
-              focus:ring-1 focus:ring-black/10 focus:shadow-lg 
+               focus:shadow-md 
             `}
             autoFocus
+            style={{ fontFamily: "var(--font-family-base)" }}
           />
 
           {/* Clear/Close Button */}
@@ -175,12 +176,12 @@ export const HeaderSearch = ({
               {isSearchLoading ? (
                 <div className="p-8 text-center text-gray-400">
                   <div className="inline-block animate-spin rounded-full h-4 w-4 border-2 border-gray-300 border-t-black mb-2"></div>
-                  <p className="text-xs font-medium tracking-wide uppercase">Đang tìm kiếm</p>
+                  <p className="text-sm font-medium tracking-wide uppercase">Đang tìm kiếm</p>
                 </div>
               ) : searchResults.length > 0 ? (
                 <div className="flex flex-col">
                   <div className="px-5 py-2.5 border-b border-gray-50 bg-gray-50/50">
-                    <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Sản phẩm gợi ý</span>
+                    <span className="text-sm font-bold text-gray-400 uppercase tracking-wider">Sản phẩm gợi ý</span>
                   </div>
 
                   <div className="max-h-[350px] overflow-y-auto custom-scrollbar py-1 px-4">
@@ -204,20 +205,20 @@ export const HeaderSearch = ({
                           />
                         </div>
                         <div className="flex-1 min-w-0 flex flex-col justify-center">
-                          <h4 className="text-sm font-medium text-gray-900 truncate group-hover:text-black transition-colors">
+                          <h4 className="text-base font-medium text-gray-900 truncate group-hover:text-black transition-colors">
                             {product.name}
                           </h4>
-                          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mt-0.5 truncate">
+                          <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mt-0.5 truncate">
                             {product.brand.name}
                           </p>
                         </div>
                         <div className="text-right flex-shrink-0 pl-2">
                           {product.unitPrice > 0 ? (
-                            <span className="text-sm font-semibold text-gray-900">
+                            <span className="text-base font-semibold text-gray-900">
                               {formatCurrency(product.unitPrice)}
                             </span>
                           ) : (
-                            <span className="text-[10px] font-medium text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded-full">
+                            <span className="text-xs font-medium text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded-full">
                               Liên hệ
                             </span>
                           )}
@@ -235,7 +236,7 @@ export const HeaderSearch = ({
                         clearSearch();
                         setIsSearchInputFocused(false);
                       }}
-                      className="block py-3 text-center text-xs font-semibold text-gray-600 hover:text-black hover:bg-gray-50 border-t border-gray-100 transition-colors"
+                      className="block py-3 text-center text-sm font-semibold text-gray-600 hover:text-black hover:bg-gray-50 border-t border-gray-100 transition-colors"
                     >
                       Xem tất cả <span className="font-bold">{totalResults}</span> kết quả
                     </Link>
@@ -243,7 +244,7 @@ export const HeaderSearch = ({
                 </div>
               ) : (
                 <div className="p-6 text-center">
-                  <p className="text-sm text-gray-900 font-medium">Không tìm thấy kết quả</p>
+                  <p className="text-base text-gray-900 font-medium">Không tìm thấy kết quả</p>
                 </div>
               )}
             </motion.div>
