@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -30,8 +31,10 @@ public class CartController {
     /**
      * Get or create cart by user ID
      * URL: http://localhost:8080/api/carts/user/{userId}
+     * Yêu cầu user phải đăng nhập
      */
     @GetMapping("/user/{userId:\\d+}")
+    @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Get or create cart", description = "Get existing cart or create new cart for user")
     public ResponseEntity<CartResponse> getOrCreateCartByUserId(@PathVariable int userId) {
         log.info("REST request to get or create cart for user: {}", userId);
@@ -42,8 +45,10 @@ public class CartController {
     /**
      * Merge session cart items with user's cart
      * URL: http://localhost:8080/api/carts/user/{userId}/merge
+     * Yêu cầu user phải đăng nhập
      */
     @PostMapping("/user/{userId:\\d+}/merge")
+    @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Merge cart items", description = "Merge session cart items with user's cart in database")
     public ResponseEntity<CartResponse> mergeCartItems(
             @PathVariable int userId,
@@ -54,10 +59,28 @@ public class CartController {
     }
 
     /**
+     * Sync cart items (replace all items in cart)
+     * URL: http://localhost:8080/api/carts/user/{userId}/sync
+     * Yêu cầu user phải đăng nhập
+     */
+    @PostMapping("/user/{userId:\\d+}/sync")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Sync cart items", description = "Replace all items in user's cart with provided items")
+    public ResponseEntity<CartResponse> syncCartItems(
+            @PathVariable int userId,
+            @RequestBody List<CartItemRequest> cartItems) {
+        log.info("REST request to sync cart items for user: {} with {} items", userId, cartItems.size());
+        CartResponse cart = cartService.syncCartItems(userId, cartItems);
+        return ResponseEntity.ok(cart);
+    }
+
+    /**
      * Clear cart (remove all items)
      * URL: http://localhost:8080/api/carts/{cartId}/clear
+     * Yêu cầu user phải đăng nhập
      */
     @DeleteMapping("/{cartId:\\d+}/clear")
+    @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Clear cart", description = "Remove all items from cart")
     public ResponseEntity<CartResponse> clearCart(@PathVariable int cartId) {
         log.info("REST request to clear cart with id: {}", cartId);
@@ -70,8 +93,10 @@ public class CartController {
     /**
      * Get cart items by cart ID
      * URL: http://localhost:8080/api/carts/{cartId}/items
+     * Yêu cầu user phải đăng nhập
      */
     @GetMapping("/{cartId:\\d+}/items")
+    @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Get cart items", description = "Retrieve all items in a specific cart")
     public ResponseEntity<List<CartItemResponse>> getCartItems(@PathVariable int cartId) {
         log.info("REST request to get cart items for cart_id: {}", cartId);
@@ -82,8 +107,10 @@ public class CartController {
     /**
      * Add item to cart
      * URL: http://localhost:8080/api/carts/{cartId}/items
+     * Yêu cầu user phải đăng nhập
      */
     @PostMapping("/{cartId:\\d+}/items")
+    @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Add item to cart", description = "Add a product to the cart")
     public ResponseEntity<CartItemResponse> addItemToCart(
             @PathVariable int cartId,
@@ -96,8 +123,10 @@ public class CartController {
     /**
      * Update cart item
      * URL: http://localhost:8080/api/carts/items/{cartItemId}
+     * Yêu cầu user phải đăng nhập
      */
     @PutMapping("/items/{cartItemId:\\d+}")
+    @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Update cart item", description = "Update quantity of a cart item")
     public ResponseEntity<CartItemResponse> updateCartItem(
             @PathVariable int cartItemId,
@@ -110,8 +139,10 @@ public class CartController {
     /**
      * Remove item from cart
      * URL: http://localhost:8080/api/carts/items/{cartItemId}
+     * Yêu cầu user phải đăng nhập
      */
     @DeleteMapping("/items/{cartItemId:\\d+}")
+    @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Remove item from cart", description = "Remove a specific item from cart")
     public ResponseEntity<Void> removeItemFromCart(@PathVariable int cartItemId) {
         log.info("REST request to remove cart item with id: {}", cartItemId);

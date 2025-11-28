@@ -11,6 +11,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -140,12 +141,14 @@ public class InventoryController {
 
     /**
      * PUT /api/inventories/{id} - Cập nhật số lượng tồn kho
+     * Chỉ ADMIN mới có quyền cập nhật tồn kho
      */
-    @org.springframework.web.bind.annotation.PutMapping("/{id}")
+    @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Update inventory quantity", description = "Update the quantity of an inventory item")
     public ResponseEntity<InventoryResponse> updateInventory(
             @PathVariable Integer id,
-            @org.springframework.web.bind.annotation.RequestBody java.util.Map<String, Integer> request
+            @RequestBody Map<String, Integer> request
     ) {
         log.info("REST request to update inventory {}: {}", id, request);
         Integer quantity = request.get("quantity");
