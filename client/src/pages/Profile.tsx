@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "../contexts/AuthContext";
 import { ProfileSidebar } from "@components/profile/ProfileSidebar";
@@ -8,9 +9,18 @@ import { Orders } from "@components/profile/Orders";
 import { ChangePassword } from "@components/profile/ChangePassword";
 
 const Profile: React.FC = () => {
+  const location = useLocation();
   const { isAuthenticated } = useAuth();
   // Default to "orders" if authenticated, otherwise "account"
   const [active, setActive] = useState<string>(isAuthenticated ? "orders" : "account");
+  
+  // Check if navigating from checkout to add address
+  useEffect(() => {
+    const state = location.state as { activeTab?: string; action?: string } | null;
+    if (state?.activeTab === 'addresses') {
+      setActive('addresses');
+    }
+  }, [location]);
   
   // Update active tab when authentication status changes
   useEffect(() => {

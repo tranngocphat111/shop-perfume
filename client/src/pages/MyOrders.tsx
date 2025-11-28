@@ -29,20 +29,65 @@ export const MyOrders: React.FC = () => {
   useEffect(() => {
     const state = location.state as { email?: string } | null;
     if (state?.email) {
+      // Guest search by email
       setSearchEmail(state.email);
       fetchOrders(state.email);
-    } else if (isAuthenticated && user?.email) {
-      setSearchEmail(user.email);
-      fetchOrders(user.email);
+    } else if (isAuthenticated) {
+      // Authenticated user - fetch by userId (no email param)
+      fetchOrders();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated, user, location]);
 
   const fetchOrders = useCallback(async (email?: string) => {
+    // Nếu user đã đăng nhập và không có email param → gọi API không có email (backend sẽ dùng userId)
+    if (isAuthenticated && !email) {
+      console.log('[MyOrders] 🔵 Fetching orders for authenticated user (by userId)');
+      setIsLoading(true);
+      setError(null);
+      setHasSearched(true);
+      
+      try {
+        const url = `/orders/my-orders`; // Không có email param
+        console.log('[MyOrders] 🔵 API Request URL:', url);
+        
+        const response = await apiService.get<OrderResponse[]>(url);
+        console.log('[MyOrders] 🔵 Orders fetched:', {
+          count: response?.length || 0,
+          orders: response
+        });
+        
+        setOrders(response || []);
+        if (response && response.length === 0) {
+          console.log('[MyOrders] ℹ️ No orders found for user');
+          setError(null);
+        } else {
+          console.log('[MyOrders] ✅ Successfully loaded', response?.length || 0, 'orders');
+          response?.forEach(order => {
+            console.log('[MyOrders] 📦 Order:', {
+              orderId: order.orderId,
+              paymentStatus: order.payment?.status,
+              paymentMethod: order.payment?.method,
+              totalAmount: order.totalAmount
+            });
+          });
+        }
+      } catch (err: any) {
+        console.error('[MyOrders] ❌ Error fetching orders:', err);
+        const errorMessage = err.response?.data?.message || err.message || 'Không thể tải danh sách đơn hàng. Vui lòng thử lại sau.';
+        setError(errorMessage);
+        setOrders([]);
+      } finally {
+        setIsLoading(false);
+      }
+      return;
+    }
+    
+    // Guest search by email
     const emailToSearch = email || searchEmail;
     
     if (!emailToSearch || !emailToSearch.trim()) {
-      console.log('[MyOrders] ⚠️ Email is required');
+      console.log('[MyOrders] ⚠️ Email is required for guest search');
       setError('Vui lòng nhập email để tìm kiếm đơn hàng');
       return;
     }
@@ -99,7 +144,7 @@ export const MyOrders: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [searchEmail]);
+  }, [searchEmail, isAuthenticated]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();

@@ -17,10 +17,15 @@ const clearAuthData = () => {
 };
 
 // Helper function to get auth headers
-const getAuthHeaders = (): Record<string, string> => {
-  const token = localStorage.getItem("auth_token");
+const getAuthHeaders = (endpoint: string = ""): Record<string, string> => {
   const headers: Record<string, string> = {};
-
+  
+  // Don't send token for public endpoints
+  if (isPublicEndpoint(endpoint)) {
+    return headers;
+  }
+  
+  const token = localStorage.getItem("auth_token");
   if (token) {
     headers["Authorization"] = `Bearer ${token}`;
   }
@@ -74,11 +79,44 @@ const attemptTokenRefresh = async (): Promise<boolean> => {
   }
 };
 
+// Check if endpoint is public (doesn't require authentication)
+// NOTE: /orders/create and /orders/my-orders are NOT in this list
+// - We want to send token if user is logged in
+// - Backend allows guest access (permitAll), but if token is present, it will use userId
+const isPublicEndpoint = (endpoint: string): boolean => {
+  // /auth/me requires authentication, so it's not public
+  if (endpoint === "/auth/me" || endpoint.includes("/auth/me")) {
+    return false;
+  }
+  
+  const publicEndpoints = [
+    "/auth/login",
+    "/auth/register",
+    "/auth/refresh",
+    "/auth/logout",
+    "/payment/check-qr",
+    "/products/",
+    "/brands/",
+    "/categories/",
+    "/webhooks/",
+  ];
+  
+  // Check if endpoint matches any public endpoint pattern
+  return publicEndpoints.some(publicPath => endpoint.includes(publicPath)) ||
+         /\/orders\/\d+\/cancel-timeout/.test(endpoint);
+};
+
 // Handle 401 errors - try refresh token first, then redirect
 const handle401Error = async <T>(
   endpoint: string,
   originalRequest?: () => Promise<T>
 ): Promise<T> => {
+  // If this is a public endpoint, don't logout - just reject the error
+  if (isPublicEndpoint(endpoint)) {
+    console.warn(`401 on public endpoint ${endpoint} - not logging out`);
+    return Promise.reject(new Error("Unauthorized"));
+  }
+
   // Try to refresh token first
   const refreshed = await attemptTokenRefresh();
 
@@ -125,7 +163,7 @@ export const apiService = {
   async get<T>(endpoint: string): Promise<T> {
     const makeRequest = async (): Promise<T> => {
       const fullUrl = `${API_BASE_URL}${endpoint}`;
-      const headers = getAuthHeaders();
+      const headers = getAuthHeaders(endpoint);
       const response = await fetch(fullUrl, { headers });
 
       if (!response.ok) {
@@ -161,7 +199,7 @@ export const apiService = {
       const fullUrl = `${API_BASE_URL}${endpoint}`;
       const isFormData = data instanceof FormData;
       const headers: Record<string, string> = {
-        ...getAuthHeaders(),
+        ...getAuthHeaders(endpoint),
         ...(isFormData ? {} : { "Content-Type": "application/json" }),
         ...options?.headers,
       };
@@ -205,7 +243,7 @@ export const apiService = {
       const fullUrl = `${API_BASE_URL}${endpoint}`;
       const isFormData = data instanceof FormData;
       const headers: Record<string, string> = {
-        ...getAuthHeaders(),
+        ...getAuthHeaders(endpoint),
         ...(isFormData ? {} : { "Content-Type": "application/json" }),
         ...options?.headers,
       };
@@ -243,7 +281,7 @@ export const apiService = {
   async delete<T>(endpoint: string): Promise<T> {
     const makeRequest = async (): Promise<T> => {
       const fullUrl = `${API_BASE_URL}${endpoint}`;
-      const headers = getAuthHeaders();
+      const headers = getAuthHeaders(endpoint);
 
       const response = await fetch(fullUrl, {
         method: "DELETE",

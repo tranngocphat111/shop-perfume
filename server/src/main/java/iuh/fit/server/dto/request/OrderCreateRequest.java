@@ -59,7 +59,7 @@ public class OrderCreateRequest {
     @DecimalMin(value = "0.0", inclusive = false, message = "Tổng tiền phải lớn hơn 0")
     private Double totalAmount;
     
-    // User coupon ID (optional - chỉ có khi user đã chọn coupon)
-    private Integer userCouponId;
+    // Coupon ID (optional - chỉ có khi user đã chọn coupon và có đủ điểm)
+    private Integer couponId;
 }
 

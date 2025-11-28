@@ -2,11 +2,12 @@ package iuh.fit.server.services.impl;
 
 import iuh.fit.server.model.entity.Order;
 import iuh.fit.server.model.entity.Payment;
+import iuh.fit.server.model.entity.User;
 import iuh.fit.server.model.enums.Method;
 import iuh.fit.server.model.enums.PaymentStatus;
 import iuh.fit.server.repository.PaymentRepository;
+import iuh.fit.server.repository.UserRepository;
 import iuh.fit.server.services.CodAutoCompleteService;
-import iuh.fit.server.services.UserCouponService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -25,7 +26,7 @@ import java.util.List;
 public class CodAutoCompleteServiceImpl implements CodAutoCompleteService {
 
     private final PaymentRepository paymentRepository;
-    private final UserCouponService userCouponService;
+    private final UserRepository userRepository;
 
     /**
      * Tự động set các đơn COD thành công sau 5 phút
@@ -69,17 +70,21 @@ public class CodAutoCompleteServiceImpl implements CodAutoCompleteService {
                     log.info("✅ Auto-completed COD order: Order ID = {}, Payment ID = {}", 
                             order.getOrderId(), payment.getPaymentId());
                     
-                    // Tự động tặng coupon cho user nếu đạt điều kiện
+                    // Tích điểm cho user khi đơn hàng COD được thanh toán
+                    // Quy tắc: 1 điểm = 10,000 VND
                     if (order.getUser() != null) {
                         try {
-                            log.info("🎁 Auto giving coupons to user {} after COD order {}", 
-                                    order.getUser().getUserId(), order.getOrderId());
-                            userCouponService.autoGiveCouponsAfterOrder(
-                                    order.getUser().getUserId(), 
-                                    order.getTotalAmount());
+                            User user = order.getUser();
+                            int pointsToAdd = (int) Math.floor(order.getTotalAmount() / 10000.0);
+                            int newPoints = user.getLoyaltyPoints() + pointsToAdd;
+                            user.setLoyaltyPoints(newPoints);
+                            userRepository.save(user);
+                            
+                            log.info("🎁 Added {} points to user {} (total: {} points) after COD order {}", 
+                                    pointsToAdd, user.getUserId(), newPoints, order.getOrderId());
                         } catch (Exception e) {
-                            log.error("❌ Error auto giving coupons for order {}", order.getOrderId(), e);
-                            // Don't fail the payment if coupon giving fails
+                            log.error("❌ Error adding loyalty points for order {}", order.getOrderId(), e);
+                            // Don't fail the payment if points adding fails
                         }
                     }
                     

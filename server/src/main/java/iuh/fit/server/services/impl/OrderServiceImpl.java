@@ -12,8 +12,11 @@ import iuh.fit.server.model.enums.ShipmentStatus;
 import iuh.fit.server.repository.OrderRepository;
 import iuh.fit.server.repository.PaymentRepository;
 import iuh.fit.server.repository.ProductRepository;
+import iuh.fit.server.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,9 +33,9 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
     private final OrderRepository orderRepository;
     private final PaymentRepository paymentRepository;
     private final ProductRepository productRepository;
+    private final UserRepository userRepository;
     private final OrderMapper orderMapper;
-    private final iuh.fit.server.services.UserCouponService userCouponService;
-    private final iuh.fit.server.repository.UserCouponRepository userCouponRepository;
+    private final iuh.fit.server.repository.CouponRepository couponRepository;
     
     // Timeout for QR payment: 30 minutes in milliseconds
     private static final long QR_PAYMENT_TIMEOUT_MS = 30 * 60 * 1000;
@@ -63,6 +66,42 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
         order.setGuestPhone(request.getPhone());
         order.setGuestAddress(request.getAddress());
         order.setCreatedAt(new Date());
+        
+        // Lấy userId từ SecurityContext nếu user đã đăng nhập
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            log.info("🔍 [createOrder] Authentication check: authentication={}, isAuthenticated={}", 
+                    authentication != null ? "present" : "null",
+                    authentication != null ? authentication.isAuthenticated() : false);
+            
+            if (authentication != null && authentication.isAuthenticated() && 
+                !authentication.getPrincipal().equals("anonymousUser")) {
+                Object principal = authentication.getPrincipal();
+                log.info("🔍 [createOrder] Principal type: {}", principal.getClass().getName());
+                
+                if (principal instanceof org.springframework.security.core.userdetails.UserDetails) {
+                    String email = ((org.springframework.security.core.userdetails.UserDetails) principal).getUsername();
+                    log.info("🔍 [createOrder] User email from token: {}", email);
+                    
+                    Optional<User> userOpt = userRepository.findByEmail(email);
+                    if (userOpt.isPresent()) {
+                        User user = userOpt.get();
+                        order.setUser(user);
+                        log.info("✅ [createOrder] Set user_id={} for order (authenticated user: {})", 
+                                user.getUserId(), email);
+                    } else {
+                        log.warn("⚠️ [createOrder] User not found in database for email: {}", email);
+                    }
+                } else {
+                    log.warn("⚠️ [createOrder] Principal is not UserDetails: {}", principal.getClass().getName());
+                }
+            } else {
+                log.info("ℹ️ [createOrder] No authentication or anonymous user - creating guest order");
+            }
+        } catch (Exception e) {
+            log.error("❌ [createOrder] Error setting user for order: {}", e.getMessage(), e);
+            // Continue as guest order if cannot get user
+        }
 
         // Create OrderItems
         List<OrderItem> orderItems = request.getCartItems().stream().map(cartItem -> {
@@ -113,46 +152,55 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
         shipment.setOrder(order);
         order.setShipment(shipment);
 
-        // Save order first (cascade will save orderItems, payment, and shipment)
-        Order savedOrder = orderRepository.save(order);
-        
-        // Xử lý user coupon nếu có
-        if (request.getUserCouponId() != null) {
+        // Xử lý coupon và điểm tích lũy nếu user đã đăng nhập
+        User orderUser = order.getUser();
+        if (orderUser != null && request.getCouponId() != null) {
             try {
-                log.info("Processing user coupon: userCouponId={}, orderId={}", 
-                        request.getUserCouponId(), savedOrder.getOrderId());
+                log.info("Processing coupon: couponId={}, userId={}", 
+                        request.getCouponId(), orderUser.getUserId());
                 
-                // Lấy UserCoupon để verify và mark as USED
-                Optional<iuh.fit.server.model.entity.UserCoupon> userCouponOpt = 
-                        userCouponRepository.findById(request.getUserCouponId());
+                Optional<Coupon> couponOpt = couponRepository.findById(request.getCouponId());
                 
-                if (userCouponOpt.isPresent()) {
-                    iuh.fit.server.model.entity.UserCoupon userCoupon = userCouponOpt.get();
+                if (couponOpt.isPresent()) {
+                    Coupon coupon = couponOpt.get();
+                    Date currentDate = new Date();
                     
-                    // Verify status is AVAILABLE
-                    if (userCoupon.getStatus() == iuh.fit.server.model.enums.CouponStatus.AVAILABLE) {
-                        // Mark as USED
-                        userCoupon.setStatus(iuh.fit.server.model.enums.CouponStatus.USED);
-                        userCoupon.setUsedAt(new Date());
-                        userCoupon.setOrder(savedOrder);
-                        userCouponRepository.save(userCoupon);
-                        
-                        // Set coupon reference in order
-                        savedOrder.setCoupon(userCoupon.getCoupon());
-                        orderRepository.save(savedOrder);
-                        
-                        log.info("✅ User coupon marked as USED: {}", request.getUserCouponId());
+                    // Validate coupon
+                    if (!coupon.isActive()) {
+                        log.warn("⚠️ Coupon is not active: {}", request.getCouponId());
+                    } else if (currentDate.before(coupon.getStartDate()) || currentDate.after(coupon.getEndDate())) {
+                        log.warn("⚠️ Coupon is expired or not yet valid: {}", request.getCouponId());
+                    } else if (orderUser.getLoyaltyPoints() < coupon.getRequiredPoints()) {
+                        log.warn("⚠️ User has {} points, but coupon requires {} points", 
+                                orderUser.getLoyaltyPoints(), coupon.getRequiredPoints());
                     } else {
-                        log.warn("⚠️ User coupon is not AVAILABLE: status={}", userCoupon.getStatus());
+                        // Apply coupon discount
+                        double discountAmount = (request.getTotalAmount() * coupon.getDiscountPercent()) / 100.0;
+                        double finalAmount = request.getTotalAmount() - discountAmount;
+                        order.setTotalAmount(finalAmount);
+                        
+                        // Set coupon reference
+                        order.setCoupon(coupon);
+                        
+                        // Deduct loyalty points
+                        int newPoints = orderUser.getLoyaltyPoints() - coupon.getRequiredPoints();
+                        orderUser.setLoyaltyPoints(newPoints);
+                        userRepository.save(orderUser);
+                        
+                        log.info("✅ Coupon applied: discount={}, points deducted={}, remaining points={}", 
+                                discountAmount, coupon.getRequiredPoints(), newPoints);
                     }
                 } else {
-                    log.warn("⚠️ User coupon not found: {}", request.getUserCouponId());
+                    log.warn("⚠️ Coupon not found: {}", request.getCouponId());
                 }
             } catch (Exception e) {
-                log.error("❌ Error processing user coupon", e);
+                log.error("❌ Error processing coupon", e);
                 // Don't fail order creation if coupon processing fails
             }
         }
+
+        // Save order first (cascade will save orderItems, payment, and shipment)
+        Order savedOrder = orderRepository.save(order);
 
 
         // Map to response using OrderMapper
@@ -431,17 +479,21 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
                 paymentRepository.save(payment);
                 log.info("🎉 Payment status updated successfully! Order ID: {}", orderId);
                 
-                // Tự động tặng coupon cho user nếu đạt điều kiện
+                // Tích điểm cho user khi đơn hàng được thanh toán
+                // Quy tắc: 1 điểm = 10,000 VND
                 if (order.getUser() != null) {
                     try {
-                        log.info("🎁 Auto giving coupons to user {} after order {}", 
-                                order.getUser().getUserId(), orderId);
-                        userCouponService.autoGiveCouponsAfterOrder(
-                                order.getUser().getUserId(), 
-                                order.getTotalAmount());
+                        User user = order.getUser();
+                        int pointsToAdd = (int) Math.floor(order.getTotalAmount() / 10000.0);
+                        int newPoints = user.getLoyaltyPoints() + pointsToAdd;
+                        user.setLoyaltyPoints(newPoints);
+                        userRepository.save(user);
+                        
+                        log.info("🎁 Added {} points to user {} (total: {} points) after order {}", 
+                                pointsToAdd, user.getUserId(), newPoints, orderId);
                     } catch (Exception e) {
-                        log.error("❌ Error auto giving coupons", e);
-                        // Don't fail the payment if coupon giving fails
+                        log.error("❌ Error adding loyalty points", e);
+                        // Don't fail the payment if points adding fails
                     }
                 }
                 

@@ -18,7 +18,7 @@ import java.util.Set;
 @AllArgsConstructor
 @NoArgsConstructor
 @Table(name = "user")
-@lombok.ToString(exclude = {"orders", "reviews", "roles", "userCoupons"})
+@lombok.ToString(exclude = {"orders", "reviews", "roles"})
 public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -35,6 +35,9 @@ public class User {
     private UserStatus status;
 
     private String avatar;
+
+    @Column(name = "loyalty_points")
+    private Integer loyaltyPoints = 0;
 
     @CreationTimestamp
     @Temporal(TemporalType.TIMESTAMP)
@@ -60,7 +63,4 @@ public class User {
             inverseJoinColumns = @JoinColumn(name = "role_id")
     )
     private Set<Role> roles = new HashSet<>();
-    
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
-    private List<UserCoupon> userCoupons;
 }

@@ -4,7 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { apiService } from '../../services/api';
 import type { OrderResponse } from '../../types';
 import { OrderCard, LoadingState, EmptyState } from '../orders';
-import { FaSpinner } from 'react-icons/fa';
+import { FaSpinner, FaExclamationCircle } from 'react-icons/fa';
 import { generateOrderQRCode } from '../../services/sepay';
 
 export const Orders = () => {
@@ -19,7 +19,7 @@ export const Orders = () => {
 
   // Auto-load orders if user is authenticated
   useEffect(() => {
-    if (isAuthenticated && user?.email) {
+    if (isAuthenticated) {
       fetchOrders();
     } else {
       setIsLoading(false);
@@ -27,33 +27,41 @@ export const Orders = () => {
   }, [isAuthenticated, user]);
 
   const fetchOrders = useCallback(async () => {
-    if (!user?.email) {
+    if (!isAuthenticated) {
       return;
     }
 
-    console.log('[Profile Orders] 🔵 Fetching orders for user:', user.email);
     setIsLoading(true);
     setError(null);
     
     try {
-      const url = `/orders/my-orders?email=${encodeURIComponent(user.email)}`;
+      const url = `/orders/my-orders`;
       const response = await apiService.get<OrderResponse[]>(url);
-      
-      console.log('[Profile Orders] 🔵 Orders fetched:', {
-        count: response?.length || 0,
-        orders: response
-      });
-      
+      // Nếu có response (dù rỗng) → không có lỗi, chỉ là không có đơn hàng
       setOrders(response || []);
+      setError(null); // Clear error nếu thành công
     } catch (err: any) {
       console.error('[Profile Orders] ❌ Error fetching orders:', err);
-      const errorMessage = err.response?.data?.message || err.message || 'Không thể tải danh sách đơn hàng.';
-      setError(errorMessage);
-      setOrders([]);
+      const status = err.response?.status;
+      const message = err.response?.data?.message || '';
+      
+      // Nếu là 400 với message về "không có đơn hàng" → xử lý như empty array
+      if (status === 400 && (message.includes('không có đơn hàng') || message.includes('Không có đơn hàng'))) {
+        setOrders([]);
+        setError(null);
+      } else if (status >= 500 || !status) {
+        // Chỉ hiển thị error cho lỗi server hoặc network
+        setError('Không thể tải danh sách đơn hàng. Vui lòng thử lại sau.');
+        setOrders([]);
+      } else {
+        // Các lỗi khác (401, 403, etc.) → cũng xử lý như không có đơn hàng
+        setOrders([]);
+        setError(null);
+      }
     } finally {
       setIsLoading(false);
     }
-  }, [user]);
+  }, [isAuthenticated]);
 
   const getPaymentMethodLabel = (method: string) => {
     const methodMap: Record<string, string> = {
@@ -136,12 +144,18 @@ export const Orders = () => {
   if (error) {
     return (
       <div className="bg-white border border-gray-100 rounded-lg shadow-sm p-6">
-        <h3 className="text-lg font-medium mb-3">Quản lý đơn hàng</h3>
-        <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded">
-          <p className="text-red-700">{error}</p>
+        <h3 className="text-lg font-medium mb-4">Quản lý đơn hàng</h3>
+        <div className="py-12 px-6 text-center">
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-amber-50 mb-5">
+            <FaExclamationCircle className="text-4xl text-amber-500" />
+          </div>
+          <h3 className="text-xl font-semibold text-gray-800 mb-2">Không thể tải đơn hàng</h3>
+          <p className="text-gray-500 mb-6 max-w-md mx-auto">
+            {error}
+          </p>
           <button
             onClick={fetchOrders}
-            className="mt-4 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
+            className="px-6 py-3 bg-black text-white rounded-lg font-medium hover:bg-gray-800 transition-colors shadow-sm"
           >
             Thử lại
           </button>
@@ -163,7 +177,7 @@ export const Orders = () => {
       </div>
       
       {orders.length === 0 ? (
-        <EmptyState type="no-orders" email={user.email} />
+        <EmptyState type="no-orders" isAuthenticated={isAuthenticated} />
       ) : (
         <div className="space-y-4">
           {orders.map((order) => (

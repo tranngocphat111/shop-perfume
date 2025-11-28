@@ -5,6 +5,42 @@ import { useAuth } from "../contexts/AuthContext";
 import { useBrands } from "../hooks/useBrands";
 import { useCategories } from "../hooks/useCategories";
 import { useSearch } from "../contexts/SearchContext";
+import { getPrimaryImageUrl, formatCurrency } from "../utils/helpers";
+import { userService, type UserInfo } from "../services/user.service";
+import { Coins } from "lucide-react";
+
+/**
+ * NavLink Component - Dynamically styles links based on header scroll state.
+ */
+interface NavLinkProps {
+  to: string;
+  children: React.ReactNode;
+  isScrolled: boolean;
+  isCompact?: boolean;
+}
+
+const NavLink = ({
+  to,
+  children,
+  isScrolled,
+  isCompact = false,
+}: NavLinkProps) => (
+  <Link
+    to={to}
+    className={`font-normal transition-all duration-300 relative group ${
+      isCompact ? "text-sm" : "text-base"
+    } ${
+      isScrolled
+        ? "text-gray-700 hover:text-black"
+        : "text-white hover:text-gray-200"
+    }`}>
+    {children}
+    <span
+      className={`absolute -bottom-1 left-0 w-0 h-0.5 transition-all group-hover:w-full ${
+        isScrolled ? "bg-black" : "bg-white"
+      }`}></span>
+  </Link>
+);
 import { HeaderLogo } from "./header/HeaderLogo";
 import { HeaderNavigation } from "./header/HeaderNavigation";
 import { HeaderSearch } from "./header/HeaderSearch";
@@ -14,7 +50,9 @@ import { HeaderActions } from "./header/HeaderActions";
  * Header Component - Combines dynamic scrolling effects and auth management.
  */
 export const Header = () => {
-  const { user, isAuthenticated } = useAuth();
+  const { getCartCount } = useCart();
+  const { user, isAuthenticated, logout } = useAuth();
+  const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
   const {
     brands: allBrands,
     groupedBrands,
@@ -43,6 +81,15 @@ export const Header = () => {
   const [showUserMenu, setShowUserMenu] = useState(false);
 
   const { scrollY } = useScroll();
+
+  // Load user info including loyalty points
+  useEffect(() => {
+    if (isAuthenticated) {
+      userService.getCurrentUser().then(setUserInfo).catch(console.error);
+    } else {
+      setUserInfo(null);
+    }
+  }, [isAuthenticated]);
 
   // Listen for add to cart event to force show header
   useEffect(() => {

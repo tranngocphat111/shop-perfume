@@ -13,7 +13,7 @@ import java.util.List;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-@lombok.ToString(exclude = {"orders", "userCoupons"})
+@lombok.ToString(exclude = {"orders"})
 public class Coupon {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -22,23 +22,14 @@ public class Coupon {
     private String code;
     private String description;
     private double discountPercent;
-    private double minOrderValue;
+    
+    @Column(name = "required_points")
+    private Integer requiredPoints = 0;
+    
     private Date startDate;
     private Date endDate;
     private boolean isActive;
-    
-    // Điều kiện để tự động tặng coupon này cho user
-    // Ví dụ: 1000000 = khi user mua đơn hàng >= 1 triệu thì được tặng coupon này
-    @Column(name = "trigger_order_value")
-    private Double triggerOrderValue;
-    
-    // Số lần tối đa có thể phát hành cho mỗi user (null = không giới hạn)
-    @Column(name = "max_per_user")
-    private Integer maxPerUser;
 
     @OneToMany(mappedBy = "coupon")
     private List<Order> orders;
-    
-    @OneToMany(mappedBy = "coupon", cascade = CascadeType.ALL)
-    private List<UserCoupon> userCoupons;
 }

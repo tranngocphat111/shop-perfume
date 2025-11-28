@@ -7,16 +7,20 @@ import iuh.fit.server.dto.request.RegisterRequest;
 import iuh.fit.server.dto.request.ResetPasswordRequest;
 import iuh.fit.server.dto.response.AuthResponse;
 import iuh.fit.server.dto.response.TokenRefreshResponse;
+import iuh.fit.server.dto.response.UserInfoResponse;
 import iuh.fit.server.services.AuthService;
+import iuh.fit.server.repository.UserRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
+import java.util.Optional;
 
 /**
  * Controller xử lý đăng ký và đăng nhập
@@ -24,10 +28,12 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/auth")
 @RequiredArgsConstructor
+@Slf4j
 @Tag(name = "Authentication", description = "API xử lý đăng ký và đăng nhập")
 public class AuthController {
 
     private final AuthService authService;
+    private final UserRepository userRepository;
 
     @PostMapping("/register")
     @Operation(summary = "Đăng ký tài khoản mới")
@@ -64,6 +70,53 @@ public class AuthController {
     }
     
     /**
+     * GET /api/auth/me - Lấy thông tin user hiện tại (bao gồm điểm tích lũy)
+     */
+    @GetMapping("/me")
+    @Operation(summary = "Get current user info", description = "Get current authenticated user information including loyalty points")
+    public ResponseEntity<UserInfoResponse> getCurrentUser(Authentication authentication) {
+        try {
+            if (authentication == null || !authentication.isAuthenticated() || 
+                authentication.getPrincipal().equals("anonymousUser")) {
+                log.warn("Unauthenticated request to /auth/me");
+                return ResponseEntity.status(401).build();
+            }
+            
+            UserDetails userDetails = (UserDetails) authentication.getPrincipal();
+            String email = userDetails.getUsername();
+            log.info("Getting user info for email: {}", email);
+            
+            Optional<iuh.fit.server.model.entity.User> userOpt = userRepository.findByEmail(email);
+            if (userOpt.isEmpty()) {
+                log.warn("User not found for email: {}", email);
+                return ResponseEntity.status(404).build();
+            }
+            
+            iuh.fit.server.model.entity.User user = userOpt.get();
+            UserInfoResponse response = new UserInfoResponse();
+            response.setUserId(user.getUserId());
+            response.setName(user.getName());
+            response.setEmail(user.getEmail());
+            response.setLoyaltyPoints(user.getLoyaltyPoints() != null ? user.getLoyaltyPoints() : 0);
+            
+            // Safely get role
+            String role = "CUSTOMER";
+            if (user.getRoles() != null && !user.getRoles().isEmpty()) {
+                role = user.getRoles().stream()
+                    .map(r -> r != null ? r.getName() : "CUSTOMER")
+                    .filter(name -> name != null)
+                    .findFirst()
+                    .orElse("CUSTOMER");
+            }
+            response.setRole(role);
+            
+            log.info("Successfully retrieved user info for userId: {}, loyaltyPoints: {}", 
+                    user.getUserId(), response.getLoyaltyPoints());
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("Error getting current user info", e);
+            return ResponseEntity.status(500).build();
+        }
      * Quên mật khẩu - gửi email reset password
      * Public endpoint
      */

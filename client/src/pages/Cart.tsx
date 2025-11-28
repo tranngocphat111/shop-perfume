@@ -14,9 +14,9 @@ export const Cart = () => {
     removeFromCart, 
     updateQuantity, 
     getCartTotal,
-    appliedUserCouponId,
+    appliedCouponId,
     discount,
-    setAppliedUserCouponId,
+    setAppliedCouponId,
     setDiscount
   } = useCart();
 
@@ -33,9 +33,9 @@ export const Cart = () => {
     updateQuantity(productId, newQuantity);
     
     // Reset coupon when cart changes (will be re-validated by CartSummary)
-    if (appliedUserCouponId) {
+    if (appliedCouponId) {
       setDiscount(0);
-      setAppliedUserCouponId(null);
+      setAppliedCouponId(null);
     }
   };
 
@@ -43,14 +43,14 @@ export const Cart = () => {
     removeFromCart(productId);
     
     // Reset coupon when cart changes
-    if (appliedUserCouponId) {
+    if (appliedCouponId) {
       setDiscount(0);
-      setAppliedUserCouponId(null);
+      setAppliedCouponId(null);
     }
   };
 
-  const handleCouponApply = (userCouponId: number | null, discountAmount: number) => {
-    setAppliedUserCouponId(userCouponId);
+  const handleCouponApply = (couponId: number | null, discountAmount: number) => {
+    setAppliedCouponId(couponId);
     setDiscount(discountAmount);
   };
 

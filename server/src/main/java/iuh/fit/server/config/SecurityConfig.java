@@ -82,6 +82,9 @@ public class SecurityConfig {
                     .requestMatchers("/webhooks/sepay/manual", "/webhooks/sepay/test", "/webhooks/sepay/health").permitAll()
                     .requestMatchers("/webhooks/sepay/logs", "/webhooks/sepay/logs/**").permitAll()
                     
+                    // Authentication endpoints (login, register, refresh are public)
+//                     .requestMatchers("/auth/login", "/auth/register", "/auth/refresh").permitAll()
+                    .requestMatchers("/auth/me").authenticated() // /auth/me requires authentication
                     // Authentication endpoints
                     .requestMatchers("/auth/**").permitAll()
                     .requestMatchers("/api/auth/**").permitAll() // Support context-path=/api
@@ -112,7 +115,7 @@ public class SecurityConfig {
                     .requestMatchers("/orders/**").authenticated()
                     .requestMatchers("/addresses/**").authenticated()
                     .requestMatchers("/users/me").authenticated()
-                    .requestMatchers("/user-coupons/**").authenticated() // User coupon endpoints
+                    .requestMatchers("/coupons/**").authenticated() // Coupon endpoints (loyalty points system)
 
                     // ========== ADMIN ENDPOINTS (Require ADMIN role) ==========
                     // Note: Method-level @PreAuthorize provides additional granular control

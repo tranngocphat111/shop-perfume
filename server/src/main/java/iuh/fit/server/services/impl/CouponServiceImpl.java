@@ -4,7 +4,10 @@ import iuh.fit.server.dto.request.CouponValidationRequest;
 import iuh.fit.server.dto.response.CouponResponse;
 import iuh.fit.server.dto.response.CouponValidationResponse;
 import iuh.fit.server.model.entity.Coupon;
+import iuh.fit.server.model.entity.User;
 import iuh.fit.server.repository.CouponRepository;
+import iuh.fit.server.repository.OrderRepository;
+import iuh.fit.server.repository.UserRepository;
 import iuh.fit.server.services.CouponService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,6 +25,8 @@ import java.util.stream.Collectors;
 public class CouponServiceImpl implements CouponService {
     
     private final CouponRepository couponRepository;
+    private final UserRepository userRepository;
+    private final OrderRepository orderRepository;
     
     @Override
     @Transactional(readOnly = true)
@@ -59,21 +64,13 @@ public class CouponServiceImpl implements CouponService {
             return new CouponValidationResponse(false, "Mã khuyến mãi đã hết hạn");
         }
         
-        // Check minimum order value
-        if (request.getTotalAmount() < coupon.getMinOrderValue()) {
-            log.warn("Order total {} is less than minimum required {}", 
-                    request.getTotalAmount(), coupon.getMinOrderValue());
-            return new CouponValidationResponse(
-                false, 
-                String.format("Đơn hàng tối thiểu %.0f₫ để áp dụng mã này", coupon.getMinOrderValue())
-            );
-        }
+        // Không cần check minimum order value nữa - coupon áp dụng cho tất cả đơn hàng
         
         // Calculate discount
         double discountAmount = (request.getTotalAmount() * coupon.getDiscountPercent()) / 100.0;
         
         // Build success response
-        CouponResponse couponResponse = convertToResponse(coupon);
+        CouponResponse couponResponse = convertToResponse(coupon, null);
         CouponValidationResponse response = new CouponValidationResponse();
         response.setValid(true);
         response.setMessage("Mã khuyến mãi hợp lệ");
@@ -93,7 +90,47 @@ public class CouponServiceImpl implements CouponService {
         Date currentDate = new Date();
         List<Coupon> coupons = couponRepository.findAllActiveCoupons(currentDate);
         return coupons.stream()
-                .map(this::convertToResponse)
+                .map(c -> convertToResponse(c, null))
+                .collect(Collectors.toList());
+    }
+    
+    @Override
+    @Transactional(readOnly = true)
+    public List<CouponResponse> getAvailableCoupons(Integer userId) {
+        log.info("Fetching all available coupons for user: {}", userId);
+        Date currentDate = new Date();
+        List<Coupon> coupons = couponRepository.findAllActiveCoupons(currentDate);
+        
+        Integer userPoints = 0;
+        boolean hasPlacedOrder = false;
+        if (userId != null) {
+            Optional<User> userOpt = userRepository.findById(userId);
+            if (userOpt.isPresent()) {
+                userPoints = userOpt.get().getLoyaltyPoints();
+                hasPlacedOrder = orderRepository.hasUserPlacedOrder(userId);
+            }
+        }
+        
+        final Integer finalUserPoints = userPoints;
+        final boolean finalHasPlacedOrder = hasPlacedOrder;
+        
+        return coupons.stream()
+                .filter(c -> {
+                    // Filter WELCOME5: chỉ hiển thị cho user chưa từng đặt hàng và chưa sử dụng
+                    if ("WELCOME5".equalsIgnoreCase(c.getCode())) {
+                        if (userId == null) {
+                            return false; // Guest không được dùng
+                        }
+                        // Nếu user đã đặt hàng hoặc đã sử dụng WELCOME5 thì không hiển thị
+                        if (finalHasPlacedOrder || orderRepository.hasUserUsedCoupon(userId, c.getCouponId())) {
+                            log.info("Filtering WELCOME5 for user {}: hasPlacedOrder={}, hasUsedCoupon={}", 
+                                    userId, finalHasPlacedOrder, orderRepository.hasUserUsedCoupon(userId, c.getCouponId()));
+                            return false;
+                        }
+                    }
+                    return true;
+                })
+                .map(c -> convertToResponse(c, finalUserPoints))
                 .collect(Collectors.toList());
     }
     
@@ -103,22 +140,94 @@ public class CouponServiceImpl implements CouponService {
         log.info("Fetching coupon by code: {}", code);
         String normalizedCode = code.trim().toUpperCase();
         Optional<Coupon> couponOpt = couponRepository.findByCodeIgnoreCase(normalizedCode);
-        return couponOpt.map(this::convertToResponse).orElse(null);
+        return couponOpt.map(c -> convertToResponse(c, null)).orElse(null);
     }
     
     /**
      * Convert Coupon entity to CouponResponse DTO
      */
-    private CouponResponse convertToResponse(Coupon coupon) {
+    private CouponResponse convertToResponse(Coupon coupon, Integer userPoints) {
         CouponResponse response = new CouponResponse();
         response.setCouponId(coupon.getCouponId());
         response.setCode(coupon.getCode());
         response.setDescription(coupon.getDescription());
         response.setDiscountPercent(coupon.getDiscountPercent());
-        response.setMinOrderValue(coupon.getMinOrderValue());
+        response.setRequiredPoints(coupon.getRequiredPoints() != null ? coupon.getRequiredPoints() : 0);
         response.setStartDate(coupon.getStartDate());
         response.setEndDate(coupon.getEndDate());
         response.setActive(coupon.isActive());
+        
+        // Check if user can use this coupon (has enough points)
+        if (userPoints != null) {
+            response.setCanUse(userPoints >= response.getRequiredPoints());
+        } else {
+            response.setCanUse(false);
+        }
+        
+        return response;
+    }
+    
+    @Override
+    @Transactional(readOnly = true)
+    public CouponValidationResponse validateCouponWithPoints(Integer couponId, Integer userId, Double totalAmount) {
+        log.info("Validating coupon with points: couponId={}, userId={}, totalAmount={}", 
+                couponId, userId, totalAmount);
+        
+        Optional<Coupon> couponOpt = couponRepository.findById(couponId);
+        if (couponOpt.isEmpty()) {
+            return new CouponValidationResponse(false, "Mã giảm giá không tồn tại");
+        }
+        
+        Coupon coupon = couponOpt.get();
+        Date currentDate = new Date();
+        
+        // Check if coupon is active
+        if (!coupon.isActive()) {
+            return new CouponValidationResponse(false, "Mã giảm giá không còn hiệu lực");
+        }
+        
+        // Check date validity
+        if (currentDate.before(coupon.getStartDate()) || currentDate.after(coupon.getEndDate())) {
+            return new CouponValidationResponse(false, "Mã giảm giá không còn hiệu lực");
+        }
+        
+        // Không cần check minimum order value nữa - coupon áp dụng cho tất cả đơn hàng
+        
+        // Check user's loyalty points
+        if (userId == null) {
+            return new CouponValidationResponse(false, "Vui lòng đăng nhập để sử dụng mã giảm giá");
+        }
+        
+        Optional<User> userOpt = userRepository.findById(userId);
+        if (userOpt.isEmpty()) {
+            return new CouponValidationResponse(false, "Người dùng không tồn tại");
+        }
+        
+        User user = userOpt.get();
+        int requiredPoints = coupon.getRequiredPoints() != null ? coupon.getRequiredPoints() : 0;
+        
+        if (user.getLoyaltyPoints() < requiredPoints) {
+            return new CouponValidationResponse(
+                false, 
+                String.format("Bạn cần %d điểm để sử dụng mã này. Hiện tại bạn có %d điểm", 
+                        requiredPoints, user.getLoyaltyPoints())
+            );
+        }
+        
+        // Calculate discount
+        double discountAmount = (totalAmount * coupon.getDiscountPercent()) / 100.0;
+        
+        // Build success response
+        CouponResponse couponResponse = convertToResponse(coupon, user.getLoyaltyPoints());
+        CouponValidationResponse response = new CouponValidationResponse();
+        response.setValid(true);
+        response.setMessage("Mã khuyến mãi hợp lệ");
+        response.setCoupon(couponResponse);
+        response.setDiscountAmount(discountAmount);
+        
+        log.info("Coupon validated successfully: couponId={}, discount={}%", 
+                couponId, coupon.getDiscountPercent());
+        
         return response;
     }
 }
