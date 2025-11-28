@@ -1,34 +1,42 @@
 package iuh.fit.server.services.impl;
 
 import iuh.fit.server.dto.request.LoginRequest;
+import iuh.fit.server.dto.request.RefreshTokenRequest;
 import iuh.fit.server.dto.request.RegisterRequest;
 import iuh.fit.server.dto.response.AuthResponse;
+import iuh.fit.server.dto.response.TokenRefreshResponse;
 import iuh.fit.server.exception.AuthenticationException;
 import iuh.fit.server.exception.RegistrationException;
 import iuh.fit.server.services.AuthService;
 
+import iuh.fit.server.model.entity.RefreshToken;
 import iuh.fit.server.model.entity.User;
 import iuh.fit.server.model.entity.Role;
 import iuh.fit.server.model.enums.UserStatus;
+import iuh.fit.server.repository.RefreshTokenRepository;
 import iuh.fit.server.repository.UserRepository;
 import iuh.fit.server.repository.RoleRepository;
 import iuh.fit.server.util.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Date;
 import java.util.HashSet;
 import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class AuthServiceImpl implements AuthService{
 
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
+    private final RefreshTokenRepository refreshTokenRepository;
 
     @Transactional
     @Override
@@ -54,9 +62,14 @@ public class AuthServiceImpl implements AuthService{
         user = userRepository.save(user);
 
         String token = jwtTokenProvider.generateToken(user.getEmail());
+        String refreshTokenString = jwtTokenProvider.generateRefreshToken(user.getEmail());
+
+        // Lưu refresh token vào database
+        saveRefreshToken(user, refreshTokenString);
 
         return new AuthResponse(
                 token,
+                refreshTokenString,
                 "Bearer",
                 user.getUserId(),
                 user.getName(),
@@ -79,6 +92,10 @@ public class AuthServiceImpl implements AuthService{
         }
 
         String token = jwtTokenProvider.generateToken(user.getEmail());
+        String refreshTokenString = jwtTokenProvider.generateRefreshToken(user.getEmail());
+
+        // Lưu refresh token vào database
+        saveRefreshToken(user, refreshTokenString);
 
         // Lấy role đầu tiên từ set roles
         String roleName = user.getRoles().stream()
@@ -88,12 +105,112 @@ public class AuthServiceImpl implements AuthService{
 
         return new AuthResponse(
                 token,
+                refreshTokenString,
                 "Bearer",
                 user.getUserId(),
                 user.getName(),
                 user.getEmail(),
                 roleName
         );
+    }
+
+    @Override
+    @Transactional
+    public TokenRefreshResponse refreshToken(RefreshTokenRequest request) {
+        String refreshTokenString = request.getRefreshToken();
+
+        // Validate JWT token structure và signature
+        if (!jwtTokenProvider.validateRefreshToken(refreshTokenString)) {
+            throw new AuthenticationException("Refresh token không hợp lệ hoặc đã hết hạn");
+        }
+
+        // Tìm token trong database (kể cả đã revoked để detect reuse attack)
+        RefreshToken refreshToken = refreshTokenRepository.findByTokenIncludingRevoked(refreshTokenString)
+                .orElseThrow(() -> new AuthenticationException("Refresh token không tồn tại"));
+
+        // REUSE ATTACK DETECTION
+        // Nếu token đã revoked và có replacedByToken → đây là reuse attack
+        if (refreshToken.isReuseAttack()) {
+            User user = refreshToken.getUser();
+            
+            // Log security incident với thông tin chi tiết
+            log.error("🚨 SECURITY ALERT: Refresh Token Reuse Attack Detected!");
+            log.error("   User: {}", user.getEmail());
+            log.error("   User ID: {}", user.getUserId());
+            log.error("   Attacked Token (first 50 chars): {}...", 
+                refreshTokenString.substring(0, Math.min(50, refreshTokenString.length())));
+            log.error("   Replaced By Token (first 50 chars): {}...", 
+                refreshToken.getReplacedByToken().substring(0, Math.min(50, refreshToken.getReplacedByToken().length())));
+            log.error("   Original Token Revoked At: {}", refreshToken.getRevokedAt());
+            log.error("   Action: Revoking all tokens for user {} for security", user.getEmail());
+            
+            // Revoke tất cả tokens của user để bảo vệ tài khoản
+            refreshTokenRepository.revokeAllUserTokens(user, new Date());
+            
+            throw new AuthenticationException("Security violation detected: Refresh token reuse attack. All tokens have been revoked for security.");
+        }
+
+        // Kiểm tra token có hợp lệ không (chưa revoke, chưa hết hạn)
+        if (!refreshToken.isValid()) {
+            if (refreshToken.isExpired()) {
+                throw new AuthenticationException("Refresh token đã hết hạn");
+            }
+            if (refreshToken.isRevoked()) {
+                throw new AuthenticationException("Refresh token đã bị revoke");
+            }
+        }
+
+        // Lấy user từ token
+        User user = refreshToken.getUser();
+
+        // Kiểm tra trạng thái tài khoản
+        if (user.getStatus() != UserStatus.ACTIVE) {
+            throw new AuthenticationException("Tài khoản chưa được kích hoạt");
+        }
+
+        // Tạo cặp token mới trước
+        String newAccessToken = jwtTokenProvider.generateToken(user.getEmail());
+        String newRefreshTokenString = jwtTokenProvider.generateRefreshToken(user.getEmail());
+
+        // REVOKE token cũ và set replacedByToken (token rotation)
+        refreshToken.revokeAndReplace(newRefreshTokenString);
+        refreshTokenRepository.save(refreshToken);
+
+        // Lưu refresh token mới vào database
+        saveRefreshToken(user, newRefreshTokenString);
+
+        return new TokenRefreshResponse(newAccessToken, newRefreshTokenString, "Bearer");
+    }
+
+    @Override
+    @Transactional
+    public void logout(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new AuthenticationException("User không tồn tại"));
+        
+        // Revoke tất cả refresh tokens của user
+        refreshTokenRepository.revokeAllUserTokens(user, new Date());
+    }
+
+    /**
+     * Lưu refresh token vào database
+     */
+    private void saveRefreshToken(User user, String tokenString) {
+        try {
+            Date expiresAt = jwtTokenProvider.getExpirationDateFromToken(tokenString);
+            
+            RefreshToken refreshToken = new RefreshToken();
+            refreshToken.setToken(tokenString);
+            refreshToken.setUser(user);
+            refreshToken.setExpiresAt(expiresAt);
+            refreshToken.setRevoked(false);
+            
+            refreshTokenRepository.save(refreshToken);
+        } catch (Exception e) {
+            // Log error nhưng không throw để không ảnh hưởng đến login flow
+            // Token vẫn được trả về cho client
+            System.err.println("Error saving refresh token: " + e.getMessage());
+        }
     }
 }
 
