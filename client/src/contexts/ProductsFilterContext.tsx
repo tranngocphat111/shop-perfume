@@ -132,7 +132,17 @@ export const ProductsFilterProvider = ({ children }: { children: ReactNode }) =>
   const applyFilters = useCallback(() => {
     setAppliedBrands([...selectedBrands]);
     setAppliedCategories([...selectedCategories]);
-    setAppliedSearchQuery(searchQuery);
+    
+    // When filtering by brands or categories, clear search query
+    // Filters should work on the full product list, not on search results
+    if (selectedBrands.length > 0 || selectedCategories.length > 0) {
+      setAppliedSearchQuery("");
+      setSearchQuery(""); // Also clear the temporary search query
+    } else {
+      // Only keep search query if no brands/categories are selected
+      setAppliedSearchQuery(searchQuery);
+    }
+    
     if (priceRange !== null) {
       setAppliedPriceRange([...priceRange]);
     }

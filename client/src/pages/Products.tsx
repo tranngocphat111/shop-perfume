@@ -530,6 +530,10 @@ export const Products = () => {
       // For popularity sort, we need all filtered products to sort them properly
       const pageSize = needsClientSideFilter ? 1000 : 9;
 
+      // IMPORTANT: When filtering (multiple filters or price filter), we MUST filter from the FULL product list
+      // NOT from search results. So we never pass search query to backend when we need client-side filtering.
+      // This ensures filters work on the complete dataset, not on pre-filtered search results.
+      
       // For single selection, use backend filter; for multiple, fetch all and filter client-side
       // When multiple filters, don't pass brandId/categoryId to backend, fetch all and filter client-side
       const backendBrandId = (hasMultipleBrands || hasMultipleCategories) ? undefined :
@@ -541,12 +545,17 @@ export const Products = () => {
       const backendSortField = isPopularitySort ? undefined : sortField;
       const backendSortDirection = isPopularitySort ? undefined : sortDirection;
       
+      // CRITICAL: When we need client-side filtering, NEVER pass search query to backend
+      // We must fetch the FULL product list and filter client-side from the complete dataset
+      // Only use search query at backend when we DON'T need client-side filtering (single filter, no price filter)
+      const backendSearchQuery = needsClientSideFilter ? undefined : (appliedSearchQuery || undefined);
+      
       const response = await productService.getProductPage(
         needsClientSideFilter ? 0 : pageToFetch,
         pageSize,
         backendSortField,
         backendSortDirection,
-        appliedSearchQuery || undefined,
+        backendSearchQuery,
         backendBrandId,
         backendCategoryId
       );
@@ -676,14 +685,22 @@ export const Products = () => {
       );
     }
 
-    // Apply search filter (always filter if search query exists and we need client-side processing)
-    if (appliedSearchQuery && (isPopularitySort || needsPriceFilter || hasMultipleFilters)) {
-      const query = appliedSearchQuery.toLowerCase();
-      filtered = filtered.filter(p =>
-        p.name.toLowerCase().includes(query) ||
-        p.brand.name.toLowerCase().includes(query) ||
-        p.category.name.toLowerCase().includes(query)
-      );
+    // Apply search filter
+    // CRITICAL: When we have multiple filters or need client-side processing,
+    // we filter from the FULL product list (allProducts), NOT from search results
+    // So we MUST apply search filter client-side along with other filters
+    if (appliedSearchQuery) {
+      if (needsClientSideFilter) {
+        // Filter client-side from the complete dataset (all products)
+        // This ensures filters work correctly on the full product list, not on pre-filtered search results
+        const query = appliedSearchQuery.toLowerCase();
+        filtered = filtered.filter(p =>
+          p.name.toLowerCase().includes(query) ||
+          p.brand.name.toLowerCase().includes(query) ||
+          p.category.name.toLowerCase().includes(query)
+        );
+      }
+      // If not needsClientSideFilter, search was already done by backend, no need to filter again
     }
 
     // STEP 2: After filtering, SORT the filtered list
@@ -967,6 +984,11 @@ export const Products = () => {
 
   // Apply filters (called when user clicks "Lọc" button)
   const handleApplyFilters = () => {
+    // Clear search context when applying filters (if brands/categories are selected)
+    if (selectedBrands.length > 0 || selectedCategories.length > 0) {
+      // Dispatch event to clear search in HeaderSearch component
+      window.dispatchEvent(new CustomEvent('clearSearch'));
+    }
     applyFilters();
     // Scroll to top immediately when filters are applied (before loading starts)
     window.scrollTo({ top: 0, behavior: "smooth" });
