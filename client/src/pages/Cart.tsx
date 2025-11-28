@@ -59,7 +59,7 @@ export const Cart = () => {
       {/* Breadcrumb */}
       <div className="bg-gray-100 py-3 md:py-4">
         <div className="w-11/12 lg:w-4/5 mx-auto px-2 md:px-0">
-          <nav className="text-xs md:text-sm">
+          <nav className="text-sm md:text-base">
             <Link
               to="/"
               className="text-gray-600 hover:text-black transition-colors"
@@ -80,13 +80,13 @@ export const Cart = () => {
           <>
             {/* Header Section */}
             <div className="mb-8">
-              <h1 className="text-2xl md:text-3xl font-bold text-gray-900 flex items-center gap-2 mb-2">
-                <svg className="w-6 h-6 md:w-7 md:h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <h1 className="text-3xl md:text-4xl font-bold text-gray-900 flex items-center gap-3 mb-3">
+                <svg className="w-7 h-7 md:w-8 md:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
                 </svg>
                 {isAuthenticated ? 'Giỏ hàng & Ưu đãi' : 'Giỏ hàng'}
               </h1>
-              <p className="text-gray-500 text-sm md:text-base">
+              <p className="text-gray-500 text-base md:text-lg">
                 {isAuthenticated 
                   ? 'Chọn mã giảm giá và kiểm tra lại giá trị đơn hàng'
                   : 'Kiểm tra lại thông tin đơn hàng của bạn'

@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useCart } from "../../contexts/CartContext";
 import { UserMenu } from "./UserMenu";
+import { type UserInfo } from "../../services/user.service";
 
 interface HeaderActionsProps {
   showSearch: boolean;
@@ -11,6 +12,7 @@ interface HeaderActionsProps {
   setSearchQuery: (value: string) => void;
   isAuthenticated: boolean;
   user: { name: string; email: string; role: string } | null;
+  userInfo: UserInfo | null;
   showUserMenu: boolean;
   setShowUserMenu: (value: boolean) => void;
   isScrolled: boolean;
@@ -24,6 +26,7 @@ export const HeaderActions = ({
   setSearchQuery,
   isAuthenticated,
   user,
+  userInfo,
   showUserMenu,
   setShowUserMenu,
   isScrolled,
@@ -71,6 +74,7 @@ export const HeaderActions = ({
       <UserMenu
         isAuthenticated={isAuthenticated}
         user={user}
+        userInfo={userInfo}
         showUserMenu={showUserMenu}
         setShowUserMenu={setShowUserMenu}
         isScrolled={isScrolled}

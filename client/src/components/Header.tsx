@@ -1,13 +1,13 @@
-import { useLocation } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { motion, useScroll, useMotionValueEvent, AnimatePresence } from "framer-motion";
 import { useState, useEffect } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { useBrands } from "../hooks/useBrands";
 import { useCategories } from "../hooks/useCategories";
 import { useSearch } from "../contexts/SearchContext";
-import { getPrimaryImageUrl, formatCurrency } from "../utils/helpers";
+// import { getPrimaryImageUrl, formatCurrency } from "../utils/helpers";
 import { userService, type UserInfo } from "../services/user.service";
-import { Coins } from "lucide-react";
+// import { Coins } from "lucide-react";
 
 /**
  * NavLink Component - Dynamically styles links based on header scroll state.
@@ -45,6 +45,7 @@ import { HeaderLogo } from "./header/HeaderLogo";
 import { HeaderNavigation } from "./header/HeaderNavigation";
 import { HeaderSearch } from "./header/HeaderSearch";
 import { HeaderActions } from "./header/HeaderActions";
+import { useCart } from "@/contexts/CartContext";
 
 /**
  * Header Component - Combines dynamic scrolling effects and auth management.
@@ -262,6 +263,7 @@ export const Header = () => {
             setSearchQuery={setSearchQuery}
             isAuthenticated={isAuthenticated}
             user={user}
+            userInfo={userInfo}
             showUserMenu={showUserMenu}
             setShowUserMenu={setShowUserMenu}
             isScrolled={isScrolled}

@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { Trash2, Plus, Minus } from 'lucide-react';
 import type { CartItem as CartItemType } from '../../types';
 import { getPrimaryImageUrl, formatCurrency, formatSKU } from '../../utils/helpers';
@@ -16,6 +17,7 @@ export const CartItem = ({
   onQuantityChange, 
   onRemove 
 }: CartItemProps) => {
+  const navigate = useNavigate();
   const maxQuantity = item.stockQuantity ?? Infinity;
   const isMaxQuantity = item.quantity >= maxQuantity;
   const isMinQuantity = item.quantity <= 1;
@@ -33,19 +35,26 @@ export const CartItem = ({
     onQuantityChange(item.product.productId, newQuantity);
   };
 
+  const handleProductClick = () => {
+    navigate(`/products/${item.product.productId}`);
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, x: -20 }}
       transition={{ delay: index * 0.05, duration: 0.3 }}
-      className="bg-white rounded-2xl border border-gray-200 shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden"
+      className="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden"
     >
-      <div className="p-4 md:p-6">
-        <div className="flex flex-col md:flex-row gap-4 md:gap-6">
+      <div className="p-3 md:p-4">
+        <div className="flex flex-col md:flex-row gap-3 md:gap-4">
           {/* Product Image */}
           <div className="flex-shrink-0">
-            <div className="relative w-full md:w-32 h-32 md:h-32 rounded-xl overflow-hidden bg-gray-100 group">
+            <div 
+              onClick={handleProductClick}
+              className="relative w-full md:w-24 h-24 md:h-24 rounded-lg overflow-hidden bg-gray-100 group cursor-pointer"
+            >
               <img
                 src={getPrimaryImageUrl(item.product)}
                 alt={item.product.name}
@@ -58,18 +67,21 @@ export const CartItem = ({
           </div>
 
           {/* Product Info & Controls */}
-          <div className="flex-1 min-w-0 flex flex-col md:flex-row md:items-center gap-4">
+          <div className="flex-1 min-w-0 flex flex-col md:flex-row md:items-center gap-3">
             {/* Product Details */}
-            <div className="flex-1 min-w-0">
-              <h3 className="text-base md:text-lg font-semibold text-gray-900 mb-2 line-clamp-2 leading-tight">
+            <div 
+              onClick={handleProductClick}
+              className="flex-1 min-w-0 cursor-pointer"
+            >
+              <h3 className="text-base md:text-lg font-semibold text-gray-900 mb-1 line-clamp-2 leading-tight hover:text-gray-600 transition-colors">
                 {item.product.name}
               </h3>
-              <p className="text-xs md:text-sm text-gray-500 mb-2">
+              <p className="text-xs md:text-sm text-gray-500 mb-1.5">
                 SKU: <span className="font-mono">{formatSKU(item.product)}</span>
               </p>
               
               {/* Mobile: Price & Stock */}
-              <div className="md:hidden flex items-center justify-between mb-3">
+              <div className="md:hidden flex items-center justify-between">
                 <div>
                   <p className="text-lg font-bold text-gray-900">
                     {formatCurrency(item.product.unitPrice)}
@@ -84,7 +96,7 @@ export const CartItem = ({
 
               {/* Desktop: Price */}
               <div className="hidden md:block">
-                <p className="text-lg font-semibold text-gray-900 mb-1">
+                <p className="text-lg font-semibold text-gray-900 mb-0.5">
                   {formatCurrency(item.product.unitPrice)}
                 </p>
                 {item.stockQuantity !== undefined && (
@@ -96,22 +108,21 @@ export const CartItem = ({
             </div>
 
             {/* Quantity Control */}
-            <div className="flex items-center gap-4 md:gap-6">
-              {/* Desktop: Quantity */}
-              <div className="hidden md:flex flex-col items-center gap-2">
-                <div className="inline-flex items-center gap-1 border-2 border-gray-200 rounded-xl bg-gray-50 px-2 py-1.5 shadow-sm">
+            <div className="flex items-center gap-3 md:gap-4">
+              {/* Desktop: Quantity - Rounded full style like product detail */}
+              <div className="hidden md:flex items-center">
+                <div className="flex items-center border-2 border-gray-200 rounded-full overflow-hidden bg-white hover:border-gray-300 transition-colors">
                   <button
-                    onClick={() => handleQuantityChange(item.quantity - 1)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleQuantityChange(item.quantity - 1);
+                    }}
                     disabled={isMinQuantity}
-                    className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${
-                      isMinQuantity 
-                        ? 'opacity-40 cursor-not-allowed' 
-                        : 'hover:bg-gray-200 active:scale-95 text-gray-700'
-                    }`}
+                    className={`p-2 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors`}
                     type="button"
                     aria-label="Giảm số lượng"
                   >
-                    <Minus className="w-4 h-4" />
+                    <Minus className="w-4 h-4 text-gray-700" />
                   </button>
                   <input
                     type="number"
@@ -120,41 +131,40 @@ export const CartItem = ({
                       const value = parseInt(e.target.value) || 1;
                       handleQuantityChange(value);
                     }}
-                    className="w-14 text-center border-none outline-none text-base font-semibold bg-transparent text-gray-900 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    onClick={(e) => e.stopPropagation()}
+                    className="w-16 text-center border-0 focus:outline-none focus:ring-0 py-1 text-base font-semibold text-gray-900 bg-transparent flex items-center justify-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     min="1"
                     max={maxQuantity !== Infinity ? maxQuantity : undefined}
                   />
                   <button
-                    onClick={() => handleQuantityChange(item.quantity + 1)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleQuantityChange(item.quantity + 1);
+                    }}
                     disabled={isMaxQuantity}
-                    className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${
-                      isMaxQuantity 
-                        ? 'opacity-40 cursor-not-allowed' 
-                        : 'hover:bg-gray-200 active:scale-95 text-gray-700'
-                    }`}
+                    className={`p-2 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors`}
                     type="button"
                     aria-label="Tăng số lượng"
                   >
-                    <Plus className="w-4 h-4" />
+                    <Plus className="w-4 h-4 text-gray-700" />
                   </button>
                 </div>
               </div>
 
-              {/* Mobile: Quantity */}
-              <div className="md:hidden flex items-center gap-2">
-                <div className="inline-flex items-center gap-1 border-2 border-gray-200 rounded-xl bg-gray-50 px-2 py-1.5 shadow-sm">
+              {/* Mobile: Quantity - Rounded full style */}
+              <div className="md:hidden flex items-center">
+                <div className="flex items-center border-2 border-gray-200 rounded-full overflow-hidden bg-white hover:border-gray-300 transition-colors">
                   <button
-                    onClick={() => handleQuantityChange(item.quantity - 1)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleQuantityChange(item.quantity - 1);
+                    }}
                     disabled={isMinQuantity}
-                    className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all ${
-                      isMinQuantity 
-                        ? 'opacity-40 cursor-not-allowed' 
-                        : 'hover:bg-gray-200 active:scale-95 text-gray-700'
-                    }`}
+                    className={`p-2 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors`}
                     type="button"
                     aria-label="Giảm số lượng"
                   >
-                    <Minus className="w-3.5 h-3.5" />
+                    <Minus className="w-3.5 h-3.5 text-gray-700" />
                   </button>
                   <input
                     type="number"
@@ -163,29 +173,28 @@ export const CartItem = ({
                       const value = parseInt(e.target.value) || 1;
                       handleQuantityChange(value);
                     }}
-                    className="w-12 text-center border-none outline-none text-sm font-semibold bg-transparent text-gray-900 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    onClick={(e) => e.stopPropagation()}
+                    className="w-12 text-center border-0 focus:outline-none focus:ring-0 py-0.5 text-sm font-semibold text-gray-900 bg-transparent flex items-center justify-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     min="1"
                     max={maxQuantity !== Infinity ? maxQuantity : undefined}
                   />
                   <button
-                    onClick={() => handleQuantityChange(item.quantity + 1)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleQuantityChange(item.quantity + 1);
+                    }}
                     disabled={isMaxQuantity}
-                    className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all ${
-                      isMaxQuantity 
-                        ? 'opacity-40 cursor-not-allowed' 
-                        : 'hover:bg-gray-200 active:scale-95 text-gray-700'
-                    }`}
+                    className={`p-2 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors`}
                     type="button"
                     aria-label="Tăng số lượng"
                   >
-                    <Plus className="w-3.5 h-3.5" />
+                    <Plus className="w-3.5 h-3.5 text-gray-700" />
                   </button>
                 </div>
               </div>
 
               {/* Subtotal */}
-              <div className="text-right min-w-[120px] md:min-w-[140px]">
-                <p className="text-xs text-gray-500 mb-1 hidden md:block">Thành tiền</p>
+              <div className="text-right min-w-[100px] md:min-w-[120px]">
                 <p className="text-lg md:text-xl font-bold text-gray-900">
                   {formatCurrency(subtotal)}
                 </p>
@@ -193,13 +202,16 @@ export const CartItem = ({
 
               {/* Remove Button */}
               <button
-                onClick={() => onRemove(item.product.productId)}
-                className="flex-shrink-0 w-10 h-10 md:w-11 md:h-11 rounded-xl flex items-center justify-center text-gray-400 hover:text-red-600 hover:bg-red-50 transition-all duration-200 active:scale-95"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onRemove(item.product.productId);
+                }}
+                className="flex-shrink-0 w-9 h-9 md:w-10 md:h-10 rounded-lg flex items-center justify-center text-gray-400 hover:text-red-600 hover:bg-red-50 transition-all duration-200 active:scale-95"
                 type="button"
                 title="Xóa sản phẩm"
                 aria-label="Xóa sản phẩm"
               >
-                <Trash2 className="w-5 h-5" />
+                <Trash2 className="w-4 h-4 md:w-5 md:h-5" />
               </button>
             </div>
           </div>
