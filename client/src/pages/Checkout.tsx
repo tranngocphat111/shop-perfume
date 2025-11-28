@@ -24,7 +24,7 @@ const initialFormData: CheckoutFormData = {
 
 export const Checkout: React.FC = () => {
   const navigate = useNavigate();
-  const { cart, clearCart } = useCart();
+  const { cart, clearCart, appliedUserCouponId, discount } = useCart();
   const { user, isAuthenticated } = useAuth();
   const cartItems = cart.items;
   const [formData, setFormData] = useState<CheckoutFormData>(initialFormData);
@@ -206,7 +206,8 @@ export const Checkout: React.FC = () => {
         note: formData.note || '',
         paymentMethod: formData.paymentMethod,
         cartItems: mappedCartItems,
-        totalAmount: total,
+        totalAmount: total - discount, // Trừ đi discount
+        userCouponId: appliedUserCouponId || undefined, // Gửi userCouponId nếu có
       };
 
       // Submit order - fix path (API_BASE_URL already includes /api)
@@ -349,6 +350,7 @@ export const Checkout: React.FC = () => {
               isProcessing={isProcessing}
               showQRWarning={false}
               isPaymentConfirmed={false}
+              discount={discount}
             />
           </div>
         </div>
