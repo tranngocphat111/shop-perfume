@@ -9,6 +9,7 @@ interface OrderSummaryProps {
   isProcessing: boolean;
   showQRWarning: boolean;
   isPaymentConfirmed: boolean;
+  discount?: number; // Thêm discount
 }
 
 export const OrderSummary: React.FC<OrderSummaryProps> = ({
@@ -17,13 +18,14 @@ export const OrderSummary: React.FC<OrderSummaryProps> = ({
   isProcessing,
   showQRWarning,
   isPaymentConfirmed,
+  discount = 0, // Default 0
 }) => {
   const subtotal = cartItems.reduce(
     (sum, item) => sum + item.product.unitPrice * item.quantity,
     0
   );
   const shippingFee = 0; // Free shipping
-  const total = subtotal + shippingFee;
+  const total = subtotal + shippingFee - discount; // Trừ discount
 
   return (
     <div className="bg-white p-6 md:p-8 rounded-xl shadow-sm sticky top-5">
@@ -71,6 +73,14 @@ export const OrderSummary: React.FC<OrderSummaryProps> = ({
             {formatCurrency(subtotal)} ₫
           </span>
         </div>
+        {discount > 0 && (
+          <div className="flex justify-between text-base">
+            <span className="text-gray-600">Giảm giá</span>
+            <span className="font-semibold text-red-600">
+              -{formatCurrency(discount)} ₫
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Total */}
