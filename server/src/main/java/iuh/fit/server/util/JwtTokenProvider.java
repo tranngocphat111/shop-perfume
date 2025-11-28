@@ -26,6 +26,9 @@ public class JwtTokenProvider {
     @Value("${jwt.expiration:86400000}") // 24 hours
     private long jwtExpiration;
 
+    @Value("${jwt.refresh-expiration:604800000}") // 7 days
+    private long jwtRefreshExpiration;
+
     /**
      * Tạo JWT token từ email
      */
@@ -125,6 +128,72 @@ public class JwtTokenProvider {
         } catch (ParseException e) {
             log.error("Error getting expiration date from token", e);
             throw new RuntimeException("Không thể lấy expiration date từ token", e);
+        }
+    }
+
+    /**
+     * Tạo refresh token từ email
+     * Refresh token có thời gian sống lâu hơn access token (7 ngày)
+     */
+    public String generateRefreshToken(String email) {
+        try {
+            Date now = new Date();
+            Date expiryDate = new Date(now.getTime() + jwtRefreshExpiration);
+
+            JWTClaimsSet claimsSet = new JWTClaimsSet.Builder()
+                    .subject(email)
+                    .issueTime(now)
+                    .expirationTime(expiryDate)
+                    .issuer("shop-perfume")
+                    .claim("type", "refresh") // Đánh dấu đây là refresh token
+                    .build();
+
+            SignedJWT signedJWT = new SignedJWT(
+                    new JWSHeader(JWSAlgorithm.HS512),
+                    claimsSet
+            );
+
+            JWSSigner signer = new MACSigner(jwtSecret.getBytes());
+            signedJWT.sign(signer);
+
+            return signedJWT.serialize();
+        } catch (JOSEException e) {
+            log.error("Error generating refresh token", e);
+            throw new RuntimeException("Không thể tạo refresh token", e);
+        }
+    }
+
+    /**
+     * Validate refresh token
+     */
+    public boolean validateRefreshToken(String token) {
+        try {
+            SignedJWT signedJWT = SignedJWT.parse(token);
+            JWSVerifier verifier = new MACVerifier(jwtSecret.getBytes());
+
+            if (!signedJWT.verify(verifier)) {
+                log.warn("Refresh token signature verification failed");
+                return false;
+            }
+
+            // Kiểm tra đây có phải refresh token không
+            String tokenType = signedJWT.getJWTClaimsSet().getStringClaim("type");
+            if (!"refresh".equals(tokenType)) {
+                log.warn("Token is not a refresh token");
+                return false;
+            }
+
+            // Kiểm tra expiration
+            Date expirationTime = signedJWT.getJWTClaimsSet().getExpirationTime();
+            if (expirationTime.before(new Date())) {
+                log.warn("Refresh token has expired");
+                return false;
+            }
+
+            return true;
+        } catch (Exception e) {
+            log.error("Refresh token validation failed", e);
+            return false;
         }
     }
 }
