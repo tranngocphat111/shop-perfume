@@ -84,6 +84,7 @@ public class SecurityConfig {
                     
                     // Authentication endpoints
                     .requestMatchers("/auth/**").permitAll()
+                    .requestMatchers("/api/auth/**").permitAll() // Support context-path=/api
                     
                     // Guest checkout - allow public access
                     .requestMatchers("/orders/create").permitAll()

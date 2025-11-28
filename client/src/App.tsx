@@ -14,6 +14,8 @@ import { MyOrders } from "./pages/MyOrders";
 import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
 import AdminLogin from "./pages/auth/AdminLogin";
+import ForgotPassword from "./pages/auth/ForgotPassword";
+import ResetPassword from "./pages/auth/ResetPassword";
 import Profile from "./pages/Profile";
 import {
   GuestRoute,
@@ -38,7 +40,9 @@ function AppContent() {
   const isAuthRoute =
     location.pathname === "/login" ||
     location.pathname === "/register" ||
-    location.pathname === "/admin/login";
+    location.pathname === "/admin/login" ||
+    location.pathname === "/forgot-password" ||
+    location.pathname.startsWith("/reset-password");
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -96,6 +100,22 @@ function AppContent() {
               <UnauthenticatedRoute>
                 <AdminLogin />
               </UnauthenticatedRoute>
+            }
+          />
+          <Route
+            path="/forgot-password"
+            element={
+              <GuestRoute>
+                <ForgotPassword />
+              </GuestRoute>
+            }
+          />
+          <Route
+            path="/reset-password/:token"
+            element={
+              <GuestRoute>
+                <ResetPassword />
+              </GuestRoute>
             }
           />
           <Route
