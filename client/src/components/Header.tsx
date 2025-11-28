@@ -117,20 +117,20 @@ export const Header = () => {
 
     const isAtTop = latest < 50;
     const isScrollingDown = latest > lastScrollY;
-    const firstScroll = latest > 100;
-    const secondScroll = latest > 200;
+    const firstScroll = latest > 100; // Compact threshold
+    const secondScroll = latest > 200; // Hide/show threshold
 
     // Shadow only appears when scrolling (for both home and other pages)
     setHasScrolled(!isAtTop);
 
     // 1. Update background (transparent at top only on home page, always white on other pages)
     if (isHomePage) {
-      setIsScrolled(!isAtTop);
+      setIsScrolled(!isAtTop); // Change color at 50px
     } else {
       setIsScrolled(true); // Always white on non-home pages
     }
 
-    // 2. Compact header (smaller padding/font)
+    // 2. Compact header (smaller padding/font) - happens at 100px
     setIsCompact(firstScroll);
 
     // 3. Hide header when scrolling down past a threshold
@@ -148,12 +148,14 @@ export const Header = () => {
     if (!isHomePage) {
       setIsScrolled(true);
       setHasScrolled(false); // No shadow initially on other pages
+      setIsCompact(false); // Always start not compact, need to scroll to compact
     } else {
       // Reset to transparent when returning to home page
       setIsScrolled(false);
       setHasScrolled(false);
       setIsCompact(false);
     }
+    setLastScrollY(window.scrollY);
   }, [isHomePage]);
 
   // Close user menu when clicking outside

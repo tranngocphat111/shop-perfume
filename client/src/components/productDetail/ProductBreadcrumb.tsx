@@ -23,7 +23,7 @@ export const ProductBreadcrumb = ({ product }: ProductBreadcrumbProps) => {
           </Link>
           <span className="text-gray-400">/</span>
           <Link
-            to="/products"
+            to={`/products?categoryId=${product.category.categoryId}`}
             className="text-gray-500 font-normal hover:text-black transition-colors">
             {product.category.name}
           </Link>

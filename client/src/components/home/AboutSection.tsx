@@ -55,9 +55,9 @@ export const AboutSection = () => {
             className="relative aspect-square"
           >
             <img
-              src="https://images.unsplash.com/photo-1541099649105-f69ad21f3246?w=800"
+              src="https://res.cloudinary.com/piin/image/upload/about/about_3.jpg"
               alt="SPTN Perfume"
-              className="w-full h-full object-cover shadow-2xl"
+              className="w-full h-full object-cover shadow-md  overflow-hidden"
             />
           </motion.div>
         </div>
