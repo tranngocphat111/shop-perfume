@@ -8,6 +8,8 @@ import { useCategories } from "../hooks/useCategories";
 import { useProductsFilter } from "../contexts/ProductsFilterContext";
 import { useSearch } from "../contexts/SearchContext";
 import { getPrimaryImageUrl, formatCurrency } from "../utils/helpers";
+import { userService, type UserInfo } from "../services/user.service";
+import { Coins } from "lucide-react";
 
 /**
  * NavLink Component - Dynamically styles links based on header scroll state.
@@ -48,6 +50,7 @@ const NavLink = ({
 export const Header = () => {
   const { getCartCount } = useCart();
   const { user, isAuthenticated, logout } = useAuth();
+  const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
   const {
     brands: allBrands,
     groupedBrands,
@@ -83,6 +86,15 @@ export const Header = () => {
   const [showUserMenu, setShowUserMenu] = useState(false);
 
   const { scrollY } = useScroll();
+
+  // Load user info including loyalty points
+  useEffect(() => {
+    if (isAuthenticated) {
+      userService.getCurrentUser().then(setUserInfo).catch(console.error);
+    } else {
+      setUserInfo(null);
+    }
+  }, [isAuthenticated]);
 
   // Listen for add to cart event to force show header
   useEffect(() => {
@@ -861,6 +873,15 @@ export const Header = () => {
                           <p className="text-xs text-gray-500 truncate">
                             {user.email}
                           </p>
+                          {userInfo && (
+                            <div className="flex items-center gap-1.5 mt-2 px-2 py-1 bg-amber-50 border border-amber-200 rounded-md">
+                              <Coins size={12} className="text-amber-600" />
+                              <span className="text-xs font-bold text-amber-800">
+                                {userInfo.loyaltyPoints.toLocaleString('vi-VN')}
+                              </span>
+                              <span className="text-xs text-amber-700">điểm</span>
+                            </div>
+                          )}
                           {user.role === "ADMIN" && (
                             <span className="inline-block mt-1 px-2 py-0.5 bg-purple-100 text-purple-700 text-xs rounded-full">
                               Admin

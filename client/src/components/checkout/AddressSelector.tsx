@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { addressService, type Address } from '../../services/address.service';
 import type { CheckoutFormData, Province, District, Ward, ProvinceDetail, DistrictDetail } from '../../types';
-import { FaMapMarkerAlt, FaChevronDown, FaChevronUp, FaSync  } from 'react-icons/fa';
+import { FaMapMarkerAlt, FaPlus } from 'react-icons/fa';
 import { GoSync } from "react-icons/go";
 
 interface AddressSelectorProps {
@@ -26,13 +26,62 @@ export const AddressSelector: React.FC<AddressSelectorProps> = ({
   const { user, isAuthenticated } = useAuth();
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [isOpen, setIsOpen] = useState(false);
+  const [showAddForm, setShowAddForm] = useState(false);
   const [selectedAddressId, setSelectedAddressId] = useState<number | null>(null);
+  
+  // Form state for adding new address
+  const [newAddressForm, setNewAddressForm] = useState({
+    recipientName: '',
+    phone: '',
+    addressLine: '',
+    ward: '',
+    district: '',
+    city: '',
+    isDefault: false,
+  });
+  const [provinces, setProvinces] = useState<Province[]>([]);
+  const [districts, setDistricts] = useState<District[]>([]);
+  const [wards, setWards] = useState<Ward[]>([]);
+  const [loading, setLoading] = useState({
+    provinces: false,
+    districts: false,
+    wards: false,
+    saving: false,
+  });
+  const [formError, setFormError] = useState('');
 
   useEffect(() => {
     if (isAuthenticated && user) {
       loadAddresses();
     }
   }, [isAuthenticated, user]);
+
+  // Load provinces when add form opens
+  useEffect(() => {
+    if (showAddForm && provinces.length === 0) {
+      loadProvincesForForm();
+    }
+  }, [showAddForm]);
+
+  // Auto-load districts when city is selected
+  useEffect(() => {
+    if (showAddForm && newAddressForm.city && provinces.length > 0) {
+      const province = provinces.find(p => p.name === newAddressForm.city);
+      if (province) {
+        loadDistrictsForForm(province.code.toString());
+      }
+    }
+  }, [showAddForm, newAddressForm.city, provinces]);
+
+  // Auto-load wards when district is selected
+  useEffect(() => {
+    if (showAddForm && newAddressForm.district && districts.length > 0) {
+      const district = districts.find(d => d.name === newAddressForm.district);
+      if (district) {
+        loadWardsForForm(district.code.toString());
+      }
+    }
+  }, [showAddForm, newAddressForm.district, districts]);
 
   const loadAddresses = async () => {
     try {
@@ -48,6 +97,93 @@ export const AddressSelector: React.FC<AddressSelectorProps> = ({
       }
     } catch (error) {
       console.error('Error loading addresses:', error);
+    }
+  };
+
+  const loadProvincesForForm = async () => {
+    try {
+      setLoading(prev => ({ ...prev, provinces: true }));
+      const response = await fetch(PROVINCES_API);
+      const data: Province[] = await response.json();
+      setProvinces(data);
+    } catch (error) {
+      console.error('Error loading provinces:', error);
+    } finally {
+      setLoading(prev => ({ ...prev, provinces: false }));
+    }
+  };
+
+  const loadDistrictsForForm = async (provinceCode: string) => {
+    try {
+      setLoading(prev => ({ ...prev, districts: true }));
+      const response = await fetch(`${PROVINCES_API}${provinceCode}?depth=2`);
+      const data: ProvinceDetail = await response.json();
+      setDistricts(data.districts || []);
+    } catch (error) {
+      console.error('Error loading districts:', error);
+    } finally {
+      setLoading(prev => ({ ...prev, districts: false }));
+    }
+  };
+
+  const loadWardsForForm = async (districtCode: string) => {
+    try {
+      setLoading(prev => ({ ...prev, wards: true }));
+      const response = await fetch(`${DISTRICTS_API}${districtCode}?depth=2`);
+      const data: DistrictDetail = await response.json();
+      setWards(data.wards || []);
+    } catch (error) {
+      console.error('Error loading wards:', error);
+    } finally {
+      setLoading(prev => ({ ...prev, wards: false }));
+    }
+  };
+
+  const handleAddAddress = async () => {
+    if (!newAddressForm.recipientName || !newAddressForm.phone || !newAddressForm.addressLine || 
+        !newAddressForm.city || !newAddressForm.district || !newAddressForm.ward) {
+      setFormError('Vui lòng điền đầy đủ thông tin');
+      return;
+    }
+
+    try {
+      setLoading(prev => ({ ...prev, saving: true }));
+      setFormError('');
+      
+      const newAddress = await addressService.createAddress({
+        recipientName: newAddressForm.recipientName,
+        phone: newAddressForm.phone,
+        addressLine: newAddressForm.addressLine,
+        ward: newAddressForm.ward,
+        district: newAddressForm.district,
+        city: newAddressForm.city,
+        isDefault: newAddressForm.isDefault,
+      });
+
+      // Reload addresses
+      await loadAddresses();
+      
+      // Auto-select the newly created address
+      await handleSelectAddress(newAddress);
+      
+      // Close form
+      setShowAddForm(false);
+      setNewAddressForm({
+        recipientName: '',
+        phone: '',
+        addressLine: '',
+        ward: '',
+        district: '',
+        city: '',
+        isDefault: false,
+      });
+      setDistricts([]);
+      setWards([]);
+    } catch (error: any) {
+      console.error('Error creating address:', error);
+      setFormError(error.message || 'Không thể tạo địa chỉ mới');
+    } finally {
+      setLoading(prev => ({ ...prev, saving: false }));
     }
   };
 
@@ -172,20 +308,17 @@ export const AddressSelector: React.FC<AddressSelectorProps> = ({
         </label>
         <button
           type="button"
-          onClick={() => setIsOpen(!isOpen)}
+          onClick={() => {
+            setShowAddForm(true);
+            setFormError('');
+            if (provinces.length === 0) {
+              loadProvincesForForm();
+            }
+          }}
           className="px-4 py-2 text-sm font-medium text-white bg-black rounded-lg hover:bg-gray-800 transition-colors flex items-center gap-2 shadow-sm hover:shadow-md"
         >
-          {isOpen ? (
-            <>
-              <FaChevronUp className="text-xs" />
-              Thu gọn
-            </>
-          ) : (
-            <>
-              <FaChevronDown className="text-xs" />
-              Địa chỉ khác
-            </>
-          )}
+          <FaPlus className="text-xs" />
+          Thêm địa chỉ mới
         </button>
       </div>
 
@@ -235,7 +368,7 @@ export const AddressSelector: React.FC<AddressSelectorProps> = ({
         </div>
       )}
 
-      {selectedAddress && !isOpen && (
+      {selectedAddress && !isOpen && !showAddForm && (
         <div className="p-4 border-2 border-gray-200 rounded-xl bg-gray-50 shadow-sm">
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1">
@@ -260,6 +393,186 @@ export const AddressSelector: React.FC<AddressSelectorProps> = ({
             >
               <GoSync  className="w-5 h-5" />
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal thêm địa chỉ mới */}
+      {showAddForm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white w-full max-w-xl rounded-lg shadow-lg">
+            <div className="p-4 border-b flex items-center justify-between">
+              <h4 className="font-medium">Thêm địa chỉ</h4>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAddForm(false);
+                  setFormError('');
+                  setNewAddressForm({
+                    recipientName: '',
+                    phone: '',
+                    addressLine: '',
+                    ward: '',
+                    district: '',
+                    city: '',
+                    isDefault: false,
+                  });
+                  setDistricts([]);
+                  setWards([]);
+                }}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+              <input
+                className="px-4 py-3 border rounded"
+                placeholder="Tên người nhận"
+                value={newAddressForm.recipientName}
+                onChange={(e) => setNewAddressForm({ ...newAddressForm, recipientName: e.target.value })}
+              />
+              <input
+                className="px-4 py-3 border rounded"
+                placeholder="Số điện thoại"
+                value={newAddressForm.phone}
+                onChange={(e) => setNewAddressForm({ ...newAddressForm, phone: e.target.value })}
+              />
+              <input
+                className="px-4 py-3 border rounded md:col-span-2"
+                placeholder="Địa chỉ"
+                value={newAddressForm.addressLine}
+                onChange={(e) => setNewAddressForm({ ...newAddressForm, addressLine: e.target.value })}
+              />
+              
+              {/* Province/City Dropdown */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Tỉnh/Thành phố <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={provinces.find(p => p.name === newAddressForm.city)?.code.toString() || ''}
+                  onChange={async (e) => {
+                    const code = e.target.value;
+                    const selected = provinces.find(p => p.code.toString() === code);
+                    if (selected) {
+                      setNewAddressForm({ ...newAddressForm, city: selected.name, district: '', ward: '' });
+                      setDistricts([]);
+                      setWards([]);
+                      await loadDistrictsForForm(code);
+                    }
+                  }}
+                  className="w-full px-4 py-3 border rounded"
+                  disabled={loading.provinces}
+                >
+                  <option value="">Chọn tỉnh/thành phố</option>
+                  {provinces.map(province => (
+                    <option key={province.code} value={province.code}>
+                      {province.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* District Dropdown */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Quận/Huyện <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={districts.find(d => d.name === newAddressForm.district)?.code.toString() || ''}
+                  onChange={async (e) => {
+                    const code = e.target.value;
+                    const selected = districts.find(d => d.code.toString() === code);
+                    if (selected) {
+                      setNewAddressForm({ ...newAddressForm, district: selected.name, ward: '' });
+                      setWards([]);
+                      await loadWardsForForm(code);
+                    }
+                  }}
+                  className="w-full px-4 py-3 border rounded"
+                  disabled={!newAddressForm.city || loading.districts}
+                >
+                  <option value="">Chọn quận/huyện</option>
+                  {districts.map(district => (
+                    <option key={district.code} value={district.code}>
+                      {district.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Ward Dropdown */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Xã/Phường/Thị trấn <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={wards.find(w => w.name === newAddressForm.ward)?.code.toString() || ''}
+                  onChange={(e) => {
+                    const code = e.target.value;
+                    const selected = wards.find(w => w.code.toString() === code);
+                    if (selected) {
+                      setNewAddressForm({ ...newAddressForm, ward: selected.name });
+                    }
+                  }}
+                  className="w-full px-4 py-3 border rounded"
+                  disabled={!newAddressForm.district || loading.wards}
+                >
+                  <option value="">Chọn xã/phường/thị trấn</option>
+                  {wards.map(ward => (
+                    <option key={ward.code} value={ward.code}>
+                      {ward.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <label className="flex items-center gap-2 md:col-span-2">
+                <input
+                  type="checkbox"
+                  checked={newAddressForm.isDefault}
+                  onChange={(e) => setNewAddressForm({ ...newAddressForm, isDefault: e.target.checked })}
+                />
+                <span>Đặt làm địa chỉ mặc định</span>
+              </label>
+            </div>
+            {formError && (
+              <div className="px-6 py-3 bg-red-50 border-l-4 border-red-500">
+                <p className="text-sm text-red-700">{formError}</p>
+              </div>
+            )}
+            <div className="p-4 border-t flex gap-2 justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAddForm(false);
+                  setFormError('');
+                  setNewAddressForm({
+                    recipientName: '',
+                    phone: '',
+                    addressLine: '',
+                    ward: '',
+                    district: '',
+                    city: '',
+                    isDefault: false,
+                  });
+                  setDistricts([]);
+                  setWards([]);
+                }}
+                className="px-4 py-2 border rounded hover:bg-gray-50"
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                onClick={handleAddAddress}
+                disabled={loading.saving}
+                className="px-4 py-2 bg-black text-white rounded hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading.saving ? 'Đang lưu...' : 'Lưu'}
+              </button>
+            </div>
           </div>
         </div>
       )}

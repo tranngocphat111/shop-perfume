@@ -27,5 +27,21 @@ public interface CouponService {
      * @return Coupon response if found
      */
     CouponResponse getCouponByCode(String code);
+    
+    /**
+     * Get available coupons with user's loyalty points check
+     * @param userId User ID (optional, null for guest)
+     * @return List of coupons with canUse flag
+     */
+    List<CouponResponse> getAvailableCoupons(Integer userId);
+    
+    /**
+     * Validate coupon with user's loyalty points
+     * @param couponId Coupon ID
+     * @param userId User ID
+     * @param totalAmount Order total amount
+     * @return Validation response
+     */
+    CouponValidationResponse validateCouponWithPoints(Integer couponId, Integer userId, Double totalAmount);
 }
 

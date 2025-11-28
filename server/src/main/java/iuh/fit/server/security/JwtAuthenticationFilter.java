@@ -39,6 +39,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             String jwt = getJwtFromRequest(request);
             String requestURI = request.getRequestURI();
             
+            // Log for /orders/create to debug user_id issue
+            if (requestURI != null && requestURI.contains("/orders/create")) {
+                logger.info("🔵 [JWT Filter] Processing /orders/create request");
+                logger.info("🔵 [JWT Filter] JWT token present: " + (jwt != null && !jwt.isEmpty()));
+                logger.info("🔵 [JWT Filter] Request URI: " + requestURI);
+            }
+            
             // Log for admin endpoints to debug 401 errors
             if (requestURI != null && requestURI.contains("/admin/")) {
                 logger.info("Processing admin request: " + request.getMethod() + " " + requestURI);
@@ -74,6 +81,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                     SecurityContextHolder.getContext().setAuthentication(authentication);
                     logger.debug("Authentication set in SecurityContext for user: " + email);
+                    
+                    // Log for /orders/create
+                    if (requestURI != null && requestURI.contains("/orders/create")) {
+                        logger.info("✅ [JWT Filter] Authentication set in SecurityContext for user: " + email);
+                    }
                 } else {
                     logger.warn("JWT token validation failed for request: " + requestURI);
                 }
@@ -81,6 +93,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 logger.debug("No JWT token found in request: " + requestURI);
                 if (requestURI != null && requestURI.contains("/admin/")) {
                     logger.warn("No JWT token found for admin request: " + requestURI);
+                }
+                // Log for /orders/create
+                if (requestURI != null && requestURI.contains("/orders/create")) {
+                    logger.info("⚠️ [JWT Filter] No JWT token found for /orders/create - will create guest order");
                 }
             }
         } catch (Exception ex) {
@@ -112,9 +128,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return true;
         }
         
-        // Always skip JWT filter for auth endpoints
-        if (pathToCheck.startsWith("/auth/") || requestURI.startsWith("/api/auth/")) {
-            return true;
+        // Skip JWT filter for public auth endpoints (login, register, refresh)
+        // But NOT for /auth/me (requires authentication)
+        if ((pathToCheck != null && pathToCheck.startsWith("/auth/")) || 
+            (requestURI != null && requestURI.startsWith("/api/auth/"))) {
+            // Don't skip /auth/me - it needs authentication
+            if ((pathToCheck != null && (pathToCheck.equals("/auth/me") || pathToCheck.endsWith("/auth/me"))) ||
+                (requestURI != null && (requestURI.endsWith("/auth/me") || requestURI.contains("/auth/me")))) {
+                return false; // Process JWT filter for /auth/me
+            }
+            return true; // Skip for other auth endpoints
         }
         
         // Skip JWT filter for swagger/docs
@@ -123,10 +146,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return true;
         }
         
-        // Skip JWT filter for public order/payment endpoints (guest checkout)
-        if (pathToCheck.equals("/orders/create") || pathToCheck.startsWith("/payment/check-qr") ||
-            pathToCheck.matches("/orders/\\d+/cancel-timeout") || 
-            pathToCheck.startsWith("/orders/my-orders")) {
+        // KHÔNG skip filter cho /orders/create và /orders/my-orders
+        // - Cần set authentication nếu user đã đăng nhập
+        // - Endpoints này là permitAll, nhưng nếu có token thì vẫn set authentication
+        // Skip JWT filter cho các public endpoints khác (guest checkout)
+        if (pathToCheck.startsWith("/payment/check-qr") ||
+            pathToCheck.matches("/orders/\\d+/cancel-timeout")) {
             return true;
         }
         

@@ -5,10 +5,11 @@ export interface Coupon {
   code: string;
   description: string;
   discountPercent: number;
-  minOrderValue: number;
+  requiredPoints: number;
   startDate: string;
   endDate: string;
   isActive: boolean;
+  canUse?: boolean; // Whether user has enough points to use this coupon
 }
 
 export interface CouponValidationResponse {
@@ -19,13 +20,35 @@ export interface CouponValidationResponse {
 }
 
 export const couponService = {
-  // Get all available coupons
+  // Get all available coupons (with loyalty points check if authenticated)
   getAvailableCoupons: async (): Promise<Coupon[]> => {
     try {
-      return await apiService.get<Coupon[]>('/coupons/available');
+      const coupons = await apiService.get<Coupon[]>('/coupons/available');
+      // Sort: coupons user can use (canUse = true) first, then by discountPercent desc
+      return coupons.sort((a, b) => {
+        if (a.canUse && !b.canUse) return -1;
+        if (!a.canUse && b.canUse) return 1;
+        return b.discountPercent - a.discountPercent;
+      });
     } catch (error) {
       console.error('Error fetching available coupons:', error);
       return [];
+    }
+  },
+  
+  // Validate coupon with loyalty points
+  validateCouponWithPoints: async (couponId: number, totalAmount: number): Promise<CouponValidationResponse> => {
+    try {
+      return await apiService.post<CouponValidationResponse>(
+        `/coupons/${couponId}/validate?totalAmount=${totalAmount}`,
+        {}
+      );
+    } catch (error: any) {
+      console.error('Error validating coupon:', error);
+      return {
+        valid: false,
+        message: error?.response?.data?.message || 'Không thể validate mã giảm giá',
+      };
     }
   },
 
@@ -70,13 +93,7 @@ export const couponService = {
         };
       }
 
-      // Check minimum order value
-      if (totalAmount < coupon.minOrderValue) {
-        return {
-          valid: false,
-          message: `Đơn hàng tối thiểu ${coupon.minOrderValue.toLocaleString('vi-VN')}₫ để áp dụng mã này`,
-        };
-      }
+      // Không cần check minimum order value nữa - coupon áp dụng cho tất cả đơn hàng
 
       // Calculate discount
       const discountAmount = (totalAmount * coupon.discountPercent) / 100;

@@ -14,9 +14,10 @@ public class CouponResponse {
     private String code;
     private String description;
     private double discountPercent;
-    private double minOrderValue;
+    private Integer requiredPoints;
     private Date startDate;
     private Date endDate;
     private boolean isActive;
+    private Boolean canUse; // Whether user has enough points to use this coupon
 }
 

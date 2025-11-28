@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { FaInfoCircle, FaClock, FaCheckCircle, FaSpinner, FaSearch, FaMoneyBillWave, FaQrcode, FaUniversity } from 'react-icons/fa';
 import { apiService } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
 import type { OrderResponse } from '../types';
 import { formatCurrency } from '../utils/helpers';
 import { generateOrderQRCode } from '../services/sepay';
@@ -22,6 +23,7 @@ interface PaymentLocationState {
 export const Payment: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { isAuthenticated } = useAuth();
   const state = location.state as PaymentLocationState;
 
   const [order, setOrder] = useState<OrderResponse | null>(null);
@@ -476,7 +478,13 @@ export const Payment: React.FC = () => {
                     <p className="text-green-700 text-sm mb-3">Đơn hàng của bạn đã được xác nhận</p>
                     <div className="flex items-center gap-2 mb-4">
                       <button
-                        onClick={() => navigate('/my-orders', { state: { email: order.guestEmail } })}
+                        onClick={() => {
+                          if (isAuthenticated) {
+                            navigate('/profile');
+                          } else {
+                            navigate('/my-orders', { state: { email: order.guestEmail } });
+                          }
+                        }}
                         className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
                       >
                         Xem đơn hàng
@@ -542,7 +550,13 @@ export const Payment: React.FC = () => {
                   {/* Action Buttons */}
                   <div className="flex flex-col sm:flex-row gap-3">
                     <button
-                      onClick={() => navigate('/my-orders', { state: { email: order.guestEmail } })}
+                      onClick={() => {
+                        if (isAuthenticated) {
+                          navigate('/profile');
+                        } else {
+                          navigate('/my-orders', { state: { email: order.guestEmail } });
+                        }
+                      }}
                       className="flex-1 bg-black text-white px-6 py-3 rounded-lg font-semibold hover:bg-gray-800 transition-colors shadow-md hover:shadow-lg flex items-center justify-center gap-2"
                     >
                       <FaSearch />

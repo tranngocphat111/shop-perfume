@@ -13,8 +13,10 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
+import iuh.fit.server.repository.UserRepository;
 
 import java.util.List;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/orders")
@@ -25,6 +27,7 @@ import java.util.List;
 public class OrderController {
 
     private final OrderService orderService;
+    private final UserRepository userRepository;
 
     /**
      * Get total size of orders
@@ -97,28 +100,61 @@ public class OrderController {
      * Public endpoint - Guest có thể tìm đơn hàng bằng email
      */
     @GetMapping("/my-orders")
-    @Operation(summary = "Get orders by email", description = "Get orders by authenticated user or guest email (public)")
+    @Operation(summary = "Get orders by user ID or email", description = "Get orders by authenticated user ID or guest email (public)")
     public ResponseEntity<?> getMyOrders(
             @RequestParam(required = false) String email,
             Authentication authentication) {
         try {
             List<OrderResponse> orders;
-            String searchEmail = null;
             
-            // If email parameter is provided, use it (for guest search or authenticated user searching different email)
+            // Nếu user đã đăng nhập, dùng userId
+            log.info("🔵 [getMyOrders] Authentication check: authentication={}, isAuthenticated={}", 
+                    authentication != null ? "present" : "null",
+                    authentication != null ? authentication.isAuthenticated() : false);
+            
+            if (authentication != null && authentication.isAuthenticated() && 
+                !authentication.getPrincipal().equals("anonymousUser")) {
+                try {
+                    UserDetails userDetails = (UserDetails) authentication.getPrincipal();
+                    String userEmail = userDetails.getUsername();
+                    log.info("🔵 [getMyOrders] User email from token: {}", userEmail);
+                    
+                    // Tìm user từ email để lấy userId
+                    Optional<iuh.fit.server.model.entity.User> userOpt = userRepository.findByEmail(userEmail);
+                    if (userOpt.isPresent()) {
+                        Integer userId = userOpt.get().getUserId();
+                        log.info("✅ [getMyOrders] Getting orders by userId: {} (email: {})", userId, userEmail);
+                        orders = orderService.getOrdersByUserId(userId);
+                        log.info("✅ [getMyOrders] Found {} orders for userId: {}", orders.size(), userId);
+                        // Luôn trả về danh sách (có thể rỗng), không phải lỗi
+                        return ResponseEntity.ok(orders);
+                    } else {
+                        log.warn("⚠️ [getMyOrders] User not found in database for email: {}", userEmail);
+                        // Trả về empty list thay vì lỗi
+                        return ResponseEntity.ok(new java.util.ArrayList<>());
+                    }
+                } catch (Exception e) {
+                    log.error("❌ [getMyOrders] Error getting orders by userId: {}", e.getMessage(), e);
+                    // Fallback về email search
+                }
+            } else {
+                log.info("ℹ️ [getMyOrders] No authentication or anonymous user - will use email search");
+            }
+            
+            // Nếu có email parameter hoặc không đăng nhập, dùng email
+            String searchEmail = null;
             if (email != null && !email.isEmpty()) {
                 searchEmail = email;
             } else if (authentication != null && authentication.isAuthenticated()) {
-                // If user is authenticated and no email param, use authenticated user's email
                 UserDetails userDetails = (UserDetails) authentication.getPrincipal();
                 searchEmail = userDetails.getUsername();
             } else {
-                // No email and not authenticated
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                        .body(new ErrorResponse("Vui lòng nhập email để tìm kiếm đơn hàng"));
+                // Guest không có email param → trả về empty list
+                return ResponseEntity.ok(new java.util.ArrayList<>());
             }
             
-            // Get orders by email
+            // Get orders by email (for guest or fallback)
+            log.info("Getting orders by email: {}", searchEmail);
             orders = orderService.getOrdersByEmail(searchEmail);
             
             return ResponseEntity.ok(orders);

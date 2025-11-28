@@ -7,24 +7,28 @@ import {
   Check, 
   ChevronDown, 
   X,
-  Gift
+  Gift,
+  Coins
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCart } from '../../contexts/CartContext';
-import { userCouponService, type UserCoupon } from '../../services/user-coupon.service';
+import { couponService, type Coupon } from '../../services/coupon.service';
+import { userService, type UserInfo } from '../../services/user.service';
 import { formatCurrency } from '../../utils/helpers';
 
-// --- COMPONENT: COUPON CARD (Giữ nguyên giao diện) ---
+// --- COMPONENT: COUPON CARD ---
 const CouponCard = ({ 
   data, 
   isSelected, 
   onSelect,
-  isValid
+  isValid,
+  userPoints
 }: { 
-  data: UserCoupon, 
+  data: Coupon, 
   isSelected: boolean, 
   onSelect: () => void,
-  isValid: boolean
+  isValid: boolean,
+  userPoints: number
 }) => {
   // Format end date
   const formatEndDate = (dateString: string) => {
@@ -36,15 +40,17 @@ const CouponCard = ({
     }
   };
 
+  const hasEnoughPoints = userPoints >= data.requiredPoints;
+
   return (
     <div 
-      onClick={onSelect}
+      onClick={isValid && hasEnoughPoints ? onSelect : undefined}
       className={`
-        relative group cursor-pointer overflow-hidden rounded-xl border-2 transition-all duration-200 flex flex-col justify-between min-h-[120px]
+        relative group overflow-hidden rounded-xl border-2 transition-all duration-200 flex flex-col justify-between min-h-[120px]
         ${isSelected 
-          ? 'border-black bg-gray-50 shadow-sm' 
-          : isValid
-          ? 'border-gray-100 bg-white hover:border-gray-300 hover:shadow-md'
+          ? 'border-black bg-gray-50 shadow-sm cursor-pointer' 
+          : isValid && hasEnoughPoints
+          ? 'border-gray-100 bg-white hover:border-gray-300 hover:shadow-md cursor-pointer'
           : 'border-gray-200 bg-gray-50 opacity-60 cursor-not-allowed'
         }
       `}
@@ -76,7 +82,15 @@ const CouponCard = ({
         
         <div className="mt-3">
           <p className="text-sm text-gray-600 font-medium">{data.description}</p>
-          <p className="text-xs text-gray-400 mt-1">HSD: {formatEndDate(data.endDate)}</p>
+          <div className="flex items-center justify-between mt-1">
+            <p className="text-xs text-gray-400">HSD: {formatEndDate(data.endDate)}</p>
+            <div className="flex items-center gap-1 text-xs">
+              <Coins size={12} className={hasEnoughPoints ? 'text-amber-500' : 'text-gray-400'} />
+              <span className={hasEnoughPoints ? 'text-amber-600 font-semibold' : 'text-gray-400'}>
+                {data.requiredPoints} điểm
+              </span>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -88,50 +102,48 @@ interface CartSummaryProps {
   total: number;
   itemCount?: number;
   discount?: number;
-  onCouponApply?: (userCouponId: number | null, discountAmount: number) => void;
+  onCouponApply?: (couponId: number | null, discountAmount: number) => void;
 }
 
 export default function CartSummary({ total, itemCount, discount = 0, onCouponApply }: CartSummaryProps) {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
-  const { appliedUserCouponId, setAppliedUserCouponId, setDiscount } = useCart();
+  const { appliedCouponId, setAppliedCouponId, setDiscount } = useCart();
   
-  const [userCoupons, setUserCoupons] = useState<UserCoupon[]>([]);
-  const [selectedCouponId, setSelectedCouponId] = useState<number | null>(appliedUserCouponId);
+  const [coupons, setCoupons] = useState<Coupon[]>([]);
+  const [selectedCouponId, setSelectedCouponId] = useState<number | null>(appliedCouponId);
+  const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
   const [isStickyVisible, setIsStickyVisible] = useState(false);
   const [showStickyCoupons, setShowStickyCoupons] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [couponValidation, setCouponValidation] = useState<Record<number, boolean>>({});
+  const [showAllCoupons, setShowAllCoupons] = useState(false);
    
   const mainSectionRef = useRef<HTMLDivElement>(null);
 
-  // Tự động load coupons khi user đăng nhập
+  // Load user info and coupons when authenticated
   useEffect(() => {
     if (isAuthenticated) {
-      loadUserCoupons();
+      // Load user info first, then coupons
+      loadUserInfo().then(() => {
+        loadCoupons();
+      });
     } else {
-      setUserCoupons([]);
+      setCoupons([]);
       setSelectedCouponId(null);
+      setUserInfo(null);
     }
   }, [isAuthenticated]);
 
-  // Tự động validate tất cả coupons khi total thay đổi
+  // Auto validate selected coupon when total changes
   useEffect(() => {
-    if (isAuthenticated && userCoupons.length > 0 && total > 0) {
-      validateAllCoupons();
-    }
-  }, [total, userCoupons, isAuthenticated]);
-
-  // Tự động validate coupon đã chọn khi total thay đổi
-  useEffect(() => {
-    if (selectedCouponId && total > 0) {
+    if (selectedCouponId && total > 0 && userInfo) {
       validateAndApplyCoupon(selectedCouponId);
     }
-  }, [total, selectedCouponId]);
+  }, [total, selectedCouponId, userInfo]);
 
-  // Sync với CartContext
+  // Sync with CartContext
   useEffect(() => {
-    if (selectedCouponId !== appliedUserCouponId) {
+    if (selectedCouponId !== appliedCouponId) {
       if (selectedCouponId) {
         validateAndApplyCoupon(selectedCouponId);
       } else {
@@ -140,54 +152,52 @@ export default function CartSummary({ total, itemCount, discount = 0, onCouponAp
     }
   }, [selectedCouponId]);
 
-  const loadUserCoupons = async () => {
+  const loadUserInfo = async (): Promise<void> => {
     try {
-      setIsLoading(true);
-      const coupons = await userCouponService.getMyCoupons();
-      setUserCoupons(coupons);
+      console.log('🔄 [CartSummary] Loading user info...');
+      const token = localStorage.getItem('auth_token');
+      console.log('🔄 [CartSummary] Token exists:', !!token);
       
-      // Validate tất cả coupons
-      if (coupons.length > 0 && total > 0) {
-        validateAllCoupons();
+      const info = await userService.getCurrentUser();
+      if (info) {
+        setUserInfo(info);
+        console.log('✅ [CartSummary] Loaded user info - Loyalty Points:', info.loyaltyPoints);
+      } else {
+        console.warn('⚠️ [CartSummary] User info is null');
       }
     } catch (error: any) {
-      console.error('Error loading user coupons:', error);
-      if (error?.status !== 401) {
-        setUserCoupons([]);
-      }
+      console.error('❌ [CartSummary] Error loading user info:', error);
+      console.error('Error details:', {
+        status: error?.status,
+        message: error?.message,
+        response: error?.response
+      });
+    }
+  };
+
+  const loadCoupons = async () => {
+    try {
+      setIsLoading(true);
+      // Get coupons (already sorted: canUse = true first)
+      const availableCoupons = await couponService.getAvailableCoupons();
+      setCoupons(availableCoupons);
+    } catch (error: any) {
+      console.error('Error loading coupons:', error);
+      setCoupons([]);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Tự động validate tất cả coupons
-  const validateAllCoupons = async () => {
-    const validationMap: Record<number, boolean> = {};
-    
-    for (const coupon of userCoupons) {
-      try {
-        const result = await userCouponService.validateCoupon(coupon.userCouponId, total);
-        validationMap[coupon.userCouponId] = result.valid || false;
-      } catch {
-        validationMap[coupon.userCouponId] = false;
-      }
-    }
-    
-    setCouponValidation(validationMap);
-  };
-
-  // Tự động validate và apply coupon
-  const validateAndApplyCoupon = async (userCouponId: number) => {
+  // Validate and apply coupon
+  const validateAndApplyCoupon = async (couponId: number) => {
     try {
-      const result = await userCouponService.validateCoupon(userCouponId, total);
+      const result = await couponService.validateCouponWithPoints(couponId, total);
       
       if (result.valid && result.discountAmount) {
         setDiscount(result.discountAmount);
-        setAppliedUserCouponId(userCouponId);
-        onCouponApply?.(userCouponId, result.discountAmount);
-        
-        // Update validation map
-        setCouponValidation(prev => ({ ...prev, [userCouponId]: true }));
+        setAppliedCouponId(couponId);
+        onCouponApply?.(couponId, result.discountAmount);
       } else {
         // Invalid coupon - remove selection
         handleRemoveCoupon();
@@ -198,32 +208,55 @@ export default function CartSummary({ total, itemCount, discount = 0, onCouponAp
     }
   };
 
-  const handleSelectCoupon = (userCouponId: number | null) => {
-    if (userCouponId === null) {
+  const handleSelectCoupon = (couponId: number | null) => {
+    if (couponId === null) {
       handleRemoveCoupon();
       return;
     }
 
-    // Check if coupon is valid
-    if (!couponValidation[userCouponId]) {
-      console.warn('Coupon is not valid for current order total');
+    const coupon = coupons.find(c => c.couponId === couponId);
+    if (!coupon) return;
+
+    // Check if user has enough points
+    if (userInfo && userInfo.loyaltyPoints < coupon.requiredPoints) {
+      console.warn('Not enough loyalty points');
       return;
     }
 
-    setSelectedCouponId(userCouponId);
+    setSelectedCouponId(couponId);
   };
 
   const handleRemoveCoupon = () => {
     setSelectedCouponId(null);
     setDiscount(0);
-    setAppliedUserCouponId(null);
+    setAppliedCouponId(null);
     onCouponApply?.(null, 0);
   };
 
   const finalTotal = total - discount;
-  const selectedCoupon = userCoupons.find(c => c.userCouponId === selectedCouponId);
+  const selectedCoupon = coupons.find(c => c.couponId === selectedCouponId);
+  
+  // Đếm số coupon khả dụng (có thể dùng)
+  const usableCoupons = coupons.filter(c => {
+    if (!userInfo) return false;
+    return userInfo.loyaltyPoints >= c.requiredPoints;
+  });
+  
+  // Hiển thị tất cả coupon, nhưng ưu tiên hiển thị 5 coupon khả dụng đầu tiên
+  // Sắp xếp: coupon khả dụng lên đầu, sau đó là coupon không khả dụng
+  const sortedCoupons = [...coupons].sort((a, b) => {
+    const aCanUse = userInfo ? userInfo.loyaltyPoints >= a.requiredPoints : false;
+    const bCanUse = userInfo ? userInfo.loyaltyPoints >= b.requiredPoints : false;
+    if (aCanUse && !bCanUse) return -1;
+    if (!aCanUse && bCanUse) return 1;
+    return 0;
+  });
+  
+  // Chỉ hiển thị 5 coupon đầu tiên (ưu tiên các coupon khả dụng)
+  const displayedCoupons = showAllCoupons ? sortedCoupons : sortedCoupons.slice(0, 5);
+  const hasMoreCoupons = sortedCoupons.length > 5;
 
-  // Xử lý hiển thị Sticky Footer
+  // Handle sticky footer visibility
   useEffect(() => {
     const observer = new IntersectionObserver(
       ([entry]) => {
@@ -242,20 +275,35 @@ export default function CartSummary({ total, itemCount, discount = 0, onCouponAp
         ref={mainSectionRef}
         className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden"
       >
-        {/* Chỉ hiển thị coupon section nếu user đã đăng nhập */}
-        {isAuthenticated && (
+        {/* Chỉ hiển thị coupon section nếu user đã đăng nhập VÀ có coupons */}
+        {isAuthenticated && coupons.length > 0 && (
           <>
             {/* SECTION 1: ƯU ĐÃI */}
             <div className="p-6 lg:p-8">
-              <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
                   <Gift className="text-red-500" size={20} />
                   Thêm ưu đãi
                 </h2>
-                <span className="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded-md">
-                  {isLoading ? 'Đang tải...' : `${userCoupons.length} mã khả dụng`}
-                </span>
+                <div className="flex items-center gap-3">
+                  {userInfo ? (
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-amber-50 to-amber-100 border border-amber-300 rounded-lg shadow-sm">
+                      <Coins size={16} className="text-amber-600" />
+                      <span className="text-sm font-bold text-amber-800">{userInfo.loyaltyPoints.toLocaleString('vi-VN')}</span>
+                      <span className="text-xs text-amber-700 font-medium">điểm</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 border border-gray-200 rounded-lg">
+                      <Coins size={16} className="text-gray-400" />
+                      <span className="text-xs text-gray-500">Đang tải...</span>
+                    </div>
+                  )}
+                  <span className="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded-md">
+                    {isLoading ? 'Đang tải...' : `${usableCoupons.length} mã khả dụng`}
+                  </span>
+                </div>
               </div>
+              
 
               {/* GRID LAYOUT CHO COUPON */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -270,16 +318,47 @@ export default function CartSummary({ total, itemCount, discount = 0, onCouponAp
                   <span className="font-medium text-sm">Không áp dụng ưu đãi</span>
                 </div>
 
-                {userCoupons.map((coupon) => (
-                  <CouponCard 
-                    key={coupon.userCouponId} 
-                    data={coupon} 
-                    isSelected={selectedCouponId === coupon.userCouponId}
-                    isValid={couponValidation[coupon.userCouponId] !== false}
-                    onSelect={() => handleSelectCoupon(coupon.userCouponId)}
-                  />
-                ))}
+                {displayedCoupons.map((coupon) => {
+                  const canUse = userInfo ? userInfo.loyaltyPoints >= coupon.requiredPoints : false;
+                  return (
+                    <CouponCard 
+                      key={coupon.couponId} 
+                      data={coupon} 
+                      isSelected={selectedCouponId === coupon.couponId}
+                      isValid={canUse}
+                      userPoints={userInfo?.loyaltyPoints || 0}
+                      onSelect={() => {
+                        // Chỉ cho phép chọn nếu đủ điểm
+                        if (canUse) {
+                          handleSelectCoupon(coupon.couponId);
+                        }
+                      }}
+                    />
+                  );
+                })}
               </div>
+              
+              {/* Nút Xem thêm / Thu gọn */}
+              {hasMoreCoupons && (
+                <div className="mt-4 flex justify-center">
+                  <button
+                    onClick={() => setShowAllCoupons(!showAllCoupons)}
+                    className="px-6 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors flex items-center gap-2"
+                  >
+                    {showAllCoupons ? (
+                      <>
+                        <ChevronDown size={16} className="rotate-180" />
+                        Thu gọn
+                      </>
+                    ) : (
+                      <>
+                        Xem thêm ({sortedCoupons.length - 5} mã khác)
+                        <ChevronDown size={16} />
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
             </div>
           </>
         )}
@@ -360,7 +439,7 @@ export default function CartSummary({ total, itemCount, discount = 0, onCouponAp
               
               {/* Popup Coupon Mini trong footer */}
               <AnimatePresence>
-                {showStickyCoupons && isAuthenticated && (
+                {showStickyCoupons && isAuthenticated && coupons.length > 0 && (
                   <motion.div
                     initial={{ height: 0 }} 
                     animate={{ height: "auto" }} 
@@ -395,26 +474,37 @@ export default function CartSummary({ total, itemCount, discount = 0, onCouponAp
                           <span className="text-center">Không áp dụng</span>
                         </div>
                         
-                        {userCoupons.length > 0 ? (
-                          userCoupons.map(c => (
-                            <div 
-                              key={c.userCouponId} 
-                              onClick={() => {
-                                handleSelectCoupon(c.userCouponId);
-                                setShowStickyCoupons(false);
-                              }}
-                              className={`p-3 rounded border text-sm cursor-pointer transition-colors ${
-                                selectedCouponId === c.userCouponId 
-                                  ? 'border-black bg-gray-50' 
-                                  : couponValidation[c.userCouponId] !== false
-                                  ? 'bg-white hover:bg-gray-50'
-                                  : 'bg-gray-50 opacity-60 cursor-not-allowed'
-                              }`}
-                            >
-                              <div className="font-bold">{c.code}</div>
-                              <div className="text-xs text-gray-500 truncate">{c.description}</div>
-                            </div>
-                          ))
+                        {coupons.length > 0 ? (
+                          coupons.map(c => {
+                            const canUse = userInfo ? userInfo.loyaltyPoints >= c.requiredPoints : false;
+                            return (
+                              <div 
+                                key={c.couponId} 
+                                onClick={() => {
+                                  if (canUse) {
+                                    handleSelectCoupon(c.couponId);
+                                    setShowStickyCoupons(false);
+                                  }
+                                }}
+                                className={`p-3 rounded border text-sm cursor-pointer transition-colors ${
+                                  selectedCouponId === c.couponId 
+                                    ? 'border-black bg-gray-50' 
+                                    : canUse
+                                    ? 'bg-white hover:bg-gray-50'
+                                    : 'bg-gray-50 opacity-60 cursor-not-allowed'
+                                }`}
+                              >
+                                <div className="font-bold">{c.code}</div>
+                                <div className="text-xs text-gray-500 truncate">{c.description}</div>
+                                <div className="flex items-center gap-1 mt-1">
+                                  <Coins size={10} className="text-amber-500" />
+                                  <span className={`text-xs ${canUse ? 'text-amber-600' : 'text-gray-400'}`}>
+                                    {c.requiredPoints} điểm
+                                  </span>
+                                </div>
+                              </div>
+                            );
+                          })
                         ) : (
                           <div className="p-3 rounded border border-gray-200 bg-gray-50 text-sm text-gray-500 text-center col-span-1">
                             Chưa có mã giảm giá
@@ -430,7 +520,7 @@ export default function CartSummary({ total, itemCount, discount = 0, onCouponAp
               <div className="max-w-6xl mx-auto px-4 md:px-6 py-4 flex items-center justify-between gap-3 md:gap-4">
                 {/* Left Section */}
                 <div className="flex items-center gap-3 md:gap-4 flex-1 min-w-0">
-                  {isAuthenticated && (
+                  {isAuthenticated && coupons.length > 0 && (
                     <button 
                       onClick={() => setShowStickyCoupons(!showStickyCoupons)}
                       className={`

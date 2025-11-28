@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import { useAuth } from "@contexts/AuthContext";
 import { addressService, type Address } from "../../services/address.service";
 import type { Province, District, Ward, ProvinceDetail, DistrictDetail } from "../../types";
@@ -7,6 +8,7 @@ const PROVINCES_API = 'https://provinces.open-api.vn/api/p/';
 const DISTRICTS_API = 'https://provinces.open-api.vn/api/d/';
 
 export const Addresses = () => {
+  const location = useLocation();
   const { user, isAuthenticated } = useAuth();
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [showModal, setShowModal] = useState(false);
@@ -38,6 +40,24 @@ export const Addresses = () => {
       loadAddresses();
     }
   }, [user, isAuthenticated]);
+
+  // Auto-open modal if navigating from checkout to add address
+  useEffect(() => {
+    const state = location.state as { action?: string } | null;
+    if (state?.action === 'add') {
+      setShowModal(true);
+      setEditing(null);
+      setForm({
+        recipientName: "",
+        phone: "",
+        addressLine: "",
+        ward: "",
+        district: "",
+        city: "",
+        isDefault: false,
+      });
+    }
+  }, [location]);
 
   const loadAddresses = async () => {
     try {

@@ -229,7 +229,7 @@ export interface OrderRequest {
   paymentMethod: string;
   cartItems: OrderItemRequest[];
   totalAmount: number;
-  userCouponId?: number; // ID của user_coupon (nếu user đã chọn coupon)
+  couponId?: number; // ID của coupon (nếu user đã chọn coupon)
 }
 
 export interface OrderResponse {

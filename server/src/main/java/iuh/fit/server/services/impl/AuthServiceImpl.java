@@ -61,6 +61,9 @@ public class AuthServiceImpl implements AuthService{
 
         user = userRepository.save(user);
 
+        // Note: Welcome coupon logic removed - users now use loyalty points system
+        // New users start with 0 loyalty points and can earn points through purchases
+
         String token = jwtTokenProvider.generateToken(user.getEmail());
         String refreshTokenString = jwtTokenProvider.generateRefreshToken(user.getEmail());
 
