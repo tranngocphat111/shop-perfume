@@ -3,64 +3,98 @@ name: Auto Deploy Backend to AWS EC2
 on:
   push:
     branches:
-      - develop  # Thay đổi branch này nếu bạn dùng branch khác (main, master, develop, etc.)
+      - develop # Thay đổi branch này nếu bạn dùng branch khác (main, master, develop, etc.)
     paths:
-      - 'server/**'  # Chỉ deploy khi có thay đổi trong folder server
-  workflow_dispatch:  # Cho phép chạy thủ công từ GitHub Actions tab
+      - "server/**" # Chỉ deploy khi có thay đổi trong folder server
+  workflow_dispatch: # Cho phép chạy thủ công từ GitHub Actions tab
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-    
-    - name: Set up JDK 17
-      uses: actions/setup-java@v4
-      with:
-        java-version: '17'
-        distribution: 'temurin'
-        cache: maven
-    
-    - name: Build with Maven
-      working-directory: ./server
-      run: mvn clean package -DskipTests
-    
-    - name: Setup SSH
-      uses: webfactory/ssh-agent@v0.7.0
-      with:
-        ssh-private-key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
-    
-    - name: Add EC2 to known hosts
-      run: |
-        ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
-    
-    - name: Copy JAR to EC2
-      run: |
-        scp server/target/server-*.jar ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/home/${{ secrets.EC2_USER }}/backend.jar
-    
-    - name: Deploy and restart on EC2
-      run: |
-        ssh ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
-          # Tạo thư mục nếu chưa có
-          mkdir -p ~/app
-          
-          # Backup JAR cũ
-          if [ -f ~/app/backend.jar ]; then
-            mv ~/app/backend.jar ~/app/backend.jar.backup
-          fi
-          
-          # Copy JAR mới
-          mv ~/backend.jar ~/app/backend.jar
-          
-          # Dừng service cũ (nếu đang chạy)
-          sudo systemctl stop shop-perfume-backend || true
-          
-          # Chạy JAR mới
-          sudo systemctl start shop-perfume-backend
-          
-          # Kiểm tra status
-          sleep 5
-          sudo systemctl status shop-perfume-backend
-        EOF
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: "17"
+          distribution: "temurin"
+          cache: maven
+
+      - name: Build with Maven
+        working-directory: ./server
+        run: mvn clean package -DskipTests
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.7.0
+        with:
+          ssh-private-key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
+
+      - name: Add EC2 to known hosts
+        run: |
+          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Copy JAR to EC2
+        run: |
+          scp server/target/server-*.jar ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/home/${{ secrets.EC2_USER }}/backend.jar
+
+      - name: Update systemd service with environment variables
+        run: |
+          ssh ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+            # Backup service file nếu chưa có
+            if [ ! -f /etc/systemd/system/shop-perfume-backend.service.backup ]; then
+              sudo cp /etc/systemd/system/shop-perfume-backend.service /etc/systemd/system/shop-perfume-backend.service.backup
+            fi
+            
+            # Tạo service file mới với environment variables
+            sudo tee /etc/systemd/system/shop-perfume-backend.service > /dev/null << SERVICE_EOF
+            [Unit]
+            Description=Shop Perfume Backend Service
+            After=network.target
+            
+            [Service]
+            Type=simple
+            User=${{ secrets.EC2_USER }}
+            WorkingDirectory=/home/${{ secrets.EC2_USER }}/app
+            ExecStart=/usr/bin/java -jar /home/${{ secrets.EC2_USER }}/app/backend.jar
+            Restart=always
+            RestartSec=10
+            Environment="AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}"
+            Environment="AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}"
+            Environment="AWS_SES_REGION=${{ secrets.AWS_SES_REGION }}"
+            Environment="AWS_SES_FROM_EMAIL=${{ secrets.AWS_SES_FROM_EMAIL }}"
+            
+            [Install]
+            WantedBy=multi-user.target
+            SERVICE_EOF
+            
+            # Reload systemd để nhận cấu hình mới
+            sudo systemctl daemon-reload
+          EOF
+
+      - name: Deploy and restart on EC2
+        run: |
+          ssh ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+            # Tạo thư mục nếu chưa có
+            mkdir -p ~/app
+            
+            # Backup JAR cũ
+            if [ -f ~/app/backend.jar ]; then
+              mv ~/app/backend.jar ~/app/backend.jar.backup
+            fi
+            
+            # Copy JAR mới
+            mv ~/backend.jar ~/app/backend.jar
+            
+            # Dừng service cũ (nếu đang chạy)
+            sudo systemctl stop shop-perfume-backend || true
+            
+            # Chạy JAR mới
+            sudo systemctl start shop-perfume-backend
+            
+            # Kiểm tra status
+            sleep 5
+            sudo systemctl status shop-perfume-backend
+          EOF

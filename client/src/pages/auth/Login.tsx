@@ -240,6 +240,12 @@ const Login: React.FC = () => {
           </form>
 
           <div className="mt-6 text-center space-y-3">
+            <Link
+              to="/forgot-password"
+              className="text-sm text-gray-600 hover:text-gray-900 font-medium transition"
+            >
+              Quên mật khẩu?
+            </Link>
             <p className="text-sm text-gray-600">
               Chưa có tài khoản?{" "}
               <Link

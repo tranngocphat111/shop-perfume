@@ -29,6 +29,15 @@ export interface TokenRefreshResponse {
   type: string;
 }
 
+export interface ForgotPasswordRequest {
+  email: string;
+}
+
+export interface ResetPasswordRequest {
+  token: string;
+  newPassword: string;
+}
+
 class AuthService {
   private readonly TOKEN_KEY = "auth_token";
   private readonly REFRESH_TOKEN_KEY = "refresh_token";
@@ -277,6 +286,22 @@ class AuthService {
     }
 
     return true;
+  }
+
+  /**
+   * Gửi yêu cầu quên mật khẩu
+   */
+  async forgotPassword(email: string): Promise<void> {
+    const request: ForgotPasswordRequest = { email };
+    await apiService.post("/auth/forgot-password", request);
+  }
+
+  /**
+   * Đặt lại mật khẩu với token
+   */
+  async resetPassword(token: string, newPassword: string): Promise<void> {
+    const request: ResetPasswordRequest = { token, newPassword };
+    await apiService.post("/auth/reset-password", request);
   }
 }
 
