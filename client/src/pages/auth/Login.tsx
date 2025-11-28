@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Link, useNavigate, Navigate } from "react-router-dom";
+import { motion } from "framer-motion";
 import { authService } from "../../services/auth.service";
 import { useAuth } from "../../contexts/AuthContext";
 import { useCart } from "../../contexts/CartContext";
@@ -66,12 +67,24 @@ const Login: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-md overflow-hidden border border-gray-100">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 via-white to-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, ease: "easeOut" }}
+        className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden border border-gray-200"
+      >
         {/* Header */}
-        <div className="bg-white border-b border-gray-100 p-8 text-center">
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.1 }}
+          className="bg-white border-b border-gray-100 p-8 text-center"
+        >
           <Link to="/" className="inline-block mb-4">
-            <img
+            <motion.img
+              whileHover={{ scale: 1.05 }}
+              transition={{ duration: 0.2 }}
               src="https://res.cloudinary.com/piin/image/upload/v1763985017/logo/SPTN-BLACK.png"
               alt="STPN Perfume"
               className="h-16 mx-auto"
@@ -83,12 +96,22 @@ const Login: React.FC = () => {
           <p className="text-gray-600 mt-2 text-sm">
             Chào mừng bạn quay trở lại
           </p>
-        </div>
+        </motion.div>
 
         {/* Body */}
-        <div className="p-8">
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.5, delay: 0.2 }}
+          className="p-8"
+        >
           {error && (
-            <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 rounded-r">
+            <motion.div
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -10 }}
+              className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 rounded-r-lg"
+            >
               <div className="flex items-start">
                 <svg
                   className="w-5 h-5 text-red-500 mt-0.5 mr-3 flex-shrink-0"
@@ -103,7 +126,7 @@ const Login: React.FC = () => {
                 </svg>
                 <span className="text-sm text-red-800">{error}</span>
               </div>
-            </div>
+            </motion.div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-5">
@@ -175,12 +198,14 @@ const Login: React.FC = () => {
               </div>
             </div>
 
-            <button
+            <motion.button
               type="submit"
+              whileHover={!loading ? { scale: 1.02 } : {}}
+              whileTap={!loading ? { scale: 0.98 } : {}}
               className={`w-full bg-black text-white py-3 rounded-lg font-medium transition-all ${
                 loading
                   ? "opacity-70 cursor-not-allowed"
-                  : "hover:bg-gray-800 active:scale-[0.98]"
+                  : "hover:bg-gray-800"
               }`}
               disabled={loading}
             >
@@ -211,7 +236,7 @@ const Login: React.FC = () => {
               ) : (
                 "Đăng nhập"
               )}
-            </button>
+            </motion.button>
           </form>
 
           <div className="mt-6 text-center space-y-3">
@@ -244,8 +269,8 @@ const Login: React.FC = () => {
               Quay về trang chủ
             </Link>
           </div>
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
     </div>
   );
 };
