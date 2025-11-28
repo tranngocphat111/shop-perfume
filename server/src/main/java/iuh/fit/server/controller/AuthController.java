@@ -68,7 +68,7 @@ public class AuthController {
         }
         return ResponseEntity.ok().build();
     }
-    
+
     /**
      * GET /api/auth/me - Lấy thông tin user hiện tại (bao gồm điểm tích lũy)
      */
@@ -76,57 +76,56 @@ public class AuthController {
     @Operation(summary = "Get current user info", description = "Get current authenticated user information including loyalty points")
     public ResponseEntity<UserInfoResponse> getCurrentUser(Authentication authentication) {
         try {
-            if (authentication == null || !authentication.isAuthenticated() || 
-                authentication.getPrincipal().equals("anonymousUser")) {
+            if (authentication == null || !authentication.isAuthenticated() ||
+                    authentication.getPrincipal().equals("anonymousUser")) {
                 log.warn("Unauthenticated request to /auth/me");
                 return ResponseEntity.status(401).build();
             }
-            
+
             UserDetails userDetails = (UserDetails) authentication.getPrincipal();
             String email = userDetails.getUsername();
             log.info("Getting user info for email: {}", email);
-            
+
             Optional<iuh.fit.server.model.entity.User> userOpt = userRepository.findByEmail(email);
             if (userOpt.isEmpty()) {
                 log.warn("User not found for email: {}", email);
                 return ResponseEntity.status(404).build();
             }
-            
+
             iuh.fit.server.model.entity.User user = userOpt.get();
             UserInfoResponse response = new UserInfoResponse();
             response.setUserId(user.getUserId());
             response.setName(user.getName());
             response.setEmail(user.getEmail());
             response.setLoyaltyPoints(user.getLoyaltyPoints() != null ? user.getLoyaltyPoints() : 0);
-            
+
             // Safely get role
             String role = "CUSTOMER";
             if (user.getRoles() != null && !user.getRoles().isEmpty()) {
                 role = user.getRoles().stream()
-                    .map(r -> r != null ? r.getName() : "CUSTOMER")
-                    .filter(name -> name != null)
-                    .findFirst()
-                    .orElse("CUSTOMER");
+                        .map(r -> r != null ? r.getName() : "CUSTOMER")
+                        .filter(name -> name != null)
+                        .findFirst()
+                        .orElse("CUSTOMER");
             }
             response.setRole(role);
-            
-            log.info("Successfully retrieved user info for userId: {}, loyaltyPoints: {}", 
+
+            log.info("Successfully retrieved user info for userId: {}, loyaltyPoints: {}",
                     user.getUserId(), response.getLoyaltyPoints());
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             log.error("Error getting current user info", e);
             return ResponseEntity.status(500).build();
         }
-     * Quên mật khẩu - gửi email reset password
-     * Public endpoint
-     */
+    }
+
     @PostMapping("/forgot-password")
     @Operation(summary = "Quên mật khẩu", description = "Gửi email chứa link đặt lại mật khẩu")
     public ResponseEntity<Void> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
         authService.forgotPassword(request);
         return ResponseEntity.ok().build();
     }
-    
+
     /**
      * Đặt lại mật khẩu với token
      * Public endpoint
@@ -138,4 +137,3 @@ public class AuthController {
         return ResponseEntity.ok().build();
     }
 }
-
