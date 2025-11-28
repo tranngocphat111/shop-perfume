@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "../contexts/AuthContext";
 import { ProfileSidebar } from "@components/profile/ProfileSidebar";
 import { AccountInfo } from "@components/profile/AccountInfo";
@@ -18,17 +19,71 @@ const Profile: React.FC = () => {
     }
   }, [isAuthenticated]);
   return (
-    <div className="px-4 py-12 min-h-screen bg-gray-50 sm:px-6 lg:px-8">
+    <div className="px-4 py-12 min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 sm:px-6 lg:px-8">
       <div className="grid grid-cols-1 gap-6 mx-auto max-w-6xl md:grid-cols-3">
-        <div>
+        {/* Sidebar */}
+        <motion.div
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.5, ease: "easeOut" }}
+        >
           <ProfileSidebar active={active} onChange={setActive} />
-        </div>
-        <div className="md:col-span-2">
-          {active === "account" && <AccountInfo />}
-          {active === "addresses" && <Addresses />}
-          {active === "orders" && <Orders />}
-          {active === "password" && <ChangePassword />}
-        </div>
+        </motion.div>
+
+        {/* Main Content */}
+        <motion.div
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.5, delay: 0.1, ease: "easeOut" }}
+          className="md:col-span-2"
+        >
+          <AnimatePresence mode="wait">
+            {active === "account" && (
+              <motion.div
+                key="account"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.3 }}
+              >
+                <AccountInfo />
+              </motion.div>
+            )}
+            {active === "addresses" && (
+              <motion.div
+                key="addresses"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.3 }}
+              >
+                <Addresses />
+              </motion.div>
+            )}
+            {active === "orders" && (
+              <motion.div
+                key="orders"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.3 }}
+              >
+                <Orders />
+              </motion.div>
+            )}
+            {active === "password" && (
+              <motion.div
+                key="password"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.3 }}
+              >
+                <ChangePassword />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </motion.div>
       </div>
     </div>
   );

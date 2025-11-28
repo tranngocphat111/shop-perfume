@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Link, useNavigate, Navigate } from "react-router-dom";
+import { motion } from "framer-motion";
 import { authService } from "../../services/auth.service";
 import { useAuth } from "../../contexts/AuthContext";
 
@@ -80,11 +81,23 @@ const Register: React.FC = () => {
   };
 
   return (
-    <div className="flex justify-center items-center px-4 py-12 min-h-screen bg-gray-50 sm:px-6 lg:px-8">
-      <div className="overflow-hidden w-full max-w-md bg-white rounded-lg border border-gray-100 shadow-xl">
-        <div className="p-8 text-center bg-white border-b border-gray-100">
+    <div className="flex justify-center items-center px-4 py-12 min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 sm:px-6 lg:px-8">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, ease: "easeOut" }}
+        className="overflow-hidden w-full max-w-md bg-white rounded-xl border border-gray-200 shadow-2xl"
+      >
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.1 }}
+          className="p-8 text-center bg-white border-b border-gray-100"
+        >
           <Link to="/" className="inline-block mb-4">
-            <img
+            <motion.img
+              whileHover={{ scale: 1.05 }}
+              transition={{ duration: 0.2 }}
               src="https://res.cloudinary.com/piin/image/upload/v1763985017/logo/SPTN-BLACK.png"
               alt="STPN Perfume"
               className="mx-auto h-16"
@@ -96,11 +109,21 @@ const Register: React.FC = () => {
           <p className="mt-2 text-sm text-gray-600">
             Tạo tài khoản để trải nghiệm mua sắm
           </p>
-        </div>
+        </motion.div>
 
-        <div className="p-8">
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.5, delay: 0.2 }}
+          className="p-8"
+        >
           {error && (
-            <div className="p-4 mb-6 bg-red-50 rounded-r border-l-4 border-red-500">
+            <motion.div
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -10 }}
+              className="p-4 mb-6 bg-red-50 rounded-r-lg border-l-4 border-red-500"
+            >
               <div className="flex items-start">
                 <svg
                   className="w-5 h-5 text-red-500 mt-0.5 mr-3 flex-shrink-0"
@@ -115,11 +138,16 @@ const Register: React.FC = () => {
                 </svg>
                 <span className="text-sm text-red-800">{error}</span>
               </div>
-            </div>
+            </motion.div>
           )}
 
           {success && (
-            <div className="p-4 mb-6 bg-green-50 rounded-r border-l-4 border-green-500">
+            <motion.div
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -10 }}
+              className="p-4 mb-6 bg-green-50 rounded-r-lg border-l-4 border-green-500"
+            >
               <div className="flex items-start">
                 <svg
                   className="w-5 h-5 text-green-500 mt-0.5 mr-3 flex-shrink-0"
@@ -134,7 +162,7 @@ const Register: React.FC = () => {
                 </svg>
                 <span className="text-sm text-green-800">{success}</span>
               </div>
-            </div>
+            </motion.div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-5">
@@ -206,12 +234,14 @@ const Register: React.FC = () => {
               />
             </div>
 
-            <button
+            <motion.button
               type="submit"
+              whileHover={!loading ? { scale: 1.02 } : {}}
+              whileTap={!loading ? { scale: 0.98 } : {}}
               className={`w-full bg-black text-white py-3 rounded-lg font-medium transition-all ${
                 loading
                   ? "opacity-70 cursor-not-allowed"
-                  : "hover:bg-gray-800 active:scale-[0.98]"
+                  : "hover:bg-gray-800"
               }`}
               disabled={loading}
             >
@@ -242,7 +272,7 @@ const Register: React.FC = () => {
               ) : (
                 "Đăng ký"
               )}
-            </button>
+            </motion.button>
           </form>
 
           <div className="mt-6 space-y-3 text-center">
@@ -275,8 +305,8 @@ const Register: React.FC = () => {
               Quay về trang chủ
             </Link>
           </div>
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
     </div>
   );
 };

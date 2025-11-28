@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { authService } from '../../services/auth.service';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -78,29 +79,76 @@ const AdminLogin: React.FC = () => {
         <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-800 via-slate-900 to-black py-12 px-4">
             {/* Background Effects */}
             <div className="absolute inset-0 overflow-hidden">
-                <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-pulse"></div>
-                <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-pulse delay-1000"></div>
+                <motion.div
+                    animate={{
+                        scale: [1, 1.2, 1],
+                        opacity: [0.1, 0.15, 0.1],
+                    }}
+                    transition={{
+                        duration: 8,
+                        repeat: Infinity,
+                        ease: "easeInOut",
+                    }}
+                    className="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl"
+                ></motion.div>
+                <motion.div
+                    animate={{
+                        scale: [1, 1.2, 1],
+                        opacity: [0.1, 0.15, 0.1],
+                    }}
+                    transition={{
+                        duration: 8,
+                        repeat: Infinity,
+                        ease: "easeInOut",
+                        delay: 2,
+                    }}
+                    className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl"
+                ></motion.div>
             </div>
 
-            <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border border-gray-200">
+            <motion.div
+                initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                transition={{ duration: 0.5, ease: "easeOut" }}
+                className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border border-gray-200"
+            >
                 {/* Header */}
-                <div className="bg-gradient-to-r from-slate-800 to-slate-900 text-white p-8 text-center relative overflow-hidden">
+                <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: 0.1 }}
+                    className="bg-gradient-to-r from-slate-800 to-slate-900 text-white p-8 text-center relative overflow-hidden"
+                >
                     <div className="absolute inset-0 bg-grid-pattern opacity-10"></div>
                     <div className="relative">
-                        <div className="inline-flex items-center justify-center w-16 h-16 bg-white bg-opacity-20 rounded-full mb-4 backdrop-blur-sm">
+                        <motion.div
+                            whileHover={{ scale: 1.1, rotate: 5 }}
+                            transition={{ duration: 0.2 }}
+                            className="inline-flex items-center justify-center w-16 h-16 bg-white bg-opacity-20 rounded-full mb-4 backdrop-blur-sm"
+                        >
                             <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                             </svg>
-                        </div>
+                        </motion.div>
                         <h2 className="text-3xl font-bold">Admin Portal</h2>
                         <p className="text-slate-300 mt-2">Đăng nhập vào hệ thống quản trị</p>
                     </div>
-                </div>
+                </motion.div>
 
                 {/* Body */}
-                <div className="p-8">
+                <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.5, delay: 0.2 }}
+                    className="p-8"
+                >
                     {error && (
-                        <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 rounded-r-lg">
+                        <motion.div
+                            initial={{ opacity: 0, x: -10 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: -10 }}
+                            className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 rounded-r-lg"
+                        >
                             <div className="flex items-start">
                                 <svg className="w-5 h-5 text-red-500 mt-0.5 mr-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                                     <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
@@ -109,7 +157,7 @@ const AdminLogin: React.FC = () => {
                                     <p className="text-sm font-medium text-red-800">{error}</p>
                                 </div>
                             </div>
-                        </div>
+                        </motion.div>
                     )}
 
                     <form onSubmit={handleSubmit} className="space-y-6">
@@ -161,12 +209,14 @@ const AdminLogin: React.FC = () => {
                             </div>
                         </div>
 
-                        <button
+                        <motion.button
                             type="submit"
+                            whileHover={!loading ? { scale: 1.02, boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)" } : {}}
+                            whileTap={!loading ? { scale: 0.98 } : {}}
                             className={`w-full bg-gradient-to-r from-slate-800 to-slate-900 text-white py-3 rounded-lg font-semibold transition-all shadow-lg ${
                                 loading
                                     ? 'opacity-70 cursor-not-allowed'
-                                    : 'hover:shadow-xl hover:scale-[1.02] active:scale-[0.98]'
+                                    : ''
                             }`}
                             disabled={loading}
                         >
@@ -186,7 +236,7 @@ const AdminLogin: React.FC = () => {
                                     Đăng nhập
                                 </span>
                             )}
-                        </button>
+                        </motion.button>
                     </form>
 
                     {/* Demo Info */}
@@ -218,8 +268,8 @@ const AdminLogin: React.FC = () => {
                             Quay về trang chủ
                         </a>
                     </div>
-                </div>
-            </div>
+                </motion.div>
+            </motion.div>
         </div>
     );
 };
