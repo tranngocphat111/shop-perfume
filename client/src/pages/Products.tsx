@@ -922,27 +922,45 @@ export const Products = () => {
     // Check if URL params match current context state
     const brandIdParam = searchParams.get("brandId");
     const categoryIdParam = searchParams.get("categoryId");
+    const searchQueryParam = searchParams.get("q");
     
     // Determine what URL should be based on context
     let targetUrl = "/products";
     
-    if (appliedCategories.length === 1 && appliedBrands.length === 0) {
-      // 1 category, no brands → /products?categoryId=X
+    // Check if filters are applied (categories or brands)
+    const hasCategoryFilters = appliedCategories.length > 0;
+    const hasBrandFilters = appliedBrands.length > 0;
+    const hasMultipleCategories = appliedCategories.length > 1;
+    const hasMultipleBrands = appliedBrands.length > 1;
+    
+    // If multiple filters are applied (1+ categories AND 1+ brands, or multiple of either),
+    // or if there's a search query (q) and filters are applied, redirect to /products
+    if ((hasCategoryFilters && hasBrandFilters) || hasMultipleCategories || hasMultipleBrands) {
+      // Multiple filters → /products (remove q if present)
+      targetUrl = "/products";
+    } else if (appliedCategories.length === 1 && appliedBrands.length === 0) {
+      // 1 category, no brands → /products?categoryId=X (remove q if present)
       targetUrl = `/products?categoryId=${appliedCategories[0]}`;
     } else if (appliedBrands.length === 1 && appliedCategories.length === 0) {
-      // 1 brand, no categories → /products?brandId=X
+      // 1 brand, no categories → /products?brandId=X (remove q if present)
       targetUrl = `/products?brandId=${appliedBrands[0]}`;
+    } else if (hasCategoryFilters || hasBrandFilters) {
+      // Any other filter combination → /products (remove q if present)
+      targetUrl = "/products";
     }
     // Otherwise → /products (no params)
     
-    // Only update if URL is different
+    // Check if we need to update URL (if target is different from current, or if q param exists and should be removed)
     const currentUrl = brandIdParam 
       ? `/products?brandId=${brandIdParam}`
       : categoryIdParam 
       ? `/products?categoryId=${categoryIdParam}`
+      : searchQueryParam
+      ? `/products?q=${searchQueryParam}`
       : "/products";
     
-    if (currentUrl !== targetUrl) {
+    // Update URL if it's different, or if there's a q param that should be removed
+    if (currentUrl !== targetUrl || (searchQueryParam && (hasCategoryFilters || hasBrandFilters))) {
       navigate(targetUrl, { replace: true });
     }
   }, [appliedCategories, appliedBrands, navigate, searchParams]);
