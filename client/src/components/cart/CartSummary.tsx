@@ -1,318 +1,488 @@
-import { motion } from 'framer-motion';
-import { Link } from 'react-router-dom';
 import { useState, useRef, useEffect } from 'react';
-import { formatCurrency } from '../../utils/helpers';
-import { userCouponService, type UserCoupon } from '../../services/user-coupon.service';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
+import { 
+  TicketPercent, 
+  ArrowRight, 
+  Check, 
+  ChevronDown, 
+  X,
+  Gift
+} from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useCart } from '../../contexts/CartContext';
+import { userCouponService, type UserCoupon } from '../../services/user-coupon.service';
+import { formatCurrency } from '../../utils/helpers';
 
+// --- COMPONENT: COUPON CARD (Giữ nguyên giao diện) ---
+const CouponCard = ({ 
+  data, 
+  isSelected, 
+  onSelect,
+  isValid
+}: { 
+  data: UserCoupon, 
+  isSelected: boolean, 
+  onSelect: () => void,
+  isValid: boolean
+}) => {
+  // Format end date
+  const formatEndDate = (dateString: string) => {
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    } catch {
+      return '31/12/2025';
+    }
+  };
+
+  return (
+    <div 
+      onClick={onSelect}
+      className={`
+        relative group cursor-pointer overflow-hidden rounded-xl border-2 transition-all duration-200 flex flex-col justify-between min-h-[120px]
+        ${isSelected 
+          ? 'border-black bg-gray-50 shadow-sm' 
+          : isValid
+          ? 'border-gray-100 bg-white hover:border-gray-300 hover:shadow-md'
+          : 'border-gray-200 bg-gray-50 opacity-60 cursor-not-allowed'
+        }
+      `}
+    >
+      {/* Decorative Circle (Lỗ bấm vé) */}
+      <div className={`absolute -left-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full border-r border-inherit bg-gray-50 z-10 box-border ${isSelected ? 'border-black' : 'border-gray-100'}`} />
+      <div className={`absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full border-l border-inherit bg-gray-50 z-10 box-border ${isSelected ? 'border-black' : 'border-gray-100'}`} />
+
+      <div className="p-4 pl-6 flex flex-col h-full justify-between relative z-0">
+        <div className="flex justify-between items-start">
+          <div className="flex items-center gap-2">
+             <div className={`p-1.5 rounded-lg ${isSelected ? 'bg-black text-white' : 'bg-gray-100 text-gray-500 group-hover:bg-black group-hover:text-white transition-colors'}`}>
+               <TicketPercent size={18} />
+             </div>
+             <span className={`font-bold text-base ${isSelected ? 'text-black' : 'text-gray-800'}`}>
+               {data.code}
+             </span>
+          </div>
+          {isSelected && (
+            <motion.div 
+              initial={{ scale: 0 }} 
+              animate={{ scale: 1 }} 
+              className="bg-black text-white rounded-full p-0.5"
+            >
+              <Check size={14} />
+            </motion.div>
+          )}
+        </div>
+        
+        <div className="mt-3">
+          <p className="text-sm text-gray-600 font-medium">{data.description}</p>
+          <p className="text-xs text-gray-400 mt-1">HSD: {formatEndDate(data.endDate)}</p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// --- MAIN COMPONENT ---
 interface CartSummaryProps {
   total: number;
-  itemCount: number;
+  itemCount?: number;
   discount?: number;
   onCouponApply?: (userCouponId: number | null, discountAmount: number) => void;
 }
 
-export const CartSummary = ({ total, itemCount, discount = 0, onCouponApply }: CartSummaryProps) => {
+export default function CartSummary({ total, itemCount, discount = 0, onCouponApply }: CartSummaryProps) {
+  const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
-  const [isSticky, setIsSticky] = useState(false);
-  const [selectedUserCouponId, setSelectedUserCouponId] = useState<number | null>(null);
+  const { appliedUserCouponId, setAppliedUserCouponId, setDiscount } = useCart();
+  
   const [userCoupons, setUserCoupons] = useState<UserCoupon[]>([]);
-  const [errorMessage, setErrorMessage] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
+  const [selectedCouponId, setSelectedCouponId] = useState<number | null>(appliedUserCouponId);
+  const [isStickyVisible, setIsStickyVisible] = useState(false);
+  const [showStickyCoupons, setShowStickyCoupons] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const normalSummaryRef = useRef<HTMLDivElement>(null);
+  const [couponValidation, setCouponValidation] = useState<Record<number, boolean>>({});
+   
+  const mainSectionRef = useRef<HTMLDivElement>(null);
 
-  // Load user coupons when authenticated
+  // Tự động load coupons khi user đăng nhập
   useEffect(() => {
     if (isAuthenticated) {
       loadUserCoupons();
+    } else {
+      setUserCoupons([]);
+      setSelectedCouponId(null);
     }
   }, [isAuthenticated]);
 
+  // Tự động validate tất cả coupons khi total thay đổi
   useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        // Khi normal summary không còn visible (đã scroll qua), hiển thị sticky
-        setIsSticky(!entry.isIntersecting);
-      },
-      {
-        threshold: 0,
-        rootMargin: '0px 0px -100px 0px', // Trigger trước khi scroll ra khỏi view
-      }
-    );
-
-    if (normalSummaryRef.current) {
-      observer.observe(normalSummaryRef.current);
+    if (isAuthenticated && userCoupons.length > 0 && total > 0) {
+      validateAllCoupons();
     }
+  }, [total, userCoupons, isAuthenticated]);
 
-    return () => {
-      if (normalSummaryRef.current) {
-        observer.unobserve(normalSummaryRef.current);
+  // Tự động validate coupon đã chọn khi total thay đổi
+  useEffect(() => {
+    if (selectedCouponId && total > 0) {
+      validateAndApplyCoupon(selectedCouponId);
+    }
+  }, [total, selectedCouponId]);
+
+  // Sync với CartContext
+  useEffect(() => {
+    if (selectedCouponId !== appliedUserCouponId) {
+      if (selectedCouponId) {
+        validateAndApplyCoupon(selectedCouponId);
+      } else {
+        handleRemoveCoupon();
       }
-    };
-  }, []);
+    }
+  }, [selectedCouponId]);
 
   const loadUserCoupons = async () => {
     try {
+      setIsLoading(true);
       const coupons = await userCouponService.getMyCoupons();
       setUserCoupons(coupons);
-    } catch (error) {
-      console.error('Error loading user coupons:', error);
-    }
-  };
-
-  const handleCouponChange = async (userCouponId: string) => {
-    if (!userCouponId) {
-      handleRemoveCoupon();
-      return;
-    }
-
-    setIsLoading(true);
-    setErrorMessage('');
-    setSuccessMessage('');
-
-    try {
-      const validation = await userCouponService.validateCoupon(parseInt(userCouponId), total);
       
-      if (validation.valid && validation.discountAmount) {
-        setSelectedUserCouponId(parseInt(userCouponId));
-        setSuccessMessage(`Đã áp dụng mã giảm ${validation.discountPercent}%`);
-        onCouponApply?.(parseInt(userCouponId), validation.discountAmount);
-      } else {
-        setErrorMessage(validation.message || 'Mã giảm giá không hợp lệ');
-        setSelectedUserCouponId(null);
-        onCouponApply?.(null, 0);
+      // Validate tất cả coupons
+      if (coupons.length > 0 && total > 0) {
+        validateAllCoupons();
       }
-    } catch (error) {
-      setErrorMessage('Có lỗi xảy ra khi áp dụng mã giảm giá');
-      setSelectedUserCouponId(null);
-      onCouponApply?.(null, 0);
+    } catch (error: any) {
+      console.error('Error loading user coupons:', error);
+      if (error?.status !== 401) {
+        setUserCoupons([]);
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
+  // Tự động validate tất cả coupons
+  const validateAllCoupons = async () => {
+    const validationMap: Record<number, boolean> = {};
+    
+    for (const coupon of userCoupons) {
+      try {
+        const result = await userCouponService.validateCoupon(coupon.userCouponId, total);
+        validationMap[coupon.userCouponId] = result.valid || false;
+      } catch {
+        validationMap[coupon.userCouponId] = false;
+      }
+    }
+    
+    setCouponValidation(validationMap);
+  };
+
+  // Tự động validate và apply coupon
+  const validateAndApplyCoupon = async (userCouponId: number) => {
+    try {
+      const result = await userCouponService.validateCoupon(userCouponId, total);
+      
+      if (result.valid && result.discountAmount) {
+        setDiscount(result.discountAmount);
+        setAppliedUserCouponId(userCouponId);
+        onCouponApply?.(userCouponId, result.discountAmount);
+        
+        // Update validation map
+        setCouponValidation(prev => ({ ...prev, [userCouponId]: true }));
+      } else {
+        // Invalid coupon - remove selection
+        handleRemoveCoupon();
+      }
+    } catch (error) {
+      console.error('Error validating coupon:', error);
+      handleRemoveCoupon();
+    }
+  };
+
+  const handleSelectCoupon = (userCouponId: number | null) => {
+    if (userCouponId === null) {
+      handleRemoveCoupon();
+      return;
+    }
+
+    // Check if coupon is valid
+    if (!couponValidation[userCouponId]) {
+      console.warn('Coupon is not valid for current order total');
+      return;
+    }
+
+    setSelectedCouponId(userCouponId);
+  };
+
   const handleRemoveCoupon = () => {
-    setSelectedUserCouponId(null);
-    setErrorMessage('');
-    setSuccessMessage('');
+    setSelectedCouponId(null);
+    setDiscount(0);
+    setAppliedUserCouponId(null);
     onCouponApply?.(null, 0);
   };
 
+  const finalTotal = total - discount;
+  const selectedCoupon = userCoupons.find(c => c.userCouponId === selectedCouponId);
+
+  // Xử lý hiển thị Sticky Footer
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setIsStickyVisible(!entry.isIntersecting);
+        if (entry.isIntersecting) setShowStickyCoupons(false);
+      },
+      { threshold: 0.1 }
+    );
+    if (mainSectionRef.current) observer.observe(mainSectionRef.current);
+    return () => observer.disconnect();
+  }, []);
+
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.2 }}
-      className="mt-6"
-    >
-      {/* Normal state - separate div with background */}
-      <div ref={normalSummaryRef} className="bg-white p-4 md:p-8 rounded-lg shadow-[0_2px_8px_rgba(0,0,0,0.2)]">
-        <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4 lg:gap-6">
-          {/* Left: Coupon Section - Chỉ hiển thị cho user đã đăng nhập */}
-          {isAuthenticated && (
-            <div className="flex flex-col gap-2 flex-shrink-0">
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
-                <label className="font-semibold text-gray-700 text-sm md:text-base whitespace-nowrap">
-                  Mã giảm giá:
-                </label>
-                <div className="relative w-full sm:w-auto">
-                  <select
-                    value={selectedUserCouponId || ''}
-                    onChange={(e) => handleCouponChange(e.target.value)}
-                    disabled={isLoading || userCoupons.length === 0}
-                    className={`w-full sm:w-[280px] md:w-[320px] py-2.5 md:py-3 pl-4 md:pl-5 pr-4 border rounded-full text-sm outline-none transition-all appearance-none cursor-pointer ${
-                      selectedUserCouponId
-                        ? 'border-green-500 bg-green-50 text-green-700 font-semibold'
-                        : errorMessage
-                        ? 'border-red-500 bg-red-50'
-                        : userCoupons.length === 0
-                        ? 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed'
-                        : 'border-gray-300 hover:border-gray-400'
-                    }`}
-                  >
-                    <option value="">
-                      {userCoupons.length === 0 ? 'Bạn chưa có mã giảm giá' : 'Chọn mã giảm giá'}
-                    </option>
-                    {userCoupons.map((coupon) => (
-                      <option key={coupon.userCouponId} value={coupon.userCouponId}>
-                        {coupon.code} - Giảm {coupon.discountPercent}% (Đơn tối thiểu{' '}
-                        {formatCurrency(coupon.minOrderValue)}₫)
-                      </option>
-                    ))}
-                  </select>
-                  {/* Custom dropdown arrow */}
-                  <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
-                    <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </div>
-                </div>
+    <>
+      <div 
+        ref={mainSectionRef}
+        className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden"
+      >
+        {/* Chỉ hiển thị coupon section nếu user đã đăng nhập */}
+        {isAuthenticated && (
+          <>
+            {/* SECTION 1: ƯU ĐÃI */}
+            <div className="p-6 lg:p-8">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                  <Gift className="text-red-500" size={20} />
+                  Thêm ưu đãi
+                </h2>
+                <span className="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded-md">
+                  {isLoading ? 'Đang tải...' : `${userCoupons.length} mã khả dụng`}
+                </span>
               </div>
-              {/* Success message */}
-              {successMessage && (
-                <div className="flex items-center gap-2 text-xs text-green-600 bg-green-50 px-3 py-2 rounded-lg border border-green-200 animate-fade-in">
-                  <svg className="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                    <path
-                      fillRule="evenodd"
-                      d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                  <span className="font-medium">{successMessage}</span>
+
+              {/* GRID LAYOUT CHO COUPON */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {/* Option: Không dùng mã */}
+                <div 
+                  onClick={() => handleSelectCoupon(null)}
+                  className={`
+                    cursor-pointer rounded-xl border-2 border-dashed flex items-center justify-center gap-3 transition-all min-h-[120px] hover:bg-gray-50
+                    ${!selectedCouponId ? 'border-black bg-gray-50 text-black' : 'border-gray-200 text-gray-400'}
+                  `}
+                >
+                  <span className="font-medium text-sm">Không áp dụng ưu đãi</span>
+                </div>
+
+                {userCoupons.map((coupon) => (
+                  <CouponCard 
+                    key={coupon.userCouponId} 
+                    data={coupon} 
+                    isSelected={selectedCouponId === coupon.userCouponId}
+                    isValid={couponValidation[coupon.userCouponId] !== false}
+                    onSelect={() => handleSelectCoupon(coupon.userCouponId)}
+                  />
+                ))}
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* SECTION 2: TÓM TẮT ĐƠN HÀNG */}
+        <div className="bg-gray-50 border-t border-gray-100 p-6 lg:p-8">
+          <div className="flex flex-col md:flex-row justify-between items-end md:items-center gap-6">
+            
+            {/* Breakdown bên trái - Tăng width */}
+            <div className="w-full md:w-auto md:flex-[1.5] space-y-2">
+              {/* Số lượng sản phẩm */}
+              {itemCount !== undefined && itemCount > 0 && (
+                <div className="flex justify-between md:justify-start md:gap-8 text-gray-500 text-sm mb-1">
+                  <span className="font-medium">Số lượng sản phẩm</span>
+                  <span className="font-semibold text-gray-700">
+                    {itemCount} {itemCount === 1 ? 'sản phẩm' : 'sản phẩm'}
+                  </span>
                 </div>
               )}
-              {/* Error message */}
-              {errorMessage && (
-                <div className="flex items-center gap-2 text-xs text-red-600 bg-red-50 px-3 py-2 rounded-lg border border-red-200 animate-fade-in">
-                  <svg className="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                    <path
-                      fillRule="evenodd"
-                      d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                  <span className="font-medium">{errorMessage}</span>
+              <div className="flex justify-between md:justify-start md:gap-8 text-gray-600 text-sm md:text-base">
+                <span className="font-medium">Tổng tiền hàng</span>
+                <span className="font-semibold text-gray-900">{formatCurrency(total)}</span>
+              </div>
+              {isAuthenticated && selectedCoupon && discount > 0 && (
+                <div className="flex justify-between md:justify-start md:gap-8 text-green-600 text-sm md:text-base">
+                  <span className="flex items-center gap-1.5 font-medium">
+                    <TicketPercent size={16}/> {selectedCoupon.code}
+                  </span>
+                  <span className="font-bold">-{formatCurrency(discount)}</span>
                 </div>
               )}
+              <p className="text-xs text-gray-400 italic pt-2 max-w-md">
+                * Phí vận chuyển sẽ được tính tại bước thanh toán.
+              </p>
             </div>
-          )}
 
-          {/* Center: Summary Info */}
-          <div className="flex flex-wrap items-center gap-2 md:gap-3 flex-shrink-0">
-            <div className="flex items-center gap-1.5 md:gap-2">
-              <span className="text-xs md:text-sm text-gray-600">Số lượng:</span>
-              <span className="text-sm md:text-base font-bold text-gray-900">{itemCount} sp</span>
+            {/* Total & Action bên phải - Giảm width */}
+            <div className="w-full md:w-auto md:flex-[1] flex flex-col md:items-end gap-3 md:min-w-[200px] md:max-w-[280px]">
+              <div className="flex items-baseline justify-between md:justify-end gap-4 w-full">
+                <span className="text-gray-500 font-medium text-sm md:text-base">Thành tiền</span>
+                <span className="text-2xl md:text-3xl font-extrabold text-black">{formatCurrency(finalTotal)}</span>
+              </div>
+              
+              <button 
+                onClick={() => navigate('/checkout')}
+                className="w-full md:w-auto bg-black text-white hover:bg-gray-800 px-6 md:px-8 py-3 md:py-3.5 rounded-xl font-bold text-sm md:text-base shadow-lg transition-all flex justify-center items-center gap-2"
+              >
+                Tiếp tục thanh toán
+                <ArrowRight size={18} />
+              </button>
             </div>
-            {discount > 0 && (
-              <>
-                <div className="w-px h-4 md:h-6 bg-gray-300"></div>
-                <div className="flex items-center gap-1.5 md:gap-2">
-                  <span className="text-xs md:text-sm text-gray-600">Giảm giá:</span>
-                  <span className="text-sm md:text-base font-bold text-red-600">-{formatCurrency(discount)} ₫</span>
-                </div>
-              </>
-            )}
-            <div className="w-px h-4 md:h-6 bg-gray-300"></div>
-            <div className="flex items-center gap-1.5 md:gap-2">
-              <span className="text-xs md:text-sm text-gray-600">Tổng tiền:</span>
-              <span className="text-lg md:text-xl font-bold text-black">{formatCurrency(total - discount)} ₫</span>
-            </div>
-          </div>
-
-          {/* Right: Action Buttons */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 flex-shrink-0">
-            <Link
-              to="/products"
-              className="btn-slide-overlay relative px-5 md:px-6 py-2.5 md:py-3 border border-black text-black rounded-full text-sm font-semibold no-underline whitespace-nowrap overflow-hidden shadow-sm hover:shadow-md transition-shadow text-center"
-            >
-              <span className="relative z-10">Tiếp tục mua sắm</span>
-            </Link>
-
-            <Link
-              to="/checkout"
-              className="btn-slide-overlay-dark relative px-8 md:px-10 py-2.5 md:py-3 bg-black text-white rounded-full text-base md:text-md no-underline whitespace-nowrap shadow-lg hover:shadow-2xl overflow-hidden transition-shadow text-center"
-            >
-              <span className="relative z-10">Thanh toán</span>
-            </Link>
           </div>
         </div>
       </div>
 
-      {/* Sticky footer - full width when sticky, only show when scrolled */}
-      {isSticky && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.2 }}
-          className="fixed bottom-0 left-0 right-0 bg-white shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1),0_-2px_4px_-2px_rgba(0,0,0,0.1)] z-[100]"
-          style={{
-            width: '100vw',
-          }}
-        >
-          <div className="w-11/12 lg:w-4/5 mx-auto py-4 md:py-6">
-            <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4 lg:gap-6">
-              {/* Left: Coupon Section - Sticky - Chỉ hiển thị cho user đã đăng nhập */}
-              {isAuthenticated && (
-                <div className="flex flex-col gap-2 flex-shrink-0">
-                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
-                    <label className="font-semibold text-gray-700 text-sm md:text-base whitespace-nowrap">
-                      Mã giảm giá:
-                    </label>
-                    <div className="relative w-full sm:w-auto">
-                      <select
-                        value={selectedUserCouponId || ''}
-                        onChange={(e) => handleCouponChange(e.target.value)}
-                        disabled={isLoading || userCoupons.length === 0}
-                        className={`w-full sm:w-[240px] md:w-[280px] py-2 md:py-2.5 pl-3 md:pl-4 pr-3 border rounded-full text-xs md:text-sm outline-none transition-all appearance-none cursor-pointer ${
-                          selectedUserCouponId
-                            ? 'border-green-500 bg-green-50 text-green-700 font-semibold'
-                            : userCoupons.length === 0
-                            ? 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed'
-                            : 'border-gray-300'
-                        }`}
-                      >
-                        <option value="">
-                          {userCoupons.length === 0 ? 'Chưa có mã' : 'Chọn mã giảm giá'}
-                        </option>
-                        {userCoupons.map((coupon) => (
-                          <option key={coupon.userCouponId} value={coupon.userCouponId}>
-                            {coupon.code} - Giảm {coupon.discountPercent}%
-                          </option>
-                        ))}
-                      </select>
-                      <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
-                        <svg className="w-3.5 h-3.5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                        </svg>
+      {/* === STICKY FOOTER (Cho Mobile) === */}
+      <AnimatePresence>
+        {isStickyVisible && (
+          <>
+            {showStickyCoupons && (
+              <motion.div
+                initial={{ opacity: 0 }} 
+                animate={{ opacity: 1 }} 
+                exit={{ opacity: 0 }}
+                onClick={() => setShowStickyCoupons(false)}
+                className="fixed inset-0 bg-black/30 z-40 "
+              />
+            )}
+
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              className="fixed bottom-0 left-0 right-0 z-50 bg-white shadow-[0_-4px_20px_rgba(0,0,0,0.1)] border-t border-gray-100"
+              style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+            >
+              
+              {/* Popup Coupon Mini trong footer */}
+              <AnimatePresence>
+                {showStickyCoupons && isAuthenticated && (
+                  <motion.div
+                    initial={{ height: 0 }} 
+                    animate={{ height: "auto" }} 
+                    exit={{ height: 0 }}
+                    className="overflow-hidden border-b border-gray-100 bg-gray-50"
+                  >
+                    <div className="max-w-6xl mx-auto px-4 py-4">
+                      <div className="flex justify-between items-center mb-3">
+                        <span className="font-bold flex items-center gap-2 text-sm">
+                          <TicketPercent size={18} /> Chọn nhanh ưu đãi
+                        </span>
+                        <button 
+                          onClick={() => setShowStickyCoupons(false)}
+                          className="p-1 hover:bg-gray-200 rounded"
+                        >
+                          <X size={18} />
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3 max-h-[200px] overflow-y-auto">
+                        {/* Option: Không áp dụng ưu đãi */}
+                        <div 
+                          onClick={() => {
+                            handleSelectCoupon(null);
+                            setShowStickyCoupons(false);
+                          }}
+                          className={`p-3 rounded border-2 border-dashed text-sm cursor-pointer transition-colors flex items-center justify-center min-h-[60px] ${
+                            !selectedCouponId 
+                              ? 'border-black bg-gray-50 text-black font-bold' 
+                              : 'border-gray-300 bg-white hover:bg-gray-50 text-gray-600'
+                          }`}
+                        >
+                          <span className="text-center">Không áp dụng</span>
+                        </div>
+                        
+                        {userCoupons.length > 0 ? (
+                          userCoupons.map(c => (
+                            <div 
+                              key={c.userCouponId} 
+                              onClick={() => {
+                                handleSelectCoupon(c.userCouponId);
+                                setShowStickyCoupons(false);
+                              }}
+                              className={`p-3 rounded border text-sm cursor-pointer transition-colors ${
+                                selectedCouponId === c.userCouponId 
+                                  ? 'border-black bg-gray-50' 
+                                  : couponValidation[c.userCouponId] !== false
+                                  ? 'bg-white hover:bg-gray-50'
+                                  : 'bg-gray-50 opacity-60 cursor-not-allowed'
+                              }`}
+                            >
+                              <div className="font-bold">{c.code}</div>
+                              <div className="text-xs text-gray-500 truncate">{c.description}</div>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="p-3 rounded border border-gray-200 bg-gray-50 text-sm text-gray-500 text-center col-span-1">
+                            Chưa có mã giảm giá
+                          </div>
+                        )}
                       </div>
                     </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* Thanh điều khiển chính */}
+              <div className="max-w-6xl mx-auto px-4 md:px-6 py-4 flex items-center justify-between gap-3 md:gap-4">
+                {/* Left Section */}
+                <div className="flex items-center gap-3 md:gap-4 flex-1 min-w-0">
+                  {isAuthenticated && (
+                    <button 
+                      onClick={() => setShowStickyCoupons(!showStickyCoupons)}
+                      className={`
+                        flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs md:text-sm font-semibold border-2 transition-all whitespace-nowrap
+                        ${selectedCouponId 
+                          ? 'bg-black text-white border-black shadow-sm' 
+                          : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400 hover:bg-gray-50'
+                        }
+                      `}
+                    >
+                      <TicketPercent size={16} className={selectedCouponId ? 'text-white' : 'text-gray-600'} />
+                      <span className="hidden sm:inline">
+                        {selectedCoupon ? selectedCoupon.code : 'Thêm mã'}
+                      </span>
+                      <ChevronDown size={12} className={`transition-transform ${showStickyCoupons ? 'rotate-180' : ''} ${selectedCouponId ? 'text-white' : 'text-gray-500'}`}/>
+                    </button>
+                  )}
+
+                  {/* Số lượng sản phẩm - Badge đẹp hơn */}
+                  {itemCount !== undefined && itemCount > 0 && (
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl border border-gray-200">
+                      <span className="text-xs font-bold text-gray-700">
+                        {itemCount}
+                      </span>
+                      <span className="text-xs text-gray-600 hidden sm:inline">
+                        {itemCount === 1 ? 'sản phẩm' : 'sản phẩm'}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Total */}
+                  <div className="flex flex-col min-w-0 ml-auto md:ml-0">
+                    <span className="text-[9px] md:text-[10px] text-gray-500 font-semibold uppercase tracking-wide">Tổng cộng</span>
+                    <span className="text-base md:text-xl font-extrabold text-black truncate leading-tight">
+                      {formatCurrency(finalTotal)}
+                    </span>
                   </div>
                 </div>
-              )}
 
-              {/* Center: Summary Info */}
-              <div className="flex flex-wrap items-center gap-2 md:gap-3 flex-shrink-0">
-                <div className="flex items-center gap-1.5 md:gap-2">
-                  <span className="text-xs md:text-sm text-gray-600">Số lượng:</span>
-                  <span className="text-sm md:text-base font-bold text-gray-900">{itemCount} sp</span>
-                </div>
-                {discount > 0 && (
-                  <>
-                    <div className="w-px h-4 md:h-6 bg-gray-300"></div>
-                    <div className="flex items-center gap-1.5 md:gap-2">
-                      <span className="text-xs md:text-sm text-gray-600">Giảm giá:</span>
-                      <span className="text-sm md:text-base font-bold text-red-600">-{formatCurrency(discount)} ₫</span>
-                    </div>
-                  </>
-                )}
-                <div className="w-px h-4 md:h-6 bg-gray-300"></div>
-                <div className="flex items-center gap-1.5 md:gap-2">
-                  <span className="text-xs md:text-sm text-gray-600">Tổng tiền:</span>
-                  <span className="text-lg md:text-xl font-bold text-black">{formatCurrency(total - discount)} ₫</span>
-                </div>
-              </div>
-
-              {/* Right: Action Buttons */}
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 flex-shrink-0">
-                <Link
-                  to="/products"
-                  className="btn-slide-overlay relative px-5 md:px-6 py-2.5 md:py-3 border border-black text-black rounded-full text-sm font-semibold no-underline whitespace-nowrap overflow-hidden shadow-sm hover:shadow-md transition-shadow text-center"
+                {/* Right Section - Button */}
+                <button 
+                  onClick={() => navigate('/checkout')}
+                  className="bg-gradient-to-r from-black to-gray-800 text-white px-5 md:px-8 py-2.5 md:py-3 rounded-xl font-bold text-xs md:text-sm hover:from-gray-800 hover:to-gray-900 transition-all shadow-lg hover:shadow-xl active:scale-95 whitespace-nowrap flex-shrink-0 flex items-center gap-2"
                 >
-                  <span className="relative z-10">Tiếp tục mua sắm</span>
-                </Link>
-
-                <Link
-                  to="/checkout"
-                  className="btn-slide-overlay-dark relative px-8 md:px-10 py-2.5 md:py-3 bg-black text-white rounded-full text-base md:text-md no-underline whitespace-nowrap shadow-lg hover:shadow-2xl overflow-hidden transition-shadow text-center"
-                >
-                  <span className="relative z-10">Thanh toán</span>
-                </Link>
+                  <span>Tiếp tục thanh toán</span>
+                  <ArrowRight size={16} className="hidden sm:inline" />
+                </button>
               </div>
-            </div>
-          </div>
-        </motion.div>
-      )}
-    </motion.div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+    </>
   );
-};
+}

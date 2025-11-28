@@ -33,6 +33,11 @@ export const Checkout: React.FC = () => {
   const [showSuccessNotification, setShowSuccessNotification] = useState(false);
   const [successMessage, setSuccessMessage] = useState<{ message: string; subMessage?: string } | null>(null);
 
+  // Scroll to top when component mounts
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
+
   // Redirect if cart is empty (but allow navigation to payment page first)
   useEffect(() => {
     // Only redirect if we're still on checkout page and cart is empty

@@ -106,11 +106,12 @@ public class SecurityConfig {
                     // Swagger/API docs
                     .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
 
-                    // ========== AUTHENTICATED ENDPOINTS (Require login) ==========
-                    // Note: Method-level @PreAuthorize provides additional granular control
-                    .requestMatchers("/carts/**").authenticated() // All cart operations require authentication
-                    .requestMatchers("/addresses/**").authenticated() // All address operations require authentication
-                    .requestMatchers("/users/me").authenticated() // User profile
+                    // Protected endpoints
+                    .requestMatchers("/carts/**").authenticated()
+                    .requestMatchers("/orders/**").authenticated()
+                    .requestMatchers("/addresses/**").authenticated()
+                    .requestMatchers("/users/me").authenticated()
+                    .requestMatchers("/user-coupons/**").authenticated() // User coupon endpoints
 
                     // ========== ADMIN ENDPOINTS (Require ADMIN role) ==========
                     // Note: Method-level @PreAuthorize provides additional granular control

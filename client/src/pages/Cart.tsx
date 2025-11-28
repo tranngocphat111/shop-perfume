@@ -1,12 +1,14 @@
 import { motion } from "framer-motion";
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { useCart } from "../contexts/CartContext";
+import { useAuth } from "../contexts/AuthContext";
 import { Link } from "react-router-dom";
 import { EmptyCart } from "../components/cart/EmptyCart";
 import { CartTable } from "../components/cart/CartTable";
-import { CartSummary } from "../components/cart/CartSummary";
+import CartSummary from "../components/cart/CartSummary";
 
 export const Cart = () => {
+  const { isAuthenticated } = useAuth();
   const { 
     cart, 
     removeFromCart, 
@@ -76,6 +78,22 @@ export const Cart = () => {
           <EmptyCart />
         ) : (
           <>
+            {/* Header Section */}
+            <div className="mb-8">
+              <h1 className="text-2xl md:text-3xl font-bold text-gray-900 flex items-center gap-2 mb-2">
+                <svg className="w-6 h-6 md:w-7 md:h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                </svg>
+                {isAuthenticated ? 'Giỏ hàng & Ưu đãi' : 'Giỏ hàng'}
+              </h1>
+              <p className="text-gray-500 text-sm md:text-base">
+                {isAuthenticated 
+                  ? 'Chọn mã giảm giá và kiểm tra lại giá trị đơn hàng'
+                  : 'Kiểm tra lại thông tin đơn hàng của bạn'
+                }
+              </p>
+            </div>
+
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
