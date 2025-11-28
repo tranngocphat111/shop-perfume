@@ -16,6 +16,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -128,8 +129,10 @@ public class ProductController {
 
     /**
      * POST /api/products - Tạo sản phẩm mới (với upload ảnh)
+     * Chỉ ADMIN mới có quyền tạo sản phẩm
      */
     @PostMapping(consumes = {"multipart/form-data"})
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Create new product with images", description = "Create a new product with multiple images")
     public ResponseEntity<ProductResponse> createProduct(
             @Valid @ModelAttribute ProductRequest request,
@@ -155,8 +158,10 @@ public class ProductController {
 
     /**
      * PUT /api/products/{id} - Cập nhật sản phẩm (không cập nhật ảnh)
+     * Chỉ ADMIN mới có quyền cập nhật sản phẩm
      */
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Update product", description = "Update an existing product")
     public ResponseEntity<ProductResponse> updateProduct(
             @PathVariable Integer id,
@@ -169,8 +174,10 @@ public class ProductController {
 
     /**
      * PUT /api/products/{id}/images - Cập nhật ảnh sản phẩm
+     * Chỉ ADMIN mới có quyền cập nhật ảnh
      */
     @PutMapping(value = "/{id}/images", consumes = {"multipart/form-data"})
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Update product images", description = "Update product with new images and manage existing ones")
     public ResponseEntity<ProductResponse> updateProductImages(
             @PathVariable Integer id,
@@ -186,8 +193,10 @@ public class ProductController {
 
     /**
      * DELETE /api/products/{id} - Xóa sản phẩm
+     * Chỉ ADMIN mới có quyền xóa sản phẩm
      */
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Delete product", description = "Delete a product by its ID")
     public ResponseEntity<Void> deleteProduct(@PathVariable Integer id) {
         log.info("REST request to delete product: {}", id);

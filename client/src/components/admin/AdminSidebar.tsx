@@ -74,6 +74,24 @@ export const AdminSidebar = ({ isOpen }: AdminSidebarProps) => {
               </Link>
             </li>
           ))}
+          
+          {/* Divider */}
+          <li className="pt-4 mt-4 border-t border-gray-200">
+            <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+              Cửa hàng
+            </div>
+          </li>
+          
+          {/* View Store Link */}
+          <li>
+            <Link
+              to="/"
+              className="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-gray-700 hover:bg-green-50 hover:text-green-700 border border-green-200 hover:border-green-400">
+              <i className="fas fa-store w-5 text-green-600"></i>
+              <span className="font-medium">Xem cửa hàng</span>
+              <i className="fas fa-external-link-alt ml-auto text-xs text-green-600"></i>
+            </Link>
+          </li>
         </ul>
       </nav>
     </aside>
