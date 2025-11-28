@@ -236,82 +236,53 @@ export default function CartSummary({ total, itemCount, discount = 0, onCouponAp
     return () => observer.disconnect();
   }, []);
 
-  // Chỉ hiển thị coupon section nếu user đã đăng nhập
-  if (!isAuthenticated) {
-    return (
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="bg-gray-50 border-t border-gray-100 p-6 lg:p-8">
-          <div className="flex flex-col md:flex-row justify-between items-end md:items-center gap-6">
-            <div className="w-full md:w-auto flex-1 space-y-2">
-              <div className="flex justify-between md:justify-start md:gap-12 text-gray-600 text-sm">
-                <span>Tổng tiền hàng</span>
-                <span className="font-medium text-gray-900">{formatCurrency(total)}</span>
-              </div>
-              <p className="text-xs text-gray-400 italic pt-2 max-w-md">
-                * Đăng nhập để sử dụng mã giảm giá.
-              </p>
-            </div>
-            <div className="w-full md:w-auto flex flex-col md:items-end gap-3 min-w-[250px]">
-              <div className="flex items-baseline justify-between md:justify-end gap-4">
-                <span className="text-gray-500 font-medium">Thành tiền</span>
-                <span className="text-3xl font-extrabold text-black">{formatCurrency(total)}</span>
-              </div>
-              <button 
-                onClick={() => navigate('/checkout')}
-                className="w-full md:w-auto bg-black text-white hover:bg-gray-800 px-8 py-3.5 rounded-xl font-bold text-base shadow-lg transition-all flex justify-center items-center gap-2"
-              >
-                Tiếp tục thanh toán
-                <ArrowRight size={18} />
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <>
       <div 
         ref={mainSectionRef}
         className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden"
       >
-        {/* SECTION 1: ƯU ĐÃI */}
-        <div className="p-6 lg:p-8">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-            <Gift className="text-red-500" size={20} />
-            Thêm ưu đãi
-          </h2>
-          <span className="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded-md">
-            {isLoading ? 'Đang tải...' : `${userCoupons.length} mã khả dụng`}
-          </span>
-        </div>
+        {/* Chỉ hiển thị coupon section nếu user đã đăng nhập */}
+        {isAuthenticated && (
+          <>
+            {/* SECTION 1: ƯU ĐÃI */}
+            <div className="p-6 lg:p-8">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                  <Gift className="text-red-500" size={20} />
+                  Thêm ưu đãi
+                </h2>
+                <span className="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded-md">
+                  {isLoading ? 'Đang tải...' : `${userCoupons.length} mã khả dụng`}
+                </span>
+              </div>
 
-        {/* GRID LAYOUT CHO COUPON */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {/* Option: Không dùng mã */}
-          <div 
-            onClick={() => handleSelectCoupon(null)}
-            className={`
-              cursor-pointer rounded-xl border-2 border-dashed flex items-center justify-center gap-3 transition-all min-h-[120px] hover:bg-gray-50
-              ${!selectedCouponId ? 'border-black bg-gray-50 text-black' : 'border-gray-200 text-gray-400'}
-            `}
-          >
-            <span className="font-medium text-sm">Không áp dụng ưu đãi</span>
-          </div>
+              {/* GRID LAYOUT CHO COUPON */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {/* Option: Không dùng mã */}
+                <div 
+                  onClick={() => handleSelectCoupon(null)}
+                  className={`
+                    cursor-pointer rounded-xl border-2 border-dashed flex items-center justify-center gap-3 transition-all min-h-[120px] hover:bg-gray-50
+                    ${!selectedCouponId ? 'border-black bg-gray-50 text-black' : 'border-gray-200 text-gray-400'}
+                  `}
+                >
+                  <span className="font-medium text-sm">Không áp dụng ưu đãi</span>
+                </div>
 
-          {userCoupons.map((coupon) => (
-            <CouponCard 
-              key={coupon.userCouponId} 
-              data={coupon} 
-              isSelected={selectedCouponId === coupon.userCouponId}
-              isValid={couponValidation[coupon.userCouponId] !== false}
-              onSelect={() => handleSelectCoupon(coupon.userCouponId)}
-            />
-          ))}
-        </div>
-      </div>
+                {userCoupons.map((coupon) => (
+                  <CouponCard 
+                    key={coupon.userCouponId} 
+                    data={coupon} 
+                    isSelected={selectedCouponId === coupon.userCouponId}
+                    isValid={couponValidation[coupon.userCouponId] !== false}
+                    onSelect={() => handleSelectCoupon(coupon.userCouponId)}
+                  />
+                ))}
+              </div>
+            </div>
+          </>
+        )}
 
         {/* SECTION 2: TÓM TẮT ĐƠN HÀNG */}
         <div className="bg-gray-50 border-t border-gray-100 p-6 lg:p-8">
@@ -319,11 +290,20 @@ export default function CartSummary({ total, itemCount, discount = 0, onCouponAp
             
             {/* Breakdown bên trái - Tăng width */}
             <div className="w-full md:w-auto md:flex-[1.5] space-y-2">
+              {/* Số lượng sản phẩm */}
+              {itemCount !== undefined && itemCount > 0 && (
+                <div className="flex justify-between md:justify-start md:gap-8 text-gray-500 text-sm mb-1">
+                  <span className="font-medium">Số lượng sản phẩm</span>
+                  <span className="font-semibold text-gray-700">
+                    {itemCount} {itemCount === 1 ? 'sản phẩm' : 'sản phẩm'}
+                  </span>
+                </div>
+              )}
               <div className="flex justify-between md:justify-start md:gap-8 text-gray-600 text-sm md:text-base">
                 <span className="font-medium">Tổng tiền hàng</span>
                 <span className="font-semibold text-gray-900">{formatCurrency(total)}</span>
               </div>
-              {selectedCoupon && discount > 0 && (
+              {isAuthenticated && selectedCoupon && discount > 0 && (
                 <div className="flex justify-between md:justify-start md:gap-8 text-green-600 text-sm md:text-base">
                   <span className="flex items-center gap-1.5 font-medium">
                     <TicketPercent size={16}/> {selectedCoupon.code}
@@ -447,37 +427,56 @@ export default function CartSummary({ total, itemCount, discount = 0, onCouponAp
               </AnimatePresence>
 
               {/* Thanh điều khiển chính */}
-              <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
+              <div className="max-w-6xl mx-auto px-4 md:px-6 py-4 flex items-center justify-between gap-3 md:gap-4">
+                {/* Left Section */}
                 <div className="flex items-center gap-3 md:gap-4 flex-1 min-w-0">
                   {isAuthenticated && (
                     <button 
                       onClick={() => setShowStickyCoupons(!showStickyCoupons)}
                       className={`
-                        flex items-center gap-2 px-3 py-2 rounded-lg text-xs md:text-sm font-medium border transition-colors whitespace-nowrap
-                        ${selectedCouponId ? 'bg-gray-100 text-black border-black' : 'bg-gray-50 hover:bg-gray-100 border-gray-200'}
+                        flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs md:text-sm font-semibold border-2 transition-all whitespace-nowrap
+                        ${selectedCouponId 
+                          ? 'bg-black text-white border-black shadow-sm' 
+                          : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400 hover:bg-gray-50'
+                        }
                       `}
                     >
-                      <TicketPercent size={16} />
+                      <TicketPercent size={16} className={selectedCouponId ? 'text-white' : 'text-gray-600'} />
                       <span className="hidden sm:inline">
                         {selectedCoupon ? selectedCoupon.code : 'Thêm mã'}
                       </span>
-                      <ChevronDown size={12} className={`transition-transform ${showStickyCoupons ? 'rotate-180' : ''}`}/>
+                      <ChevronDown size={12} className={`transition-transform ${showStickyCoupons ? 'rotate-180' : ''} ${selectedCouponId ? 'text-white' : 'text-gray-500'}`}/>
                     </button>
                   )}
 
-                  <div className="flex flex-col min-w-0">
-                    <span className="text-[10px] text-gray-500 font-bold uppercase">Tổng cộng</span>
-                    <span className="text-lg md:text-xl font-extrabold text-black truncate">
+                  {/* Số lượng sản phẩm - Badge đẹp hơn */}
+                  {itemCount !== undefined && itemCount > 0 && (
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl border border-gray-200">
+                      <span className="text-xs font-bold text-gray-700">
+                        {itemCount}
+                      </span>
+                      <span className="text-xs text-gray-600 hidden sm:inline">
+                        {itemCount === 1 ? 'sản phẩm' : 'sản phẩm'}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Total */}
+                  <div className="flex flex-col min-w-0 ml-auto md:ml-0">
+                    <span className="text-[9px] md:text-[10px] text-gray-500 font-semibold uppercase tracking-wide">Tổng cộng</span>
+                    <span className="text-base md:text-xl font-extrabold text-black truncate leading-tight">
                       {formatCurrency(finalTotal)}
                     </span>
                   </div>
                 </div>
 
+                {/* Right Section - Button */}
                 <button 
                   onClick={() => navigate('/checkout')}
-                  className="bg-black text-white px-4 md:px-6 py-2.5 md:py-3 rounded-xl font-bold text-xs md:text-sm hover:bg-gray-800 transition-colors shadow-lg whitespace-nowrap flex-shrink-0"
+                  className="bg-gradient-to-r from-black to-gray-800 text-white px-5 md:px-8 py-2.5 md:py-3 rounded-xl font-bold text-xs md:text-sm hover:from-gray-800 hover:to-gray-900 transition-all shadow-lg hover:shadow-xl active:scale-95 whitespace-nowrap flex-shrink-0 flex items-center gap-2"
                 >
-                  Tiếp tục
+                  <span>Tiếp tục thanh toán</span>
+                  <ArrowRight size={16} className="hidden sm:inline" />
                 </button>
               </div>
             </motion.div>
