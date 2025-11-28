@@ -199,9 +199,12 @@ export const ProductDetail = () => {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[400px]">
-        <div className="w-12 h-12 border-4 border-gray-200 border-t-black rounded-full animate-spin mb-4"></div>
-        <p className="text-gray-600">Đang tải sản phẩm...</p>
+      <div className="fixed inset-0 bg-white z-50 flex items-center justify-center">
+        <div className="bg-white p-8 flex flex-col items-center">
+          <div className="w-16 h-16 border-4 border-gray-200 border-t-black rounded-full animate-spin mb-4"></div>
+          <p className="text-gray-600 text-lg">Đang tải sản phẩm...</p>
+          <p className="text-gray-400 text-sm mt-2">Vui lòng đợi trong giây lát</p>
+        </div>
       </div>
     );
   }

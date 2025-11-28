@@ -15,6 +15,7 @@ import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
 import AdminLogin from "./pages/auth/AdminLogin";
 import Profile from "./pages/Profile";
+import { About } from "./pages/About";
 import {
   GuestRoute,
   CustomerRoute,
@@ -45,7 +46,7 @@ function AppContent() {
       {!isAdminRoute && !isAuthRoute && <Header />}
       <main
         className={`min-h-[calc(100vh-80px)] ${
-          isHomePage || isAdminRoute || isAuthRoute ? "" : "pt-28"
+          isHomePage || isAdminRoute || isAuthRoute ? "" : "pt-16 bg-gray-50"
         }`}
       >
         <Routes>
@@ -102,7 +103,7 @@ function AppContent() {
             path="/about"
             element={
               <GuestRoute>
-                <div className="p-8 text-center">About Page - Coming Soon</div>
+                <About />
               </GuestRoute>
             }
           />
