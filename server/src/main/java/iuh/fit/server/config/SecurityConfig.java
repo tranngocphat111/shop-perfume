@@ -23,7 +23,11 @@ import org.springframework.web.cors.CorsConfigurationSource;
 
 @Configuration
 @EnableWebSecurity
-@EnableMethodSecurity
+@EnableMethodSecurity(
+    prePostEnabled = true,  // Enable @PreAuthorize and @PostAuthorize
+    securedEnabled = true,   // Enable @Secured
+    jsr250Enabled = true    // Enable @RolesAllowed (JSR-250)
+)
 @RequiredArgsConstructor
 public class SecurityConfig {
 
@@ -71,46 +75,49 @@ public class SecurityConfig {
             .exceptionHandling(exception ->
                 exception.authenticationEntryPoint(authenticationEntryPoint))
             .authorizeHttpRequests(auth -> auth
-                     // CRITICAL: Webhook endpoints MUST be FIRST (before any other rules)
-                    // Sepay webhook endpoint (must be public)
-                    // Use custom matcher to handle both servletPath and requestURI
+                    // ========== PUBLIC ENDPOINTS (No authentication required) ==========
+                    
+                    // Webhooks - must be public for external services
                     .requestMatchers(webhookMatcher).permitAll()
-                    // Explicit permit for manual endpoint (backup)
                     .requestMatchers("/webhooks/sepay/manual", "/webhooks/sepay/test", "/webhooks/sepay/health").permitAll()
-                    // Webhook logs endpoint - public for debugging (can be restricted later)
                     .requestMatchers("/webhooks/sepay/logs", "/webhooks/sepay/logs/**").permitAll()
                     
-                    // CRITICAL: Guest checkout endpoints MUST be SECOND to ensure they are matched
-                    // Note: context-path=/api, Controller has @RequestMapping("/orders"), so servletPath is /orders/create
+                    // Authentication endpoints
+                    .requestMatchers("/auth/**").permitAll()
+                    
+                    // Guest checkout - allow public access
                     .requestMatchers("/orders/create").permitAll()
                     .requestMatchers("/api/orders/create", "/api/orders/create/**").permitAll()
+                    .requestMatchers("/orders/*/cancel-timeout").permitAll()
+                    .requestMatchers("/orders/my-orders").permitAll() // Guest can search orders by email
+                    
+                    // Payment endpoints - public for guest checkout
                     .requestMatchers("/payment/check-qr").permitAll()
                     .requestMatchers("/api/payment/check-qr", "/api/payment/check-qr/**").permitAll()
                     .requestMatchers("/payment/debug").permitAll()
                     .requestMatchers("/api/payment/debug", "/api/payment/debug/**").permitAll()
-                    .requestMatchers("/orders/*/cancel-timeout").permitAll()
-                    // Allow guest users to search orders by email
-                    .requestMatchers("/orders/my-orders").permitAll()
                     
-                    // Other public endpoints
-                    .requestMatchers("/auth/**").permitAll()
-                    .requestMatchers("/products/**").permitAll()
-                    .requestMatchers("/inventories/**").permitAll()
-                    .requestMatchers("/brands/**").permitAll()
-                    .requestMatchers("/categories/**").permitAll()
-                    .requestMatchers("/admin/suppliers/**").hasRole("ADMIN")
+                    // Public read-only endpoints
+                    .requestMatchers("/products/**").permitAll() // GET public, POST/PUT/DELETE protected by @PreAuthorize
+                    .requestMatchers("/inventories/**").permitAll() // GET public, PUT protected by @PreAuthorize
+                    .requestMatchers("/brands/**").permitAll() // GET public
+                    .requestMatchers("/categories/**").permitAll() // GET public
+                    
+                    // Swagger/API docs
                     .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
 
-                    // Protected endpoints
-                    .requestMatchers("/carts/**").authenticated()
-                    .requestMatchers("/orders/**").authenticated()
-                    .requestMatchers("/addresses/**").authenticated()
-                    .requestMatchers("/users/me").authenticated()
+                    // ========== AUTHENTICATED ENDPOINTS (Require login) ==========
+                    // Note: Method-level @PreAuthorize provides additional granular control
+                    .requestMatchers("/carts/**").authenticated() // All cart operations require authentication
+                    .requestMatchers("/addresses/**").authenticated() // All address operations require authentication
+                    .requestMatchers("/users/me").authenticated() // User profile
 
-                    // Admin endpoints
-                    .requestMatchers("/admin/**").hasRole("ADMIN")
+                    // ========== ADMIN ENDPOINTS (Require ADMIN role) ==========
+                    // Note: Method-level @PreAuthorize provides additional granular control
+                    .requestMatchers("/admin/**").hasRole("ADMIN") // All admin endpoints
+                    .requestMatchers("/orders/size", "/orders/totalRevenue").hasRole("ADMIN") // Admin statistics
 
-                    // All other requests require authentication
+                    // ========== DEFAULT: Require authentication ==========
                     .anyRequest().authenticated()
             )
             .authenticationProvider(authenticationProvider())

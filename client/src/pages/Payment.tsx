@@ -110,6 +110,11 @@ export const Payment: React.FC = () => {
     }
   }, [order, state, checkTimeout]);
 
+  // Scroll to top when page loads
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  }, []);
+
   // Redirect if no state
   useEffect(() => {
     if (!state || !state.order) {

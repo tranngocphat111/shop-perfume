@@ -14,6 +14,11 @@ interface CartContextType {
   getCartTotal: () => number;
   getCartCount: () => number;
   mergeCartOnLogin: (userId: number) => Promise<void>;
+  // Coupon
+  appliedUserCouponId: number | null;
+  discount: number;
+  setAppliedUserCouponId: (id: number | null) => void;
+  setDiscount: (amount: number) => void;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -34,6 +39,10 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     }
     return { items: [], total: 0, totalItems: 0 };
   });
+  
+  // Coupon state
+  const [appliedUserCouponId, setAppliedUserCouponId] = useState<number | null>(null);
+  const [discount, setDiscount] = useState<number>(0);
 
   // Save to sessionStorage whenever cart changes (only if not authenticated)
   useEffect(() => {
@@ -401,6 +410,8 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
 
   const clearCart = () => {
     setCart({ items: [], total: 0, totalItems: 0 });
+    setAppliedUserCouponId(null);
+    setDiscount(0);
   };
 
   const getCartTotal = () => {
@@ -423,6 +434,10 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         getCartTotal,
         getCartCount,
         mergeCartOnLogin,
+        appliedUserCouponId,
+        discount,
+        setAppliedUserCouponId,
+        setDiscount,
       }}
     >
       {children}

@@ -14,6 +14,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -93,8 +94,10 @@ public class SupplierController {
 
     /**
      * POST /api/admin/suppliers - Tạo nhà cung cấp mới
+     * Chỉ ADMIN mới có quyền tạo nhà cung cấp
      */
     @PostMapping
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Create new supplier", description = "Create a new supplier")
     public ResponseEntity<SupplierResponse> createSupplier(
             @Valid @RequestBody SupplierRequest request
@@ -106,8 +109,10 @@ public class SupplierController {
 
     /**
      * PUT /api/admin/suppliers/{id} - Cập nhật nhà cung cấp
+     * Chỉ ADMIN mới có quyền cập nhật nhà cung cấp
      */
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Update supplier", description = "Update an existing supplier")
     public ResponseEntity<SupplierResponse> updateSupplier(
             @PathVariable Integer id,
@@ -120,8 +125,10 @@ public class SupplierController {
 
     /**
      * DELETE /api/admin/suppliers/{id} - Xóa nhà cung cấp
+     * Chỉ ADMIN mới có quyền xóa nhà cung cấp
      */
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Delete supplier", description = "Delete a supplier by its ID")
     public ResponseEntity<Void> deleteSupplier(@PathVariable Integer id) {
         log.info("REST request to delete supplier: {}", id);

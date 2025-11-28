@@ -11,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
@@ -29,8 +30,10 @@ public class AddressController {
 
     /**
      * Get all addresses for the authenticated user
+     * Yêu cầu user phải đăng nhập
      */
     @GetMapping
+    @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Get user addresses", description = "Get all addresses for the authenticated user")
     public ResponseEntity<List<AddressResponse>> getUserAddresses(Authentication authentication) {
         Integer userId = getUserIdFromAuthentication(authentication);
@@ -41,8 +44,10 @@ public class AddressController {
 
     /**
      * Create a new address
+     * Yêu cầu user phải đăng nhập
      */
     @PostMapping
+    @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Create address", description = "Create a new address for the authenticated user")
     public ResponseEntity<AddressResponse> createAddress(
             @Valid @RequestBody AddressRequest request,
@@ -55,8 +60,10 @@ public class AddressController {
 
     /**
      * Update an existing address
+     * Yêu cầu user phải đăng nhập
      */
     @PutMapping("/{addressId}")
+    @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Update address", description = "Update an existing address")
     public ResponseEntity<AddressResponse> updateAddress(
             @PathVariable Integer addressId,
@@ -70,8 +77,10 @@ public class AddressController {
 
     /**
      * Delete an address
+     * Yêu cầu user phải đăng nhập
      */
     @DeleteMapping("/{addressId}")
+    @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Delete address", description = "Delete an address")
     public ResponseEntity<Void> deleteAddress(
             @PathVariable Integer addressId,
@@ -84,8 +93,10 @@ public class AddressController {
 
     /**
      * Set an address as default
+     * Yêu cầu user phải đăng nhập
      */
     @PutMapping("/{addressId}/set-default")
+    @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Set default address", description = "Set an address as the default address")
     public ResponseEntity<AddressResponse> setDefaultAddress(
             @PathVariable Integer addressId,
