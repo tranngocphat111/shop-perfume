@@ -29,6 +29,14 @@ public class OrderController {
     private final OrderService orderService;
     private final UserRepository userRepository;
 
+    @GetMapping("/pending")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Get total size of orders", description = "Retrieve total size of orders from database")
+
+    public ResponseEntity<Long> getSizeOfPendingOrders() {
+        return ResponseEntity.ok(orderService.getSizeOfPendingOrders());
+    }
+
     /**
      * Get total size of orders
      * Chỉ ADMIN mới có quyền xem thống kê

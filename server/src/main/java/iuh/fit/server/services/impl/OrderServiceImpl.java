@@ -42,6 +42,11 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
 
 
     @Override
+    public Long getSizeOfPendingOrders() {
+        return orderRepository.getSizeOfOrdersHaveStatus(PaymentStatus.PENDING);
+    }
+
+    @Override
     public Long getTotalSize() {
         Long totalSize = orderRepository.count();
         log.info("Get total size: {}", totalSize);

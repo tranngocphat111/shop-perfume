@@ -8,6 +8,8 @@ import iuh.fit.server.dto.response.PaymentCheckResponse;
 import java.util.List;
 
 public interface OrderService {
+    Long getSizeOfPendingOrders();
+
     Long getTotalSize();
 
     double getTotalRevenue();
