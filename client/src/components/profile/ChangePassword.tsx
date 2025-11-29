@@ -82,7 +82,7 @@ export const ChangePassword = () => {
   };
 
   return (
-    <div className="bg-white border border-gray-100 rounded-xl shadow-sm overflow-hidden">
+    <div className="bg-white border border-gray-100 rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
       {/* Header */}
       <div className="px-6 py-5 bg-gradient-to-r from-gray-50 to-white border-b border-gray-100 flex justify-between items-center">
         <div className="flex items-center gap-3">

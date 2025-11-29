@@ -110,12 +110,12 @@ export default function StickyCouponPopup({
                             onClose();
                           }
                         }}
-                        className={`p-3 rounded border text-base cursor-pointer transition-colors ${
+                        className={`p-3 rounded border text-base transition-colors ${
                           selectedCouponId === c.couponId 
-                            ? 'border-black bg-gray-50' 
+                            ? 'border-black bg-gray-50 cursor-pointer' 
                             : canUse
-                            ? 'bg-white hover:bg-gray-50'
-                            : 'bg-gray-50 opacity-60 cursor-not-allowed'
+                            ? 'bg-white hover:bg-gray-50 cursor-pointer'
+                            : 'bg-gray-50 opacity-60 cursor-not-allowed hover:bg-gray-50'
                         }`}
                       >
                         <div className="font-bold text-base">{c.code}</div>

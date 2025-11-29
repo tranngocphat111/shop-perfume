@@ -332,8 +332,8 @@ export const MyOrders: React.FC = () => {
       <div className="container mx-auto px-4 max-w-7xl">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Tra cứu đơn hàng</h1>
-          <p className="text-gray-600">
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Tra cứu đơn hàng</h1>
+          <p className="text-gray-600 text-lg">
             {isAuthenticated 
               ? 'Xem lịch sử và trạng thái các đơn hàng của bạn' 
               : 'Nhập email để tra cứu đơn hàng của bạn'}
@@ -363,8 +363,8 @@ export const MyOrders: React.FC = () => {
         ) : (
           <>
             {/* Filters */}
-            <div className="mb-6 p-5 bg-white border border-gray-200 rounded-lg shadow-sm">
-              <div className="flex items-center justify-between mb-4">
+            <div className="mb-6 p-5 pt-0 bg-white border border-gray-200 rounded-lg shadow-sm">
+              <div className="flex items-center justify-between mb-4 ">
                 {(filterStatus !== 'ALL' || filterDate !== 'ALL') && (
                   <motion.button
                     onClick={() => {
@@ -375,7 +375,7 @@ export const MyOrders: React.FC = () => {
                     }}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
-                    className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-50 border border-gray-200 rounded-md hover:bg-gray-100 hover:border-gray-300 transition-colors"
+                    className=" mt-5 flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-50 border border-gray-200 rounded-md hover:bg-gray-100 hover:border-gray-300 transition-colors"
                   >
                     <X size={14} />
                     <span>Xóa bộ lọc</span>

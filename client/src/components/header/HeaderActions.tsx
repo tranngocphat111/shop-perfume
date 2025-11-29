@@ -139,7 +139,7 @@ export const HeaderActions = ({
                     transition={{ type: "spring", stiffness: 500, damping: 25 }}
                     className="absolute -top-2 -right-2 pointer-events-none">
                     <span
-                      className="flex items-center justify-center h-4 min-w-[16px] px-[3px] rounded-full bg-black text-white text-[9px] font-bold ring-2 ring-white leading-none shadow-sm"
+                      className="flex items-center justify-center h-4 min-w-[16px] px-[3px] rounded-full bg-red-500 text-white text-[9px] font-bold ring-2 ring-red-200/80 leading-none shadow-sm"
                       style={{ fontFamily: "var(--font-family-sans)" }}>
                       {cartCount > 99 ? "99+" : cartCount}
                     </span>

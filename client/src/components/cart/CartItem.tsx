@@ -80,9 +80,9 @@ export const CartItem = ({
                 {item.product.name}
               </h3>
               <div className="flex items-center gap-2 mt-2">
-                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-gray-100 text-xs font-semibold text-gray-600 border border-gray-200">
-                  <Package className="w-3 h-3" />
-                  {item.product.category?.name || 'Sản phẩm'}
+                <span className="text-lg inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-gray-100 text-xs font-semibold text-gray-600 border border-gray-200">
+                  <Package className="w-3 h-3 " />
+                  <span className="mt-[-2px]"> {item.stockQuantity} sản phẩm</span>
                 </span>
                 <span className="text-sm font-medium text-gray-400">
                    • Đơn giá: {formatCurrency(item.product.unitPrice)}
@@ -109,7 +109,7 @@ export const CartItem = ({
           >
             
             {/* Quantity Control: Rounded full style like product detail */}
-            <div className="flex items-center border border-gray-200 rounded-full overflow-hidden bg-white hover:border-gray-300 transition-colors w-full md:w-auto">
+            <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden bg-white hover:border-gray-300 transition-colors w-full md:w-auto">
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -118,7 +118,7 @@ export const CartItem = ({
                 disabled={isMinQuantity}
                 className="p-1.5 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
-                <Minus className="w-3 h-3 text-gray-700" />
+                <Minus className="w-4 h-5 text-gray-700" />
               </button>
               
               <input
@@ -129,7 +129,7 @@ export const CartItem = ({
                   handleQuantityChange(val);
                 }}
                 onClick={(e) => e.stopPropagation()}
-                className="w-12 text-center border-0 focus:outline-none focus:ring-0 py-1 text-sm font-semibold text-gray-900 bg-transparent flex items-center justify-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                className="w-12 text-center border-0 focus:outline-none focus:ring-0 py-1.5 text-sm font-semibold text-gray-900 bg-transparent flex items-center justify-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                 min="1"
                 max={maxQuantity !== Infinity ? maxQuantity : undefined}
               />
@@ -142,7 +142,7 @@ export const CartItem = ({
                 disabled={isMaxQuantity}
                 className="p-1.5 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
-                <Plus className="w-3 h-3 text-gray-700" />
+                <Plus className="w-4 h-5 text-gray-700" />
               </button>
             </div>
 
