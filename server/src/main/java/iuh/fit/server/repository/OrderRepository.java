@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import org.springframework.web.bind.annotation.PathVariable;
 
 import java.util.List;
 
@@ -42,4 +43,7 @@ public interface OrderRepository extends JpaRepository<Order, Integer> {
      */
     @Query("SELECT COUNT(o) > 0 FROM Order o WHERE o.user.userId = :userId AND o.coupon.couponId = :couponId")
     boolean hasUserUsedCoupon(@Param("userId") Integer userId, @Param("couponId") Integer couponId);
+
+    @Query("SELECT COUNT(o) FROM Order o join o.payment p WHERE p.status = :paymentStatus")
+    Long getSizeOfOrdersHaveStatus(@PathVariable("paymentStatus") PaymentStatus paymentStatus);
 }
