@@ -29,4 +29,5 @@ public interface AuthService {
     UserInfoResponse updateProfile(String email, UpdateUserRequest request);
     
     void changePassword(String email, ChangePasswordRequest request);
+    AuthResponse signInWithGoogle(String googleIdToken);
 }

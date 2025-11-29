@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Link, useNavigate, Navigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
+import { GoogleLogin } from "@react-oauth/google";
 import { authService } from "../../services/auth.service";
 import { useAuth } from "../../contexts/AuthContext";
 import { useCart } from "../../contexts/CartContext";
@@ -24,6 +25,7 @@ const Login: React.FC = () => {
   const [emailError, setEmailError] = useState("");
   const [error, setError] = useState<string>("");
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const navigate = useNavigate();
   const { login, isAuthenticated } = useAuth();
   const { mergeCartOnLogin } = useCart();
@@ -53,23 +55,23 @@ const Login: React.FC = () => {
       ...formData,
       [name]: value,
     });
-    
+
     if (name === "email") {
       validateEmail(value);
     }
-    
+
     if (error) setError("");
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    
+
     if (!validateEmail(formData.email)) {
       setError("Vui lòng nhập email hợp lệ");
       return;
     }
-    
+
     setLoading(true);
 
     try {
@@ -84,7 +86,9 @@ const Login: React.FC = () => {
       }
 
       // Merge cart before navigating
-      await login(response.token, response, () => mergeCartOnLogin(response.userId));
+      await login(response.token, response, () =>
+        mergeCartOnLogin(response.userId)
+      );
       navigate("/");
     } catch (err) {
       console.error("Login error:", err);
@@ -92,6 +96,45 @@ const Login: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleGoogleSuccess = async (credentialResponse: any) => {
+    if (!credentialResponse.credential) {
+      setError("Không thể lấy thông tin từ Google. Vui lòng thử lại.");
+      return;
+    }
+
+    setGoogleLoading(true);
+    setError("");
+
+    try {
+      const response = await authService.signInWithGoogle(
+        credentialResponse.credential
+      );
+
+      // Chỉ customer mới đăng nhập qua trang này
+      if (response.role === "ADMIN") {
+        setError("Vui lòng sử dụng trang đăng nhập dành cho quản trị viên.");
+        authService.logout();
+        setGoogleLoading(false);
+        return;
+      }
+
+      // Merge cart before navigating
+      await login(response.token, response, () =>
+        mergeCartOnLogin(response.userId)
+      );
+      navigate("/");
+    } catch (err) {
+      console.error("Google Sign-In error:", err);
+      setError(getErrorMessage(err));
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
+
+  const handleGoogleError = () => {
+    setError("Đăng nhập bằng Google thất bại. Vui lòng thử lại.");
   };
 
   return (
@@ -345,6 +388,33 @@ const Login: React.FC = () => {
               )}
             </motion.button>
           </form>
+
+          {/* Divider */}
+          <div className="mt-6 mb-6">
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-300"></div>
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-2 bg-white text-gray-500">Hoặc</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Google Sign-In Button */}
+          <div className="mb-6">
+            <GoogleLogin
+              onSuccess={handleGoogleSuccess}
+              onError={handleGoogleError}
+              useOneTap={false}
+              theme="outline"
+              size="large"
+              text="signin_with"
+              shape="rectangular"
+              locale="vi"
+              disabled={loading || googleLoading}
+            />
+          </div>
 
           <div className="mt-6 text-center space-y-3">
             <Link

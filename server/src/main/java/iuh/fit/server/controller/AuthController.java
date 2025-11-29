@@ -1,6 +1,7 @@
 package iuh.fit.server.controller;
 
 import iuh.fit.server.dto.request.ForgotPasswordRequest;
+import iuh.fit.server.dto.request.GoogleSignInRequest;
 import iuh.fit.server.dto.request.LoginRequest;
 import iuh.fit.server.dto.request.RefreshTokenRequest;
 import iuh.fit.server.dto.request.RegisterRequest;
@@ -49,6 +50,12 @@ public class AuthController {
     @Operation(summary = "Đăng nhập")
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
         return ResponseEntity.ok(authService.login(request));
+    }
+
+    @PostMapping("/google-signin")
+    @Operation(summary = "Đăng nhập bằng Google", description = "Xác thực và đăng nhập bằng Google ID token")
+    public ResponseEntity<AuthResponse> googleSignIn(@Valid @RequestBody GoogleSignInRequest request) {
+        return ResponseEntity.ok(authService.signInWithGoogle(request.getIdToken()));
     }
 
     @PostMapping("/refresh")

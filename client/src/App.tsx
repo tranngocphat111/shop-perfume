@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+import { GoogleOAuthProvider } from "@react-oauth/google";
 import { CartProvider } from "./contexts/CartContext";
 import { AuthProvider } from "./contexts/AuthContext";
 import { ProductsFilterProvider } from "./contexts/ProductsFilterContext";
@@ -239,20 +240,25 @@ function AppContent() {
   );
 }
 
+// Google OAuth Client ID - should be set via environment variable
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "";
+
 function App() {
   return (
     <ErrorBoundary>
-      <BrowserRouter>
-        <AuthProvider>
-          <CartProvider>
-            <ProductsFilterProvider>
-              <SearchProvider>
-                <AppContent />
-              </SearchProvider>
-            </ProductsFilterProvider>
-          </CartProvider>
-        </AuthProvider>
-      </BrowserRouter>
+      <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+        <BrowserRouter>
+          <AuthProvider>
+            <CartProvider>
+              <ProductsFilterProvider>
+                <SearchProvider>
+                  <AppContent />
+                </SearchProvider>
+              </ProductsFilterProvider>
+            </CartProvider>
+          </AuthProvider>
+        </BrowserRouter>
+      </GoogleOAuthProvider>
     </ErrorBoundary>
   );
 }
