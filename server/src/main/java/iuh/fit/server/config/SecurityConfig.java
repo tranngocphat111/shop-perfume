@@ -77,6 +77,9 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                     // ========== PUBLIC ENDPOINTS (No authentication required) ==========
                     
+                    // Error handling endpoints - must be public
+                    .requestMatchers("/error", "/api/error").permitAll()
+                    
                     // Webhooks - must be public for external services
                     .requestMatchers(webhookMatcher).permitAll()
                     .requestMatchers("/webhooks/sepay/manual", "/webhooks/sepay/test", "/webhooks/sepay/health").permitAll()
