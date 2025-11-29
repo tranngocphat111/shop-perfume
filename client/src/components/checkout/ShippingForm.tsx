@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { User, Phone, Mail, MapPin, Building2, Map } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { AddressSelector } from './AddressSelector';
-import { addressService, type Address } from '../../services/address.service';
+import { type Address } from '../../services/address.service';
 import type { CheckoutFormData, Province, District, Ward, ProvinceDetail, DistrictDetail } from '../../types';
+import { CustomSelect } from '../profile/CustomSelect';
 
 interface ShippingFormProps {
   formData: CheckoutFormData;
@@ -14,7 +16,7 @@ const PROVINCES_API = 'https://provinces.open-api.vn/api/p/';
 const DISTRICTS_API = 'https://provinces.open-api.vn/api/d/';
 
 export const ShippingForm: React.FC<ShippingFormProps> = ({ formData, onUpdate, validationErrors = {} }) => {
-  const { user, isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuth();
   const [provinces, setProvinces] = useState<Province[]>([]);
   const [districts, setDistricts] = useState<District[]>([]);
   const [wards, setWards] = useState<Ward[]>([]);
@@ -68,8 +70,7 @@ export const ShippingForm: React.FC<ShippingFormProps> = ({ formData, onUpdate, 
     }
   };
 
-  const handleProvinceChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const code = e.target.value;
+  const handleProvinceChange = async (code: string) => {
     const selected = provinces.find(p => p.code.toString() === code);
     
     if (selected) {
@@ -83,12 +84,11 @@ export const ShippingForm: React.FC<ShippingFormProps> = ({ formData, onUpdate, 
       });
       setDistricts([]);
       setWards([]);
-      loadDistricts(code);
+      await loadDistricts(code);
     }
   };
 
-  const handleDistrictChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const code = e.target.value;
+  const handleDistrictChange = async (code: string) => {
     const selected = districts.find(d => d.code.toString() === code);
     
     if (selected) {
@@ -99,12 +99,11 @@ export const ShippingForm: React.FC<ShippingFormProps> = ({ formData, onUpdate, 
         wardCode: '',
       });
       setWards([]);
-      loadWards(code);
+      await loadWards(code);
     }
   };
 
-  const handleWardChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const code = e.target.value;
+  const handleWardChange = (code: string) => {
     const selected = wards.find(w => w.code.toString() === code);
     
     if (selected) {
@@ -247,59 +246,67 @@ export const ShippingForm: React.FC<ShippingFormProps> = ({ formData, onUpdate, 
       <div className="space-y-4">
         {/* Họ và tên & Số điện thoại */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+          <div className="space-y-1.5">
+            <label className="block text-xs font-semibold text-gray-700">
               Họ và tên <span className="text-red-500">*</span>
             </label>
-            <input
-              type="text"
-              value={formData.fullName}
-              onChange={(e) => {
-                const value = e.target.value;
-                onUpdate({ fullName: value });
-              }}
-              onBlur={(e) => {
-                // Validate on blur
-                const value = e.target.value.trim();
-                if (value && (value.length < 2 || value.length > 100)) {
-                  // Error will be shown from backend validation
-                } else if (value && !/^[\p{L}\s]+$/u.test(value)) {
-                  // Error will be shown from backend validation
-                }
-              }}
-              className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent transition-all ${
-                validationErrors.fullName ? 'border-red-500 bg-red-50' : 'border-gray-300'
-              }`}
-              placeholder="Nhập đầy đủ họ và tên của bạn (chỉ chữ cái)"
-              required
-            />
+            <div className="relative">
+              <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                <User size={16} />
+              </div>
+              <input
+                type="text"
+                value={formData.fullName}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  onUpdate({ fullName: value });
+                }}
+                onBlur={(e) => {
+                  const value = e.target.value.trim();
+                  if (value && (value.length < 2 || value.length > 100)) {
+                    // Error will be shown from backend validation
+                  } else if (value && !/^[\p{L}\s]+$/u.test(value)) {
+                    // Error will be shown from backend validation
+                  }
+                }}
+                className={`w-full pl-10 pr-3 py-2.5 text-sm border rounded-lg focus:ring-1 focus:ring-gray-400 focus:border-gray-400 transition-all outline-none ${
+                  validationErrors.fullName ? 'border-red-500 bg-red-50' : 'border-gray-200'
+                }`}
+                placeholder="Nhập đầy đủ họ và tên"
+                required
+              />
+            </div>
             {validationErrors.fullName && (
-              <p className="mt-1 text-sm text-red-600 font-medium">
+              <p className="mt-1 text-xs text-red-600 font-medium">
                 {validationErrors.fullName}
               </p>
             )}
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+          <div className="space-y-1.5">
+            <label className="block text-xs font-semibold text-gray-700">
               Số điện thoại <span className="text-red-500">*</span>
             </label>
-            <input
-              type="tel"
-              value={formData.phone}
-              onChange={(e) => {
-                const value = e.target.value;
-                // Only allow numbers, +, and spaces (will be trimmed)
-                onUpdate({ phone: value });
-              }}
-              className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent transition-all ${
-                validationErrors.phone ? 'border-red-500 bg-red-50' : 'border-gray-300'
-              }`}
-              placeholder="VD: 0912345678 hoặc +84912345678"
-              required
-            />
+            <div className="relative">
+              <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                <Phone size={16} />
+              </div>
+              <input
+                type="tel"
+                value={formData.phone}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  onUpdate({ phone: value });
+                }}
+                className={`w-full pl-10 pr-3 py-2.5 text-sm border rounded-lg focus:ring-1 focus:ring-gray-400 focus:border-gray-400 transition-all outline-none ${
+                  validationErrors.phone ? 'border-red-500 bg-red-50' : 'border-gray-200'
+                }`}
+                placeholder="Nhập số điện thoại"
+                required
+              />
+            </div>
             {validationErrors.phone && (
-              <p className="mt-1 text-sm text-red-600 font-medium">
+              <p className="mt-1 text-xs text-red-600 font-medium">
                 {validationErrors.phone}
               </p>
             )}
@@ -307,22 +314,27 @@ export const ShippingForm: React.FC<ShippingFormProps> = ({ formData, onUpdate, 
         </div>
 
         {/* Email */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+        <div className="space-y-1.5">
+          <label className="block text-xs font-semibold text-gray-700">
             Địa chỉ email <span className="text-red-500">*</span>
           </label>
-          <input
-            type="email"
-            value={formData.email}
-            onChange={(e) => onUpdate({ email: e.target.value })}
-            className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent transition-all ${
-              validationErrors.email ? 'border-red-500 bg-red-50' : 'border-gray-300'
-            }`}
-            placeholder="VD: example@email.com"
-            required
-          />
+          <div className="relative">
+            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+              <Mail size={16} />
+            </div>
+            <input
+              type="email"
+              value={formData.email}
+              onChange={(e) => onUpdate({ email: e.target.value })}
+              className={`w-full pl-10 pr-3 py-2.5 text-sm border rounded-lg focus:ring-1 focus:ring-gray-400 focus:border-gray-400 transition-all outline-none ${
+                validationErrors.email ? 'border-red-500 bg-red-50' : 'border-gray-200'
+              }`}
+              placeholder="Nhập địa chỉ email"
+              required
+            />
+          </div>
           {validationErrors.email && (
-            <p className="mt-1 text-sm text-red-600 font-medium">
+            <p className="mt-1 text-xs text-red-600 font-medium">
               {validationErrors.email}
             </p>
           )}
@@ -330,71 +342,41 @@ export const ShippingForm: React.FC<ShippingFormProps> = ({ formData, onUpdate, 
 
         {/* Tỉnh/Thành phố & Quận/Huyện */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+          <div className="space-y-1.5">
+            <label className="block text-xs font-semibold text-gray-700">
               Tỉnh/Thành phố <span className="text-red-500">*</span>
             </label>
-            <select
+            <CustomSelect
               value={formData.cityCode}
               onChange={handleProvinceChange}
-              className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent transition-all bg-white appearance-none cursor-pointer ${
-                validationErrors.city ? 'border-red-500 bg-red-50' : 'border-gray-300'
-              }`}
-              style={{
-                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23333' d='M6 9L1 4h10z'/%3E%3C/svg%3E")`,
-                backgroundRepeat: 'no-repeat',
-                backgroundPosition: 'right 1rem center',
-                paddingRight: '2.5rem'
-              }}
+              options={provinces}
+              placeholder="Chọn tỉnh/thành phố"
+              icon={<Building2 size={16} />}
               disabled={loading.provinces}
-              required
-            >
-              <option value="">
-                {loading.provinces ? 'Đang tải...' : 'Chọn tỉnh/thành phố'}
-              </option>
-              {provinces.map(province => (
-                <option key={province.code} value={province.code}>
-                  {province.name}
-                </option>
-              ))}
-            </select>
+              loading={loading.provinces}
+            />
             {validationErrors.city && (
-              <p className="mt-1 text-sm text-red-600 font-medium">
+              <p className="mt-1 text-xs text-red-600 font-medium">
                 {validationErrors.city}
               </p>
             )}
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+          <div className="space-y-1.5">
+            <label className="block text-xs font-semibold text-gray-700">
               Quận/Huyện <span className="text-red-500">*</span>
             </label>
-            <select
+            <CustomSelect
               value={formData.districtCode}
               onChange={handleDistrictChange}
-              className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent transition-all bg-white appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
-                validationErrors.district ? 'border-red-500 bg-red-50' : 'border-gray-300'
-              }`}
-              style={{
-                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23333' d='M6 9L1 4h10z'/%3E%3C/svg%3E")`,
-                backgroundRepeat: 'no-repeat',
-                backgroundPosition: 'right 1rem center',
-                paddingRight: '2.5rem'
-              }}
+              options={districts}
+              placeholder="Chọn quận/huyện"
+              icon={<Map size={16} />}
               disabled={!formData.cityCode || loading.districts}
-              required
-            >
-              <option value="">
-                {loading.districts ? 'Đang tải...' : 'Chọn quận/huyện'}
-              </option>
-              {districts.map(district => (
-                <option key={district.code} value={district.code}>
-                  {district.name}
-                </option>
-              ))}
-            </select>
+              loading={loading.districts}
+            />
             {validationErrors.district && (
-              <p className="mt-1 text-sm text-red-600 font-medium">
+              <p className="mt-1 text-xs text-red-600 font-medium">
                 {validationErrors.district}
               </p>
             )}
@@ -403,57 +385,47 @@ export const ShippingForm: React.FC<ShippingFormProps> = ({ formData, onUpdate, 
 
         {/* Xã/Phường & Địa chỉ */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+          <div className="space-y-1.5">
+            <label className="block text-xs font-semibold text-gray-700">
               Xã/Phường/Thị trấn <span className="text-red-500">*</span>
             </label>
-            <select
+            <CustomSelect
               value={formData.wardCode}
               onChange={handleWardChange}
-              className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent transition-all bg-white appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
-                validationErrors.ward ? 'border-red-500 bg-red-50' : 'border-gray-300'
-              }`}
-              style={{
-                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23333' d='M6 9L1 4h10z'/%3E%3C/svg%3E")`,
-                backgroundRepeat: 'no-repeat',
-                backgroundPosition: 'right 1rem center',
-                paddingRight: '2.5rem'
-              }}
+              options={wards}
+              placeholder="Chọn xã/phường/thị trấn"
+              icon={<MapPin size={16} />}
               disabled={!formData.districtCode || loading.wards}
-              required
-            >
-              <option value="">
-                {loading.wards ? 'Đang tải...' : 'Chọn xã/phường/thị trấn'}
-              </option>
-              {wards.map(ward => (
-                <option key={ward.code} value={ward.code}>
-                  {ward.name}
-                </option>
-              ))}
-            </select>
+              loading={loading.wards}
+            />
             {validationErrors.ward && (
-              <p className="mt-1 text-sm text-red-600 font-medium">
+              <p className="mt-1 text-xs text-red-600 font-medium">
                 {validationErrors.ward}
               </p>
             )}
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+          <div className="space-y-1.5">
+            <label className="block text-xs font-semibold text-gray-700">
               Địa chỉ <span className="text-red-500">*</span>
             </label>
-            <input
-              type="text"
-              value={formData.address}
-              onChange={(e) => onUpdate({ address: e.target.value })}
-              className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent transition-all ${
-                validationErrors.address ? 'border-red-500 bg-red-50' : 'border-gray-300'
-              }`}
-              placeholder="Ví dụ: Số 18 Ngõ 86 Phú Kiều"
-              required
-            />
+            <div className="relative">
+              <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                <MapPin size={16} />
+              </div>
+              <input
+                type="text"
+                value={formData.address}
+                onChange={(e) => onUpdate({ address: e.target.value })}
+                className={`w-full pl-10 pr-3 py-2.5 text-sm border rounded-lg focus:ring-1 focus:ring-gray-400 focus:border-gray-400 transition-all outline-none ${
+                  validationErrors.address ? 'border-red-500 bg-red-50' : 'border-gray-200'
+                }`}
+                placeholder="Số nhà, tên đường..."
+                required
+              />
+            </div>
             {validationErrors.address && (
-              <p className="mt-1 text-sm text-red-600 font-medium">
+              <p className="mt-1 text-xs text-red-600 font-medium">
                 {validationErrors.address}
               </p>
             )}
@@ -461,20 +433,20 @@ export const ShippingForm: React.FC<ShippingFormProps> = ({ formData, onUpdate, 
         </div>
 
         {/* Ghi chú */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Ghi chú đơn hàng (nếu có):
+        <div className="space-y-1.5">
+          <label className="block text-xs font-semibold text-gray-700">
+            Ghi chú đơn hàng (nếu có)
           </label>
           <textarea
             value={formData.note || ''}
             onChange={(e) => onUpdate({ note: e.target.value })}
-            className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent transition-all resize-y min-h-[100px] ${
-              validationErrors.note ? 'border-red-500 bg-red-50' : 'border-gray-300'
+            className={`w-full px-3 py-2.5 text-sm border rounded-lg focus:ring-1 focus:ring-gray-400 focus:border-gray-400 transition-all outline-none resize-y min-h-[100px] ${
+              validationErrors.note ? 'border-red-500 bg-red-50' : 'border-gray-200'
             }`}
             placeholder="Ghi chú..."
           />
           {validationErrors.note && (
-            <p className="mt-1 text-sm text-red-600 font-medium">
+            <p className="mt-1 text-xs text-red-600 font-medium">
               {validationErrors.note}
             </p>
           )}

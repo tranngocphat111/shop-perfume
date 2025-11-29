@@ -95,6 +95,28 @@ public class OrderController {
     }
     
     /**
+     * Cancel order (for pending orders)
+     * User can cancel their own pending orders
+     */
+    @PostMapping("/{orderId}/cancel")
+    @Operation(summary = "Cancel order", description = "Cancel a pending order")
+    public ResponseEntity<?> cancelOrder(@PathVariable Integer orderId) {
+        try {
+            log.info("Cancelling order: {}", orderId);
+            orderService.cancelOrder(orderId);
+            return ResponseEntity.ok(new CancelResponse(true, "Đơn hàng đã được hủy thành công"));
+        } catch (RuntimeException e) {
+            log.error("Error cancelling order: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ErrorResponse(e.getMessage()));
+        } catch (Exception e) {
+            log.error("Error cancelling order", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ErrorResponse("Có lỗi xảy ra khi hủy đơn hàng: " + e.getMessage()));
+        }
+    }
+    
+    /**
      * Get orders by authenticated user or email
      * Supports both authenticated users and guest users searching by email
      * Public endpoint - Guest có thể tìm đơn hàng bằng email

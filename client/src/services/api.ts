@@ -299,6 +299,18 @@ export const apiService = {
         throw createApiError(errorData, response.status);
       }
 
+      // Handle 204 No Content (successful delete with no body)
+      if (response.status === 204 || response.status === 200) {
+        const contentType = response.headers.get("content-type");
+        // Only parse JSON if there's actually content
+        if (contentType && contentType.includes("application/json")) {
+          const text = await response.text();
+          return text ? JSON.parse(text) : (null as T);
+        }
+        return null as T;
+      }
+
+      // For other success statuses, try to parse JSON
       return response.json();
     };
 
@@ -307,6 +319,11 @@ export const apiService = {
     } catch (error) {
       if ((error as ApiError).status) {
         throw error;
+      }
+      // Check if it's a JSON parse error from empty response
+      if (error instanceof SyntaxError && error.message.includes('JSON')) {
+        // This is likely a 204 No Content response, which is actually success
+        return null as T;
       }
       throw new Error("Network error. Please check your connection.");
     }

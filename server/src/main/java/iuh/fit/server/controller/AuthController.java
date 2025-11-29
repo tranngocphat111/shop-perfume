@@ -5,6 +5,8 @@ import iuh.fit.server.dto.request.LoginRequest;
 import iuh.fit.server.dto.request.RefreshTokenRequest;
 import iuh.fit.server.dto.request.RegisterRequest;
 import iuh.fit.server.dto.request.ResetPasswordRequest;
+import iuh.fit.server.dto.request.UpdateUserRequest;
+import iuh.fit.server.dto.request.ChangePasswordRequest;
 import iuh.fit.server.dto.response.AuthResponse;
 import iuh.fit.server.dto.response.TokenRefreshResponse;
 import iuh.fit.server.dto.response.UserInfoResponse;
@@ -115,6 +117,68 @@ public class AuthController {
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             log.error("Error getting current user info", e);
+            return ResponseEntity.status(500).build();
+        }
+    }
+
+    /**
+     * PUT /api/auth/me - Cập nhật thông tin user hiện tại
+     */
+    @PutMapping("/me")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Update current user profile", description = "Update current authenticated user information (name)")
+    public ResponseEntity<UserInfoResponse> updateProfile(
+            @Valid @RequestBody UpdateUserRequest request,
+            Authentication authentication) {
+        try {
+            if (authentication == null || !authentication.isAuthenticated() ||
+                    authentication.getPrincipal().equals("anonymousUser")) {
+                log.warn("Unauthenticated request to PUT /auth/me");
+                return ResponseEntity.status(401).build();
+            }
+
+            UserDetails userDetails = (UserDetails) authentication.getPrincipal();
+            String email = userDetails.getUsername();
+            log.info("Updating profile for email: {}", email);
+
+            UserInfoResponse response = authService.updateProfile(email, request);
+            log.info("Successfully updated profile for userId: {}", response.getUserId());
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("Error updating user profile", e);
+            return ResponseEntity.status(500).build();
+        }
+    }
+
+    /**
+     * PUT /api/auth/change-password - Đổi mật khẩu
+     */
+    @PutMapping("/change-password")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Change password", description = "Change password for authenticated user")
+    public ResponseEntity<Void> changePassword(
+            @Valid @RequestBody ChangePasswordRequest request,
+            Authentication authentication) {
+        try {
+            if (authentication == null || !authentication.isAuthenticated() ||
+                    authentication.getPrincipal().equals("anonymousUser")) {
+                log.warn("Unauthenticated request to PUT /auth/change-password");
+                return ResponseEntity.status(401).build();
+            }
+
+            UserDetails userDetails = (UserDetails) authentication.getPrincipal();
+            String email = userDetails.getUsername();
+            log.info("Changing password for email: {}", email);
+
+            authService.changePassword(email, request);
+            log.info("Password changed successfully for email: {}", email);
+            return ResponseEntity.ok().build();
+        } catch (RuntimeException e) {
+            log.error("Error changing password: {}", e.getMessage());
+            // Return error message in response body
+            return ResponseEntity.badRequest().body(null);
+        } catch (Exception e) {
+            log.error("Error changing password", e);
             return ResponseEntity.status(500).build();
         }
     }

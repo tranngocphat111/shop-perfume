@@ -14,11 +14,18 @@ const Profile: React.FC = () => {
   // Default to "orders" if authenticated, otherwise "account"
   const [active, setActive] = useState<string>(isAuthenticated ? "orders" : "account");
   
-  // Check if navigating from checkout to add address
+  // Scroll to top when component mounts or location changes
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [location.pathname]);
+  
+  // Check if navigating with activeTab state
   useEffect(() => {
     const state = location.state as { activeTab?: string; action?: string } | null;
-    if (state?.activeTab === 'addresses') {
-      setActive('addresses');
+    if (state?.activeTab) {
+      if (state.activeTab === 'account' || state.activeTab === 'addresses' || state.activeTab === 'orders' || state.activeTab === 'password') {
+        setActive(state.activeTab);
+      }
     }
   }, [location]);
   
