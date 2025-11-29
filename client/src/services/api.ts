@@ -183,7 +183,20 @@ export const apiService = {
         throw createApiError(errorData, response.status);
       }
 
-      return response.json();
+      // Handle empty response (no content)
+      const text = await response.text();
+      
+      if (!text || text.trim() === "") {
+        return {} as T; // Return empty object for void responses
+      }
+      
+      // Try to parse as JSON
+      try {
+        return JSON.parse(text) as T;
+      } catch {
+        // If not JSON, return as text (shouldn't happen with our API)
+        return text as unknown as T;
+      }
     };
 
     try {
