@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Receipt, Search, AlertCircle, Loader2, X, CheckCircle, Calendar as CalendarIcon, Tag } from 'lucide-react';
+import { Receipt, Search, AlertCircle, Loader2, X, CheckCircle, Calendar as CalendarIcon, Tag, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { apiService } from '../../services/api';
 import type { OrderResponse } from '../../types';
@@ -11,6 +11,8 @@ import { CustomSelect } from './CustomSelect';
 
 type FilterStatus = 'ALL' | 'PENDING' | 'PAID' | 'FAILED';
 type FilterDate = 'ALL' | 'TODAY' | 'WEEK' | 'MONTH' | 'CUSTOM';
+
+const ITEMS_PER_PAGE = 2;
 
 export const Orders = () => {
   const navigate = useNavigate();
@@ -28,6 +30,9 @@ export const Orders = () => {
   const [filterDate, setFilterDate] = useState<FilterDate>('ALL');
   const [customStartDate, setCustomStartDate] = useState<string>('');
   const [customEndDate, setCustomEndDate] = useState<string>('');
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(0);
 
   // Auto-load orders if user is authenticated
   useEffect(() => {
@@ -177,6 +182,28 @@ export const Orders = () => {
       return dateB - dateA;
     });
   }, [orders, filterStatus, filterDate, customStartDate, customEndDate]);
+
+  // Paginated orders
+  const paginatedOrders = useMemo(() => {
+    const startIndex = currentPage * ITEMS_PER_PAGE;
+    const endIndex = startIndex + ITEMS_PER_PAGE;
+    return filteredOrders.slice(startIndex, endIndex);
+  }, [filteredOrders, currentPage]);
+
+  // Total pages
+  const totalPages = useMemo(() => {
+    return Math.ceil(filteredOrders.length / ITEMS_PER_PAGE);
+  }, [filteredOrders.length]);
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(0);
+  }, [filterStatus, filterDate, customStartDate, customEndDate]);
+
+  // Scroll to top when page changes
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [currentPage]);
 
   const handleCancelOrder = async (orderId: number) => {
     if (!window.confirm('Bạn có chắc chắn muốn hủy đơn hàng này?')) {
@@ -422,26 +449,85 @@ export const Orders = () => {
             <p className="text-gray-500 text-sm">Không tìm thấy đơn hàng nào với bộ lọc đã chọn</p>
           </div>
         ) : (
-          <div className="space-y-3">
-            {filteredOrders.map((order, index) => (
-              <motion.div
-                key={order.orderId}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.05 }}
-              >
-                <OrderCard
-                  order={order}
-                  isExpanded={selectedOrder?.orderId === order.orderId}
-                  onToggleExpand={() => setSelectedOrder(selectedOrder?.orderId === order.orderId ? null : order)}
-                  qrUrl={qrUrls[order.orderId]}
-                  timeRemaining={timeRemaining[order.orderId]}
-                  getPaymentMethodLabel={getPaymentMethodLabel}
-                  onCancelOrder={handleCancelOrder}
-                />
-              </motion.div>
-            ))}
-          </div>
+          <>
+            <div className="space-y-3">
+              {paginatedOrders.map((order, index) => (
+                <motion.div
+                  key={order.orderId}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.05 }}
+                >
+                  <OrderCard
+                    order={order}
+                    isExpanded={selectedOrder?.orderId === order.orderId}
+                    onToggleExpand={() => setSelectedOrder(selectedOrder?.orderId === order.orderId ? null : order)}
+                    qrUrl={qrUrls[order.orderId]}
+                    timeRemaining={timeRemaining[order.orderId]}
+                    getPaymentMethodLabel={getPaymentMethodLabel}
+                    onCancelOrder={handleCancelOrder}
+                  />
+                </motion.div>
+              ))}
+            </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="mt-6 flex items-center justify-center gap-2">
+                <button
+                  onClick={() => setCurrentPage(prev => Math.max(0, prev - 1))}
+                  disabled={currentPage === 0}
+                  className="p-2 rounded-lg border border-gray-200 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  <ChevronLeft size={18} className="text-gray-700" />
+                </button>
+
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: totalPages }, (_, i) => i).map((page) => {
+                    // Show first page, last page, current page, and pages around current
+                    const showPage = 
+                      page === 0 || 
+                      page === totalPages - 1 || 
+                      (page >= currentPage - 1 && page <= currentPage + 1);
+
+                    if (!showPage) {
+                      // Show ellipsis
+                      if (page === currentPage - 2 || page === currentPage + 2) {
+                        return (
+                          <span key={page} className="px-2 text-gray-400">
+                            ...
+                          </span>
+                        );
+                      }
+                      return null;
+                    }
+
+                    return (
+                      <button
+                        key={page}
+                        onClick={() => setCurrentPage(page)}
+                        className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                          currentPage === page
+                            ? 'bg-gray-900 text-white'
+                            : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
+                        }`}
+                      >
+                        {page + 1}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <button
+                  onClick={() => setCurrentPage(prev => Math.min(totalPages - 1, prev + 1))}
+                  disabled={currentPage === totalPages - 1}
+                  className="p-2 rounded-lg border border-gray-200 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  <ChevronRight size={18} className="text-gray-700" />
+                </button>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>
