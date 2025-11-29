@@ -26,14 +26,6 @@ const getAuthHeaders = (endpoint: string = ""): Record<string, string> => {
   }
 
   const token = localStorage.getItem("auth_token");
-  const headers: Record<string, string> = {};
-  
-  // Don't send token for public endpoints
-  if (isPublicEndpoint(endpoint)) {
-    return headers;
-  }
-  
-  const token = localStorage.getItem("auth_token");
   if (token) {
     headers["Authorization"] = `Bearer ${token}`;
   }
