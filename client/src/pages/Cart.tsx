@@ -80,7 +80,7 @@ export const Cart = () => {
           <>
             {/* Header Section */}
             <div className="mb-8">
-              <h1 className="text-3xl md:text-4xl font-bold text-gray-900 flex items-center gap-3 mb-3">
+              <h1 className="text-xl md:text-3xl font-bold text-gray-900 flex items-center gap-3 mb-3">
                 <svg className="w-7 h-7 md:w-8 md:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
                 </svg>

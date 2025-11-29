@@ -5,8 +5,11 @@ import iuh.fit.server.dto.request.LoginRequest;
 import iuh.fit.server.dto.request.RefreshTokenRequest;
 import iuh.fit.server.dto.request.RegisterRequest;
 import iuh.fit.server.dto.request.ResetPasswordRequest;
+import iuh.fit.server.dto.request.UpdateUserRequest;
+import iuh.fit.server.dto.request.ChangePasswordRequest;
 import iuh.fit.server.dto.response.AuthResponse;
 import iuh.fit.server.dto.response.TokenRefreshResponse;
+import iuh.fit.server.dto.response.UserInfoResponse;
 import iuh.fit.server.exception.AuthenticationException;
 import iuh.fit.server.exception.RegistrationException;
 import iuh.fit.server.services.AuthService;
@@ -334,6 +337,66 @@ public class AuthServiceImpl implements AuthService{
         passwordResetTokenRepository.deleteByUser(user);
         
         log.info("Password reset successfully for user: {}", user.getEmail());
+    }
+    
+    @Override
+    @Transactional
+    public UserInfoResponse updateProfile(String email, UpdateUserRequest request) {
+        log.info("Updating profile for user: {}", email);
+        
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        
+        // Update name
+        user.setName(request.getName());
+        user = userRepository.save(user);
+        
+        log.info("Profile updated successfully for user: {}", email);
+        
+        // Build response
+        UserInfoResponse response = new UserInfoResponse();
+        response.setUserId(user.getUserId());
+        response.setName(user.getName());
+        response.setEmail(user.getEmail());
+        response.setLoyaltyPoints(user.getLoyaltyPoints() != null ? user.getLoyaltyPoints() : 0);
+        
+        // Safely get role
+        String role = "CUSTOMER";
+        if (user.getRoles() != null && !user.getRoles().isEmpty()) {
+            role = user.getRoles().stream()
+                    .map(r -> r != null ? r.getName() : "CUSTOMER")
+                    .filter(name -> name != null)
+                    .findFirst()
+                    .orElse("CUSTOMER");
+        }
+        response.setRole(role);
+        
+        return response;
+    }
+    
+    @Override
+    @Transactional
+    public void changePassword(String email, ChangePasswordRequest request) {
+        log.info("Changing password for user: {}", email);
+        
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        
+        // Verify current password
+        if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPasswordHash())) {
+            throw new RuntimeException("Mật khẩu hiện tại không đúng");
+        }
+        
+        // Check if new password is same as current
+        if (passwordEncoder.matches(request.getNewPassword(), user.getPasswordHash())) {
+            throw new RuntimeException("Mật khẩu mới phải khác mật khẩu hiện tại");
+        }
+        
+        // Update password
+        user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(user);
+        
+        log.info("Password changed successfully for user: {}", email);
     }
     
     /**

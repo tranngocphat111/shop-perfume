@@ -373,6 +373,33 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
     }
     
     @Override
+    @Transactional
+    public void cancelOrder(Integer orderId) {
+        Optional<Order> orderOpt = orderRepository.findById(orderId);
+        if (orderOpt.isEmpty()) {
+            throw new RuntimeException("Không tìm thấy đơn hàng với ID: " + orderId);
+        }
+        
+        Order order = orderOpt.get();
+        Payment payment = order.getPayment();
+        
+        if (payment == null) {
+            throw new RuntimeException("Đơn hàng không có thông tin thanh toán");
+        }
+        
+        // Chỉ cho phép hủy đơn hàng chưa thanh toán
+        if (payment.getStatus() != PaymentStatus.PENDING) {
+            throw new RuntimeException("Chỉ có thể hủy đơn hàng đang chờ thanh toán");
+        }
+        
+        // Hủy đơn hàng bằng cách đặt trạng thái thanh toán thành FAILED
+        payment.setStatus(PaymentStatus.FAILED);
+        paymentRepository.save(payment);
+        
+        log.info("✅ Order {} has been cancelled", orderId);
+    }
+    
+    @Override
     @Transactional(readOnly = true)
     public List<OrderResponse> getOrdersByEmail(String email) {
         List<Order> orders = orderRepository.findByGuestEmailOrderByOrderDateDesc(email);

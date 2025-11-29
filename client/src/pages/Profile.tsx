@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "../contexts/AuthContext";
 import { ProfileSidebar } from "@components/profile/ProfileSidebar";
@@ -14,11 +14,18 @@ const Profile: React.FC = () => {
   // Default to "orders" if authenticated, otherwise "account"
   const [active, setActive] = useState<string>(isAuthenticated ? "orders" : "account");
   
-  // Check if navigating from checkout to add address
+  // Scroll to top when component mounts or location changes
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [location.pathname]);
+  
+  // Check if navigating with activeTab state
   useEffect(() => {
     const state = location.state as { activeTab?: string; action?: string } | null;
-    if (state?.activeTab === 'addresses') {
-      setActive('addresses');
+    if (state?.activeTab) {
+      if (state.activeTab === 'account' || state.activeTab === 'addresses' || state.activeTab === 'orders' || state.activeTab === 'password') {
+        setActive(state.activeTab);
+      }
     }
   }, [location]);
   
@@ -30,6 +37,27 @@ const Profile: React.FC = () => {
   }, [isAuthenticated]);
   return (
     <div className="px-4 py-12 min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 sm:px-6 lg:px-8">
+      {/* Breadcrumb */}
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+        className="mb-6 max-w-6xl mx-auto"
+      >
+        <nav className="text-xs md:text-sm flex items-center gap-2">
+          <Link
+            to="/"
+            className="text-gray-500 font-normal hover:text-black transition-colors"
+          >
+            Trang chủ
+          </Link>
+          <span className="text-gray-400">/</span>
+          <span className="text-black font-medium">
+            Tài khoản
+          </span>
+        </nav>
+      </motion.div>
+
       <div className="grid grid-cols-1 gap-6 mx-auto max-w-6xl md:grid-cols-3">
         {/* Sidebar */}
         <motion.div

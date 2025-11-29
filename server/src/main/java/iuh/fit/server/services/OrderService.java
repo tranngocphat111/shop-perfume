@@ -21,6 +21,8 @@ public interface OrderService {
     
     boolean isOrderCancelled(Integer orderId);
     
+    void cancelOrder(Integer orderId);
+    
     List<OrderResponse> getOrdersByEmail(String email);
     
     List<OrderResponse> getOrdersByUserId(Integer userId);

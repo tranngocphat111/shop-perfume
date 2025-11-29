@@ -25,6 +25,7 @@ interface AuthContextType {
     userData: AuthResponse,
     mergeCart?: () => Promise<void>
   ) => Promise<void>;
+  refreshUser: () => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -248,6 +249,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const refreshUser = async () => {
+    try {
+      const { userService } = await import("../services/user.service");
+      const userInfo = await userService.getCurrentUser();
+      if (userInfo) {
+        const currentUser = authService.getUser();
+        if (currentUser) {
+          const updatedUser: AuthResponse = {
+            ...currentUser,
+            name: userInfo.name,
+            email: userInfo.email,
+          };
+          authService.setUser(updatedUser);
+          setUser(updatedUser);
+        }
+      }
+    } catch (error) {
+      console.error("Error refreshing user:", error);
+    }
+  };
+
   // Determine user role
   const userRole: UserRole =
     !user || isLoading ? "GUEST" : user.role === "ADMIN" ? "ADMIN" : "CUSTOMER";
@@ -266,6 +288,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     userRole,
     isLoading,
     login,
+    refreshUser,
     logout,
   };
 
