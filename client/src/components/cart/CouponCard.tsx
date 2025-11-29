@@ -38,7 +38,7 @@ export default function CouponCard({
           ? 'border-black bg-gray-50 shadow-sm cursor-pointer' 
           : isValid && hasEnoughPoints
           ? 'border-gray-100 bg-white hover:border-gray-300 hover:shadow-md cursor-pointer'
-          : 'border-gray-200 bg-gray-50 opacity-60 cursor-not-allowed'
+          : 'border-gray-200 bg-gray-50 opacity-60 cursor-not-allowed hover:border-gray-200 hover:shadow-none'
         }
       `}
     >
@@ -49,7 +49,13 @@ export default function CouponCard({
       <div className="p-4 pl-6 flex flex-col h-full justify-between relative z-0">
         <div className="flex justify-between items-start">
           <div className="flex items-center gap-2">
-             <div className={`p-1.5 rounded-lg ${isSelected ? 'bg-black text-white' : 'bg-gray-100 text-gray-500 group-hover:bg-black group-hover:text-white transition-colors'}`}>
+             <div className={`p-1.5 rounded-lg ${
+              isSelected 
+                ? 'bg-black text-white' 
+                : isValid && hasEnoughPoints
+                ? 'bg-gray-100 text-gray-500 group-hover:bg-black group-hover:text-white transition-colors'
+                : 'bg-gray-100 text-gray-500 transition-colors'
+            }`}>
                <TicketPercent size={18} />
              </div>
              <span className={`font-bold text-lg ${isSelected ? 'text-black' : 'text-gray-800'}`}>

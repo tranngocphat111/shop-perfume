@@ -110,7 +110,7 @@ export default function StickyFooter({
                   onClick={() => navigate('/checkout')}
                    className="relative btn-slide-overlay-dark overflow-hidden w-full md:w-auto bg-black text-white hover:bg-gray-800 px-4 md:px-8 py-2 md:py-2.5 rounded-full font-bold text-base md:text-lg shadow-lg transition-all flex justify-center items-center gap-2"
                 >
-                  <span className="hidden sm:inline relative z-10">Tiếp tục thanh toán</span>
+                  <span className="hidden sm:inline relative z-10">Thanh toán</span>
                   <span className="sm:hidden">Thanh toán</span>
                   
                   <ArrowRight size={16} className={`relative z-10 sm:w-[18px] sm:h-[18px] hidden sm:inline`} />

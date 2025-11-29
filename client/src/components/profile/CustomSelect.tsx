@@ -42,7 +42,7 @@ export const CustomSelect = ({
   }, [isOpen]);
 
   // Calculate position for dropdown menu
-  useEffect(() => {
+  const updatePosition = () => {
     if (isOpen && buttonRef.current && menuRef.current) {
       const buttonRect = buttonRef.current.getBoundingClientRect();
       const menu = menuRef.current;
@@ -50,6 +50,35 @@ export const CustomSelect = ({
       menu.style.top = `${buttonRect.bottom + 6}px`;
       menu.style.width = `${buttonRect.width}px`;
     }
+  };
+
+  useEffect(() => {
+    updatePosition();
+  }, [isOpen]);
+
+  // Update position on scroll and resize
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleScroll = () => {
+      updatePosition();
+    };
+
+    const handleResize = () => {
+      updatePosition();
+    };
+
+    // Update position immediately
+    updatePosition();
+
+    // Add event listeners
+    window.addEventListener('scroll', handleScroll, true); // Use capture to catch all scroll events
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll, true);
+      window.removeEventListener('resize', handleResize);
+    };
   }, [isOpen]);
 
   return (

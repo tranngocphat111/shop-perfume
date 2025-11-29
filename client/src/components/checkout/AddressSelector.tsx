@@ -3,9 +3,10 @@ import { User, Phone, MapPin, Building2, Map, Check, X } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { addressService, type Address } from '../../services/address.service';
 import type { CheckoutFormData, Province, District, Ward, ProvinceDetail, DistrictDetail } from '../../types';
-import { FaMapMarkerAlt, FaPlus } from 'react-icons/fa';
-import { GoSync } from "react-icons/go";
+import { FaMapMarkerAlt, FaPlus, } from 'react-icons/fa';
+import { GoSync, } from "react-icons/go";
 import { CustomSelect } from '../profile/CustomSelect';
+import { MdAddCircleOutline } from "react-icons/md";
 
 interface AddressSelectorProps {
   formData: CheckoutFormData;
@@ -317,10 +318,12 @@ export const AddressSelector: React.FC<AddressSelectorProps> = ({
               loadProvincesForForm();
             }
           }}
-          className="px-4 py-2 text-sm font-medium text-white bg-black rounded-lg hover:bg-gray-800 transition-colors flex items-center gap-2 shadow-sm hover:shadow-md"
+          className="relative btn-slide-overlay-dark overflow-hidden px-4 py-2 text-sm font-medium text-white bg-black rounded-full hover:bg-gray-800 transition-colors flex items-center gap-2 shadow-sm hover:shadow-md"
         >
-          <FaPlus className="text-xs" />
+          <span className="flex items-center gap-1 relative z-10">
+          <MdAddCircleOutline className="text-lg" />
           Thêm địa chỉ mới
+          </span>
         </button>
       </div>
 

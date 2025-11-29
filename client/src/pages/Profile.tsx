@@ -36,7 +36,7 @@ const Profile: React.FC = () => {
     }
   }, [isAuthenticated]);
   return (
-    <div className="px-4 py-12 min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 sm:px-6 lg:px-8">
+    <div className="px-4 py-12 min-h-screen bg-white sm:px-6 lg:px-8">
       {/* Breadcrumb */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}

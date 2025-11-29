@@ -52,7 +52,7 @@ export const ProfileSidebar = ({ active, onChange }: ProfileSidebarProps) => {
   ];
 
   return (
-    <div className="bg-white border border-gray-100 rounded-xl shadow-sm overflow-hidden">
+    <div className="bg-white border border-gray-100 rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
       <div className="p-2">
         {menuItems.map((item, index) => {
           const isActive = active === item.key;

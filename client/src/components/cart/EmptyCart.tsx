@@ -18,16 +18,16 @@ export const EmptyCart = ({}: EmptyCartProps) => {
         Giỏ hàng của bạn đang trống
       </h3>
       
-      <p className="text-gray-500 mb-8 max-w-md">
-        Có vẻ như bạn chưa thêm sản phẩm nào. Hãy khám phá cửa hàng và chọn cho mình những món đồ ưng ý nhé.
+      <p className="text-gray-500 mb-8 max-w-md text-lg">
+       Hãy khám phá cửa hàng và chọn cho mình những món đồ ưng ý nhé
       </p>
       
       <a
         href="/products"
-        className="group inline-flex items-center gap-2 px-8 py-3.5 bg-black text-white rounded-xl font-bold hover:bg-gray-800 hover:shadow-lg transition-all active:scale-95"
+        className="group relative btn-slide-overlay-dark overflow-hidden inline-flex items-center gap-2 px-8 py-3.5 bg-black text-white rounded-full font-bold hover:bg-gray-800 hover:shadow-lg transition-all active:scale-95"
       >
-        <span>Tiếp tục mua sắm</span>
-        <ArrowRight size={18} className="transition-transform group-hover:translate-x-1" />
+        <span className="flex items-center gap-1 relative z-10">Tiếp tục mua sắm  <ArrowRight size={18} /></span>
+       
       </a>
     </motion.div>
   );

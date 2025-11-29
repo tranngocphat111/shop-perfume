@@ -68,7 +68,7 @@ export const AccountInfo = () => {
   };
 
   return (
-    <div className="bg-white border border-gray-100 rounded-xl shadow-sm overflow-hidden">
+    <div className="bg-white border border-gray-100 rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
       {/* Header */}
       <div className="px-6 py-5 bg-gradient-to-r from-gray-50 to-white border-b border-gray-100 flex justify-between items-center">
         <div className="flex items-center gap-3">
@@ -180,13 +180,6 @@ export const AccountInfo = () => {
             <p className="text-sm text-gray-900 font-medium">{user?.email || "N/A"}</p>
             <p className="text-xs text-gray-500 mt-1">Email không thể thay đổi</p>
           </div>
-        </div>
-
-        {/* Info Box */}
-        <div className="mt-6 p-4 bg-blue-50 border-l-4 border-blue-500 rounded-r-lg">
-          <p className="text-sm text-blue-800">
-            <strong>Lưu ý:</strong> Nếu không phải bạn, hãy đăng xuất và đăng nhập bằng tài khoản đúng.
-          </p>
         </div>
 
        

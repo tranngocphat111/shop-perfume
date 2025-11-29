@@ -1,5 +1,6 @@
 import React from 'react';
-import { FaEnvelope, FaSearch, FaSpinner } from 'react-icons/fa';
+import { FaEnvelope, FaSpinner } from 'react-icons/fa';
+import { IoIosSearch } from "react-icons/io";
 
 interface OrderSearchFormProps {
   email: string;
@@ -23,7 +24,7 @@ export const OrderSearchForm: React.FC<OrderSearchFormProps> = ({
       <form onSubmit={onSubmit} className="flex flex-col md:flex-row gap-4">
         <div className="flex-1">
           <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-            <FaEnvelope className="inline mr-2" />
+            <FaEnvelope className="inline mr-2 mt-[-3px]" />
             Email đặt hàng
           </label>
           <input
@@ -32,7 +33,7 @@ export const OrderSearchForm: React.FC<OrderSearchFormProps> = ({
             value={email}
             onChange={(e) => onEmailChange(e.target.value)}
             placeholder={isAuthenticated ? "Email của bạn đã được điền sẵn. Nhập email khác để tra cứu đơn hàng khác." : "Nhập email bạn đã dùng khi đặt hàng"}
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black outline-none"
+            className="w-full px-6 py-2 border border-gray-300 rounded-full  focus:border-black outline-none"
             required
           />
         </div>
@@ -40,7 +41,7 @@ export const OrderSearchForm: React.FC<OrderSearchFormProps> = ({
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full md:w-auto px-6 py-3 bg-black text-white rounded-lg font-semibold hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            className="relative btn-slide-overlay-dark overflow-hidden w-full md:w-auto px-8 py-2 bg-black text-white rounded-full font-semibold hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             {isLoading ? (
               <>
@@ -49,8 +50,8 @@ export const OrderSearchForm: React.FC<OrderSearchFormProps> = ({
               </>
             ) : (
               <>
-                <FaSearch />
-                Tìm kiếm
+                <span className="flex items-center gap-2 relative z-10"><IoIosSearch size={24}/>
+                Tìm kiếm</span>
               </>
             )}
           </button>
