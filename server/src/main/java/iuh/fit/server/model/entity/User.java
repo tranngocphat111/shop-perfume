@@ -29,7 +29,14 @@ public class User {
     @Column(unique = true)
     private String email;
 
+    @Column(nullable = true)
     private String passwordHash;
+
+    @Column(name = "google_id", unique = true, nullable = true)
+    private String googleId;
+
+    @Column(nullable = true)
+    private String provider; // "LOCAL" or "GOOGLE"
 
     @Enumerated(EnumType.STRING)
     private UserStatus status;

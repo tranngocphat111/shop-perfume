@@ -31,8 +31,10 @@ build/
 
 ### VS Code ###
 .vscode/
+
 # Development/Production secrets
 application-dev.properties
 application-prod.properties
+*.example
 *.env
 *.md

@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+import { GoogleOAuthProvider } from "@react-oauth/google";
 import { CartProvider } from "./contexts/CartContext";
 import { AuthProvider } from "./contexts/AuthContext";
 import { ProductsFilterProvider } from "./contexts/ProductsFilterContext";
@@ -18,6 +19,7 @@ import ForgotPassword from "./pages/auth/ForgotPassword";
 import ResetPassword from "./pages/auth/ResetPassword";
 import Profile from "./pages/Profile";
 import { About } from "./pages/About";
+import { PrivacyPolicy } from "./pages/PrivacyPolicy";
 import {
   GuestRoute,
   CustomerRoute,
@@ -33,6 +35,7 @@ import { Suppliers } from "./pages/admin/Suppliers";
 import { PurchaseInvoices } from "./pages/admin/PurchaseInvoices";
 import { ScrollToTop } from "./components/ScrollToTop";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import { Contact } from "./pages/Contact";
 
 function AppContent() {
   const location = useLocation();
@@ -128,6 +131,14 @@ function AppContent() {
             }
           />
           <Route
+            path="/privacy-policy"
+            element={
+              <GuestRoute>
+                <PrivacyPolicy />
+              </GuestRoute>
+            }
+          />
+          <Route
             path="/brands"
             element={
               <GuestRoute>
@@ -139,9 +150,7 @@ function AppContent() {
             path="/contact"
             element={
               <GuestRoute>
-                <div className="p-8 text-center">
-                  Contact Page - Coming Soon
-                </div>
+                <Contact />
               </GuestRoute>
             }
           />
@@ -239,20 +248,25 @@ function AppContent() {
   );
 }
 
+// Google OAuth Client ID - should be set via environment variable
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "";
+
 function App() {
   return (
     <ErrorBoundary>
-      <BrowserRouter>
-        <AuthProvider>
-          <CartProvider>
-            <ProductsFilterProvider>
-              <SearchProvider>
-                <AppContent />
-              </SearchProvider>
-            </ProductsFilterProvider>
-          </CartProvider>
-        </AuthProvider>
-      </BrowserRouter>
+      <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+        <BrowserRouter>
+          <AuthProvider>
+            <CartProvider>
+              <ProductsFilterProvider>
+                <SearchProvider>
+                  <AppContent />
+                </SearchProvider>
+              </ProductsFilterProvider>
+            </CartProvider>
+          </AuthProvider>
+        </BrowserRouter>
+      </GoogleOAuthProvider>
     </ErrorBoundary>
   );
 }

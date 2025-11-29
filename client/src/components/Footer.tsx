@@ -1,8 +1,10 @@
 import { Link } from "react-router-dom";
 import { useState } from "react";
+import { useCategories } from "../hooks/useCategories";
 
 export const Footer = () => {
   const [email, setEmail] = useState("");
+  const { categories } = useCategories();
 
   const handleNewsletterSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,7 +34,9 @@ export const Footer = () => {
             {/* Social Media */}
             <div className="flex items-center gap-4 mb-8">
               <a
-                href="#"
+                href="https://www.facebook.com/piin.nhs"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="w-10 h-10 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center hover:bg-white/20 transition-all duration-300 hover:scale-110"
                 aria-label="Facebook"
               >
@@ -41,7 +45,9 @@ export const Footer = () => {
                 </svg>
               </a>
               <a
-                href="#"
+                href="https://www.instagram.com/piin_nhs/"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="w-10 h-10 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center hover:bg-white/20 transition-all duration-300 hover:scale-110"
                 aria-label="Instagram"
               >
@@ -50,7 +56,9 @@ export const Footer = () => {
                 </svg>
               </a>
               <a
-                href="#"
+                href="https://www.tiktok.com/@piin.nhs"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="w-10 h-10 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center hover:bg-white/20 transition-all duration-300 hover:scale-110"
                 aria-label="TikTok"
               >
@@ -62,17 +70,30 @@ export const Footer = () => {
 
             {/* Contact Info */}
             <div className="space-y-3">
-              <div className="flex items-center gap-3 text-gray-300 text-sm">
+              <a
+                href="tel:0559496637"
+                className="flex items-center gap-3 text-gray-300 text-sm hover:text-white transition-colors"
+              >
                 <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                 </svg>
-                <span>Hotline: 1900 1234</span>
-              </div>
-              <div className="flex items-center gap-3 text-gray-300 text-sm">
+                <span>Hotline: 0559496637</span>
+              </a>
+              <a
+                href="mailto:h.sangg.r@gmail.com"
+                className="flex items-center gap-3 text-gray-300 text-sm hover:text-white transition-colors"
+              >
                 <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                 </svg>
-                <span>sptnperfumestore@gmail.com</span>
+                <span>h.sangg.r@gmail.com</span>
+              </a>
+              <div className="flex items-start gap-3 text-gray-300 text-sm">
+                <svg className="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                <span>124 Đường số 17, Phường 11, Quận Gò Vấp, TP. Hồ Chí Minh</span>
               </div>
             </div>
           </div>
@@ -98,7 +119,7 @@ export const Footer = () => {
                   className="text-gray-300 hover:text-white transition-colors text-sm flex items-center gap-2 group"
                 >
                   <span className="w-1 h-1 rounded-full bg-transparent group-hover:bg-white transition-all" />
-                  Bộ sưu tập
+                  Danh mục
                 </Link>
               </li>
               <li>
@@ -116,7 +137,7 @@ export const Footer = () => {
                   className="text-gray-300 hover:text-white transition-colors text-sm flex items-center gap-2 group"
                 >
                   <span className="w-1 h-1 rounded-full bg-transparent group-hover:bg-white transition-all" />
-                  Về SPTN Perfume
+                  Giới thiệu
                 </Link>
               </li>
               <li>
@@ -146,42 +167,49 @@ export const Footer = () => {
               Sản phẩm
             </h4>
             <ul className="space-y-3">
-              <li>
-                <Link
-                  to="/products?gender=nam"
-                  className="text-gray-300 hover:text-white transition-colors text-sm flex items-center gap-2 group"
-                >
-                  <span className="w-1 h-1 rounded-full bg-transparent group-hover:bg-white transition-all" />
-                  Nước hoa nam
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/products?gender=nu"
-                  className="text-gray-300 hover:text-white transition-colors text-sm flex items-center gap-2 group"
-                >
-                  <span className="w-1 h-1 rounded-full bg-transparent group-hover:bg-white transition-all" />
-                  Nước hoa nữ
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/products?gender=unisex"
-                  className="text-gray-300 hover:text-white transition-colors text-sm flex items-center gap-2 group"
-                >
-                  <span className="w-1 h-1 rounded-full bg-transparent group-hover:bg-white transition-all" />
-                  Nước hoa unisex
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/products?type=body-spray"
-                  className="text-gray-300 hover:text-white transition-colors text-sm flex items-center gap-2 group"
-                >
-                  <span className="w-1 h-1 rounded-full bg-transparent group-hover:bg-white transition-all" />
-                  Body spray
-                </Link>
-              </li>
+              {categories.length > 0 ? (
+                categories.map((category) => (
+                  <li key={category.categoryId}>
+                    <Link
+                      to={`/products?categoryId=${category.categoryId}`}
+                      className="text-gray-300 hover:text-white transition-colors text-sm flex items-center gap-2 group"
+                    >
+                      <span className="w-1 h-1 rounded-full bg-transparent group-hover:bg-white transition-all" />
+                      {category.name}
+                    </Link>
+                  </li>
+                ))
+              ) : (
+                <>
+                  <li>
+                    <Link
+                      to="/products?gender=nam"
+                      className="text-gray-300 hover:text-white transition-colors text-sm flex items-center gap-2 group"
+                    >
+                      <span className="w-1 h-1 rounded-full bg-transparent group-hover:bg-white transition-all" />
+                      Nước hoa nam
+                    </Link>
+                  </li>
+                  <li>
+                    <Link
+                      to="/products?gender=nu"
+                      className="text-gray-300 hover:text-white transition-colors text-sm flex items-center gap-2 group"
+                    >
+                      <span className="w-1 h-1 rounded-full bg-transparent group-hover:bg-white transition-all" />
+                      Nước hoa nữ
+                    </Link>
+                  </li>
+                  <li>
+                    <Link
+                      to="/products?gender=unisex"
+                      className="text-gray-300 hover:text-white transition-colors text-sm flex items-center gap-2 group"
+                    >
+                      <span className="w-1 h-1 rounded-full bg-transparent group-hover:bg-white transition-all" />
+                      Nước hoa unisex
+                    </Link>
+                  </li>
+                </>
+              )}
             </ul>
           </div>
 
@@ -194,20 +222,21 @@ export const Footer = () => {
               Nhận thông tin về sản phẩm mới, ưu đãi đặc biệt và các sự kiện độc quyền.
             </p>
             <form onSubmit={handleNewsletterSubmit} className="space-y-3">
-              <div className="flex flex-col sm:flex-row gap-2">
+              <div className="flex flex-col gap-4">
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="Email của bạn"
-                  className="flex-1 px-4 py-2.5 bg-white/10 backdrop-blur-sm border border-white/20 rounded-sm text-white placeholder-gray-400 focus:outline-none focus:ring-0 focus:border-white/40 focus:bg-white/15 transition-all text-sm"
+                  className="flex-1 px-5 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-full text-white placeholder-gray-400 focus:outline-none focus:ring-0 focus:border-white/40 focus:bg-white/15 transition-all text-sm"
+                  style={{ fontFamily: "var(--font-family-base)" }}
                   required
                 />
                 <button
                   type="submit"
-                  className="px-6 py-2.5 bg-white text-black rounded-sm hover:bg-gray-100 transition-all duration-300 font-medium text-sm whitespace-nowrap"
+                  className="relative btn-slide-overlay px-8 py-1.5 bg-white text-black rounded-full transition-all duration-300 font-medium text-base whitespace-nowrap"
                 >
-                  Đăng ký
+                  <span className="relative ">Đăng ký</span>
                 </button>
               </div>
             </form>
@@ -217,35 +246,23 @@ export const Footer = () => {
         {/* Bottom Section */}
         <div className="border-t border-white/10 mt-12 pt-8">
           <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-            {/* Policy Links */}
+            {/* Policy Links - Không click được */}
             <div className="flex flex-wrap items-center justify-center gap-4 md:gap-6 text-xs md:text-sm">
-              <Link
-                to="/privacy"
-                className="text-gray-400 hover:text-white transition-colors"
-              >
+              <span className="text-gray-400">
                 Chính sách bảo mật
-              </Link>
+              </span>
               <span className="text-gray-600">•</span>
-              <Link
-                to="/payment"
-                className="text-gray-400 hover:text-white transition-colors"
-              >
+              <span className="text-gray-400">
                 Chính sách thanh toán
-              </Link>
+              </span>
               <span className="text-gray-600">•</span>
-              <Link
-                to="/shipping"
-                className="text-gray-400 hover:text-white transition-colors"
-              >
+              <span className="text-gray-400">
                 Chính sách vận chuyển
-              </Link>
+              </span>
               <span className="text-gray-600">•</span>
-              <Link
-                to="/returns"
-                className="text-gray-400 hover:text-white transition-colors"
-              >
+              <span className="text-gray-400">
                 Chính sách đổi trả
-              </Link>
+              </span>
             </div>
 
             {/* Copyright */}

@@ -1,6 +1,7 @@
 package iuh.fit.server.controller;
 
 import iuh.fit.server.dto.request.ForgotPasswordRequest;
+import iuh.fit.server.dto.request.GoogleSignInRequest;
 import iuh.fit.server.dto.request.LoginRequest;
 import iuh.fit.server.dto.request.RefreshTokenRequest;
 import iuh.fit.server.dto.request.RegisterRequest;
@@ -23,6 +24,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 import java.util.Optional;
+
+import java.util.Map;
 
 /**
  * Controller xử lý đăng ký và đăng nhập
@@ -47,6 +50,12 @@ public class AuthController {
     @Operation(summary = "Đăng nhập")
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
         return ResponseEntity.ok(authService.login(request));
+    }
+
+    @PostMapping("/google-signin")
+    @Operation(summary = "Đăng nhập bằng Google", description = "Xác thực và đăng nhập bằng Google ID token")
+    public ResponseEntity<AuthResponse> googleSignIn(@Valid @RequestBody GoogleSignInRequest request) {
+        return ResponseEntity.ok(authService.signInWithGoogle(request.getIdToken()));
     }
 
     @PostMapping("/refresh")
@@ -185,9 +194,9 @@ public class AuthController {
 
     @PostMapping("/forgot-password")
     @Operation(summary = "Quên mật khẩu", description = "Gửi email chứa link đặt lại mật khẩu")
-    public ResponseEntity<Void> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+    public ResponseEntity<Map<String, String>> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
         authService.forgotPassword(request);
-        return ResponseEntity.ok().build();
+        return ResponseEntity.ok(Map.of("message", "Nếu email của bạn tồn tại trong hệ thống, một liên kết đặt lại mật khẩu đã được gửi đến bạn."));
     }
 
     /**
@@ -196,8 +205,8 @@ public class AuthController {
      */
     @PostMapping("/reset-password")
     @Operation(summary = "Đặt lại mật khẩu", description = "Đặt lại mật khẩu mới bằng token từ email")
-    public ResponseEntity<Void> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+    public ResponseEntity<Map<String, String>> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
         authService.resetPassword(request);
-        return ResponseEntity.ok().build();
+        return ResponseEntity.ok(Map.of("message", "Mật khẩu đã được đặt lại thành công."));
     }
 }

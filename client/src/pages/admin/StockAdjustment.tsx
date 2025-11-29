@@ -31,7 +31,8 @@ export const StockAdjustments = () => {
 
   // Search state
   const [searchQuery, setSearchQuery] = useState<string>("");
-
+  const [sortField, setSortField] = useState<string>("productId");
+  const [sortDirection, setSortDirection] = useState<"ASC" | "DESC">("DESC");
   // Modal states
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
@@ -41,15 +42,25 @@ export const StockAdjustments = () => {
   const [editProductName, setEditProductName] = useState<string>("");
   const [editCurrentQuantity, setEditCurrentQuantity] = useState<number>(0);
 
-  const fetchInventory = async (page: number, size: number) => {
+  const fetchInventory = async (
+    page: number,
+    size: number,
+    sortBy?: string,
+    direction?: string,
+    search?: string
+  ) => {
     try {
       setLoading(true);
       setError(null);
 
-      // Fetch data from API - returns PageResponse with content array
-      const pageResponse = await inventoryService.getInventoryPage(page, size);
+      const pageResponse = await inventoryService.getInventoryPage(
+        page,
+        size,
+        sortBy,
+        direction as "ASC" | "DESC" | undefined,
+        search
+      );
 
-      // Transform InventoryItem to StockAdjustment from content array
       const transformedData: StockAdjustment[] = pageResponse.content.map(
         (item: InventoryItem) => ({
           id: item.inventoryId,
@@ -82,8 +93,14 @@ export const StockAdjustments = () => {
   };
 
   useEffect(() => {
-    fetchInventory(currentPage, pageSize);
-  }, [currentPage, pageSize, searchQuery]);
+    fetchInventory(
+      currentPage,
+      pageSize,
+      sortField,
+      sortDirection,
+      searchQuery
+    );
+  }, [currentPage, pageSize, sortField, sortDirection, searchQuery]);
 
   const handlePageChange = (page: number, size: number) => {
     // Nếu size thay đổi, reset về trang đầu
@@ -98,14 +115,43 @@ export const StockAdjustments = () => {
 
   const handleSearch = (query: string) => {
     setSearchQuery(query);
-    setCurrentPage(0); // Reset to first page when searching
+    setCurrentPage(0); // Reset về trang đầu khi tìm kiếm
+  };
+
+  const handleSort = (field: string) => {
+    // Map frontend field names to backend field names
+    const fieldMapping: Record<string, string> = {
+      productId: "productId",
+      productName: "product.name",
+      brand: "product.brand.name",
+      category: "product.category.name",
+      quantity: "quantity",
+      columeMl: "product.columeMl",
+      unitPrice: "product.unitPrice",
+      status: "quantity", // sắp xếp theo quantity cho status
+      lastUpdated: "lastUpdated",
+      updatedBy: "product.lastUpdatedBy",
+    };
+
+    const backendField = fieldMapping[field] || field;
+
+    if (sortField === backendField) {
+      setSortDirection(sortDirection === "ASC" ? "DESC" : "ASC");
+    } else {
+      setSortField(backendField);
+      setSortDirection(
+        backendField === "productId" || backendField === "lastUpdated"
+          ? "DESC"
+          : "ASC"
+      );
+    }
   };
 
   const columns: Column[] = [
     {
       key: "productId",
       label: "ID",
-      sortable: true,
+      onSort: handleSort,
     },
     {
       key: "productName",

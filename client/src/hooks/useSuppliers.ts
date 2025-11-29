@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
-import { apiService } from "../services/api";
+// import { apiService } from "../services/api";
 import type { Supplier } from "../types";
+import { supplierService } from "@/services/supplier.service";
 
 export const useSuppliers = () => {
     const [suppliers, setSuppliers] = useState<Supplier[]>([]);
@@ -11,7 +12,7 @@ export const useSuppliers = () => {
         const fetchSuppliers = async () => {
             try {
                 setLoading(true);
-                const suppliers = await apiService.get<Supplier[]>("/api/admin/suppliers");
+                const suppliers = await supplierService.getAllSuppliers();
                 setSuppliers(suppliers || []);
                 setError(null);
             } catch (err) {

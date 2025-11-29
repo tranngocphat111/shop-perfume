@@ -34,9 +34,15 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
 import java.util.Base64;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.Set;
+
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
+import com.google.api.client.http.javanet.NetHttpTransport;
+import com.google.api.client.json.gson.GsonFactory;
 
 @Service
 @RequiredArgsConstructor
@@ -54,6 +60,9 @@ public class AuthServiceImpl implements AuthService{
     @Value("${app.frontend.url:http://localhost:3000}")
     private String frontendUrl;
     
+    @Value("${spring.security.oauth2.client.registration.google.client-id:}")
+    private String googleClientId;
+    
     private static final int TOKEN_EXPIRATION_HOURS = 1;
     private static final SecureRandom secureRandom = new SecureRandom();
 
@@ -68,6 +77,7 @@ public class AuthServiceImpl implements AuthService{
         user.setName(request.getName());
         user.setEmail(request.getEmail());
         user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
+        user.setProvider("LOCAL"); // Set provider for local registration
         // Phone and address removed - users can add addresses after registration
         user.setStatus(UserStatus.ACTIVE);
 
@@ -104,6 +114,11 @@ public class AuthServiceImpl implements AuthService{
     public AuthResponse login(LoginRequest request) {
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new AuthenticationException("Email hoặc mật khẩu không đúng"));
+
+        // Kiểm tra nếu user đăng nhập bằng Google (không có password)
+        if (user.getPasswordHash() == null || user.getPasswordHash().isEmpty()) {
+            throw new AuthenticationException("Tài khoản này đăng nhập bằng Google. Vui lòng sử dụng nút 'Đăng nhập bằng Google'.");
+        }
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
             throw new AuthenticationException("Email hoặc mật khẩu không đúng");
@@ -282,11 +297,17 @@ public class AuthServiceImpl implements AuthService{
         try {
             emailService.sendPasswordResetEmail(user.getEmail(), token, resetUrl);
             log.info("Password reset email sent successfully to: {}", email);
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             log.error("Error sending password reset email to {}: {}", email, e.getMessage(), e);
             // Xóa token nếu không gửi được email
             passwordResetTokenRepository.delete(resetToken);
-            throw new RuntimeException("Không thể gửi email đặt lại mật khẩu. Vui lòng thử lại sau.");
+            // Re-throw với message từ EmailService (đã có thông tin chi tiết)
+            throw e;
+        } catch (Exception e) {
+            log.error("Unexpected error sending password reset email to {}: {}", email, e.getMessage(), e);
+            // Xóa token nếu không gửi được email
+            passwordResetTokenRepository.delete(resetToken);
+            throw new RuntimeException("Không thể gửi email đặt lại mật khẩu. Vui lòng thử lại sau. Chi tiết: " + e.getMessage());
         }
     }
     
@@ -401,5 +422,134 @@ public class AuthServiceImpl implements AuthService{
         secureRandom.nextBytes(randomBytes);
         return Base64.getUrlEncoder().withoutPadding().encodeToString(randomBytes);
     }
+    
+    @Override
+    @Transactional
+    public AuthResponse signInWithGoogle(String googleIdToken) {
+        if (googleClientId == null || googleClientId.isEmpty()) {
+            throw new AuthenticationException("Google OAuth chưa được cấu hình. Vui lòng liên hệ quản trị viên.");
+        }
+        
+        try {
+            // Verify Google ID token
+            GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(
+                    new NetHttpTransport(), 
+                    GsonFactory.getDefaultInstance())
+                    .setAudience(Collections.singletonList(googleClientId))
+                    .build();
+            
+            GoogleIdToken idToken = verifier.verify(googleIdToken);
+            if (idToken == null) {
+                throw new AuthenticationException("Google ID token không hợp lệ");
+            }
+            
+            GoogleIdToken.Payload payload = idToken.getPayload();
+            String googleId = payload.getSubject();
+            String email = payload.getEmail();
+            String name = (String) payload.get("name");
+            String picture = (String) payload.get("picture");
+            boolean emailVerified = Boolean.valueOf(payload.getEmailVerified().toString());
+            
+            if (!emailVerified) {
+                throw new AuthenticationException("Email chưa được xác minh bởi Google");
+            }
+            
+            if (email == null || email.isEmpty()) {
+                throw new AuthenticationException("Không thể lấy email từ Google account");
+            }
+            
+            // Tìm user theo Google ID hoặc email
+            User user = userRepository.findByGoogleId(googleId)
+                    .orElse(null);
+            
+            if (user == null) {
+                // Kiểm tra xem email đã tồn tại chưa (có thể user đã đăng ký bằng email/password)
+                user = userRepository.findByEmail(email).orElse(null);
+                
+                if (user != null) {
+                    // User đã tồn tại với email này, nhưng chưa có Google ID
+                    // Cập nhật Google ID và provider
+                    if (user.getProvider() == null || "LOCAL".equals(user.getProvider())) {
+                        // Kiểm tra xem user có password không (nếu có thì là LOCAL user)
+                        if (user.getPasswordHash() != null && !user.getPasswordHash().isEmpty()) {
+                            // User đã có account local, link Google account
+                            user.setGoogleId(googleId);
+                            user.setProvider("LOCAL"); // Giữ provider là LOCAL vì user có password
+                        } else {
+                            // User không có password, có thể là Google user cũ
+                            user.setGoogleId(googleId);
+                            user.setProvider("GOOGLE");
+                        }
+                    }
+                } else {
+                    // Tạo user mới
+                    user = new User();
+                    user.setName(name != null ? name : email.split("@")[0]);
+                    user.setEmail(email);
+                    user.setGoogleId(googleId);
+                    user.setProvider("GOOGLE");
+                    user.setPasswordHash(null); // Google users không có password
+                    user.setStatus(UserStatus.ACTIVE);
+                    user.setAvatar(picture);
+                    
+                    // Assign CUSTOMER role
+                    Role customerRole = roleRepository.findByName("CUSTOMER")
+                            .orElseThrow(() -> new RegistrationException("Role CUSTOMER không tồn tại"));
+                    
+                    Set<Role> roles = new HashSet<>();
+                    roles.add(customerRole);
+                    user.setRoles(roles);
+                }
+            } else {
+                // User đã tồn tại với Google ID, cập nhật thông tin nếu cần
+                if (name != null && !name.equals(user.getName())) {
+                    user.setName(name);
+                }
+                if (picture != null && !picture.equals(user.getAvatar())) {
+                    user.setAvatar(picture);
+                }
+            }
+            
+            // Kiểm tra trạng thái tài khoản
+            if (user.getStatus() != UserStatus.ACTIVE) {
+                throw new AuthenticationException("Tài khoản chưa được kích hoạt");
+            }
+            
+            // Lưu user
+            user = userRepository.save(user);
+            
+            // Generate JWT tokens
+            String token = jwtTokenProvider.generateToken(user.getEmail());
+            String refreshTokenString = jwtTokenProvider.generateRefreshToken(user.getEmail());
+            
+            // Lưu refresh token vào database
+            saveRefreshToken(user, refreshTokenString);
+            
+            // Lấy role đầu tiên từ set roles
+            String roleName = user.getRoles().stream()
+                    .map(Role::getName)
+                    .findFirst()
+                    .orElse("CUSTOMER");
+            
+            log.info("Google Sign-In successful for user: {} (Google ID: {})", email, googleId);
+            
+            return new AuthResponse(
+                    token,
+                    refreshTokenString,
+                    "Bearer",
+                    user.getUserId(),
+                    user.getName(),
+                    user.getEmail(),
+                    roleName
+            );
+            
+        } catch (AuthenticationException | RegistrationException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("Error during Google Sign-In: {}", e.getMessage(), e);
+            throw new AuthenticationException("Không thể xác thực với Google. Vui lòng thử lại.");
+        }
+    }
 }
+
 

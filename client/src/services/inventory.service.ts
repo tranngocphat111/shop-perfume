@@ -28,10 +28,12 @@ export const inventoryService = {
     },
     async getInventoryPage(
         page: number,
-        size: number
+        size: number,
+        sortBy?: string,
+        direction?: string
     ): Promise<PageResponse<InventoryItem>> {
         return apiService.get<PageResponse<InventoryItem>>(
-            `/inventories/page?page=${page}&size=${size}`
+            `/inventories/page?page=${page}&size=${size}&sortBy=${sortBy}&direction=${direction}`
         );
     },
 

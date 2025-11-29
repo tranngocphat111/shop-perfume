@@ -77,17 +77,18 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                     // ========== PUBLIC ENDPOINTS (No authentication required) ==========
                     
+                    // Error handling endpoints - must be public
+                    .requestMatchers("/error", "/api/error").permitAll()
+                    
                     // Webhooks - must be public for external services
                     .requestMatchers(webhookMatcher).permitAll()
                     .requestMatchers("/webhooks/sepay/manual", "/webhooks/sepay/test", "/webhooks/sepay/health").permitAll()
                     .requestMatchers("/webhooks/sepay/logs", "/webhooks/sepay/logs/**").permitAll()
                     
-                    // Authentication endpoints (login, register, refresh are public)
-//                     .requestMatchers("/auth/login", "/auth/register", "/auth/refresh").permitAll()
-                    .requestMatchers("/auth/me").authenticated() // /auth/me requires authentication
-                    // Authentication endpoints
-                    .requestMatchers("/auth/**").permitAll()
-                    .requestMatchers("/api/auth/**").permitAll() // Support context-path=/api
+                    // Authentication endpoints - ALL public except /auth/me
+                    // Note: Order matters - specific paths before wildcards
+                    .requestMatchers("/api/auth/me", "/auth/me").authenticated() // /auth/me requires authentication
+                    .requestMatchers("/api/auth/**", "/auth/**").permitAll() // All other auth endpoints are public
                     
                     // Guest checkout - allow public access
                     .requestMatchers("/orders/create").permitAll()
