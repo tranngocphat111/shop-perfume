@@ -98,7 +98,36 @@ export const StockAdjustments = () => {
 
   const handleSearch = (query: string) => {
     setSearchQuery(query);
-    setCurrentPage(0); // Reset to first page when searching
+    setCurrentPage(0); // Reset về trang đầu khi tìm kiếm
+  };
+
+  const handleSort = (field: string) => {
+    // Map frontend field names to backend field names
+    const fieldMapping: Record<string, string> = {
+      productId: "product.productId",
+      productName: "product.name",
+      brand: "product.brand.name",
+      category: "product.category.name",
+      quantity: "quantity",
+      columeMl: "product.columeMl",
+      unitPrice: "product.unitPrice",
+      status: "quantity", // sắp xếp theo quantity cho status
+      lastUpdated: "lastUpdated",
+      updatedBy: "product.lastUpdatedBy",
+    };
+
+    const backendField = fieldMapping[field] || field;
+
+    if (sortField === backendField) {
+      setSortDirection(sortDirection === "ASC" ? "DESC" : "ASC");
+    } else {
+      setSortField(backendField);
+      setSortDirection(
+        backendField === "productId" || backendField === "lastUpdated"
+          ? "DESC"
+          : "ASC"
+      );
+    }
   };
 
   const columns: Column[] = [

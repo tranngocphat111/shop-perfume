@@ -1,6 +1,8 @@
 package iuh.fit.server.repository;
 
 import iuh.fit.server.model.entity.Inventory;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -33,5 +35,14 @@ public interface InventoryRepository extends JpaRepository<Inventory, Integer> {
 
     @Query("SELECT COUNT(i.inventoryId) FROM Inventory i WHERE i.quantity < 20")
     Long getLowStockItem();
+
+    // Tìm kiếm inventories theo nhiều tiêu chí
+    @Query("SELECT i FROM Inventory i WHERE " +
+           "CAST(i.inventoryId AS string) LIKE CONCAT('%', :searchTerm, '%') OR " +
+           "CAST(i.product.productId AS string) LIKE CONCAT('%', :searchTerm, '%') OR " +
+           "LOWER(i.product.name) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
+           "LOWER(i.product.brand.name) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
+           "LOWER(i.product.category.name) LIKE LOWER(CONCAT('%', :searchTerm, '%'))")
+    Page<Inventory> searchInventories(@Param("searchTerm") String searchTerm, Pageable pageable);
 }
 

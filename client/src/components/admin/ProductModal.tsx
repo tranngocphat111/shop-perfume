@@ -473,7 +473,7 @@ export const ProductModal = ({
               )}
             </div>
 
-            {/* Status */}
+            {/* Status
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Status <span className="text-red-500">*</span>
@@ -491,7 +491,7 @@ export const ProductModal = ({
                 <option value="ACTIVE">Active</option>
                 <option value="INACTIVE">Inactive</option>
               </select>
-            </div>
+            </div> */}
 
             {/* Images Upload - For Both Add and Edit Mode */}
             <div className="md:col-span-2">

@@ -171,6 +171,7 @@ public class ProductController {
      * PUT /api/products/{id}/images - Cập nhật ảnh sản phẩm
      */
     @PutMapping(value = "/{id}/images", consumes = {"multipart/form-data"})
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Update product images", description = "Update product with new images and manage existing ones")
     public ResponseEntity<ProductResponse> updateProductImages(
             @PathVariable Integer id,
