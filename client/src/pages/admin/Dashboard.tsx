@@ -51,10 +51,24 @@ export const Dashboard = () => {
   };
   useEffect(() => {
     const fetchStats = async () => {
-      const totalSizeProduct = await productService.getTotalSize();
-      const totalSizeOrder = await orderService.getTotalSize();
-      const totalRevenue = await orderService.getTotalRevenue();
-      const lowStockItems = await inventoryService.getLowStockItem();
+      // const totalSizeProduct = await productService.getTotalSize();
+      // const totalSizeOrder = await orderService.getTotalSize();
+      // const totalRevenue = await orderService.getTotalRevenue();
+      // const lowStockItems = await inventoryService.getLowStockItem();
+      // const pendingOrders = await orderService.getSizeOfPendingOrders();
+      const [
+        totalSizeProduct,
+        totalSizeOrder,
+        totalRevenue,
+        lowStockItems,
+        pendingOrders,
+      ] = await Promise.all([
+        productService.getTotalSize(),
+        orderService.getTotalSize(),
+        orderService.getTotalRevenue(),
+        inventoryService.getLowStockItem(),
+        orderService.getSizeOfPendingOrders(),
+      ]);
       setStats(() => {
         return {
           totalProducts: totalSizeProduct,
@@ -62,7 +76,7 @@ export const Dashboard = () => {
           totalRevenue: totalRevenue,
           lowStockItems: lowStockItems,
           totalCustomers: 0,
-          pendingOrders: 0,
+          pendingOrders: pendingOrders,
         };
       });
     };

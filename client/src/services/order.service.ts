@@ -7,6 +7,9 @@ export interface CheckoutData {
 }
 
 export const orderService = {
+  async getSizeOfPendingOrders(): Promise<number> {
+    return await apiService.get("/orders/pending");
+  },
 
   async getTotalSize(): Promise<number> {
     return await apiService.get<number>('/orders/size');
