@@ -9,6 +9,7 @@ import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.ses.SesClient;
 import software.amazon.awssdk.services.ses.model.*;
+import software.amazon.awssdk.services.ses.model.SesException;
 
 import java.nio.charset.StandardCharsets;
 
@@ -17,10 +18,10 @@ import java.nio.charset.StandardCharsets;
 @Slf4j
 public class EmailServiceImpl implements EmailService {
     
-    @Value("${aws.ses.region:ap-southeast-1}")
+    @Value("${aws.ses.region:us-east-1}")
     private String awsRegion;
     
-    @Value("${aws.ses.from-email:noreply@shop-perfume.com}")
+    @Value("${aws.ses.from-email:phamdacthinh2301@gmail.com}")
     private String fromEmail;
     
     private SesClient getSesClient() {
@@ -32,10 +33,15 @@ public class EmailServiceImpl implements EmailService {
     
     @Override
     public void sendPasswordResetEmail(String toEmail, String resetToken, String resetUrl) {
+        log.info("Attempting to send password reset email to: {}", toEmail);
+        log.info("Using AWS SES Region: {}, From Email: {}", awsRegion, fromEmail);
+        
         try (SesClient sesClient = getSesClient()) {
             String subject = "Đặt lại mật khẩu - Shop Perfume";
             String htmlBody = buildPasswordResetEmailHtml(resetUrl);
             String textBody = buildPasswordResetEmailText(resetUrl);
+            
+            log.debug("Building email request for destination: {}", toEmail);
             
             SendEmailRequest emailRequest = SendEmailRequest.builder()
                     .destination(Destination.builder()
@@ -60,12 +66,39 @@ public class EmailServiceImpl implements EmailService {
                     .source(fromEmail)
                     .build();
             
+            log.info("Sending email via AWS SES...");
             SendEmailResponse response = sesClient.sendEmail(emailRequest);
-            log.info("Password reset email sent successfully to {} with message ID: {}", 
-                    toEmail, response.messageId());
+            log.info("✅ Password reset email sent successfully!");
+            log.info("   - To: {}", toEmail);
+            log.info("   - Message ID: {}", response.messageId());
+            log.info("   - Region: {}", awsRegion);
+            log.info("   - From: {}", fromEmail);
+        } catch (SesException e) {
+            log.error("❌ AWS SES Error sending password reset email to {}: {}", toEmail, e.getMessage());
+            log.error("   - Error Code: {}", e.awsErrorDetails().errorCode());
+            log.error("   - Error Message: {}", e.awsErrorDetails().errorMessage());
+            log.error("   - Request ID: {}", e.requestId());
+            log.error("   - Status Code: {}", e.statusCode());
+            
+            // Provide more helpful error messages
+            String errorCode = e.awsErrorDetails().errorCode();
+            String errorMessage = "Không thể gửi email đặt lại mật khẩu";
+            
+            if ("MessageRejected".equals(errorCode)) {
+                errorMessage = "Email bị từ chối. Có thể email người nhận chưa được verify trong AWS SES (Sandbox mode) hoặc email người gửi chưa được verify.";
+            } else if ("MailFromDomainNotVerifiedException".equals(errorCode)) {
+                errorMessage = "Email người gửi chưa được verify trong AWS SES. Vui lòng verify email: " + fromEmail;
+            } else if ("ConfigurationSetDoesNotExistException".equals(errorCode)) {
+                errorMessage = "Cấu hình AWS SES không đúng. Vui lòng kiểm tra lại.";
+            } else if ("AccountSendingPausedException".equals(errorCode)) {
+                errorMessage = "Tài khoản AWS SES đang bị tạm dừng gửi email.";
+            }
+            
+            throw new RuntimeException(errorMessage + " (Error: " + errorCode + ")", e);
         } catch (Exception e) {
-            log.error("Error sending password reset email to {}: {}", toEmail, e.getMessage(), e);
-            throw new RuntimeException("Không thể gửi email đặt lại mật khẩu", e);
+            log.error("❌ Unexpected error sending password reset email to {}: {}", toEmail, e.getMessage(), e);
+            log.error("   - Exception Type: {}", e.getClass().getName());
+            throw new RuntimeException("Không thể gửi email đặt lại mật khẩu: " + e.getMessage(), e);
         }
     }
     
