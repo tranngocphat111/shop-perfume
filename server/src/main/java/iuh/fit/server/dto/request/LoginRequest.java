@@ -12,4 +12,9 @@ public class LoginRequest {
 
     @NotBlank(message = "Mật khẩu không được để trống")
     private String password;
+    
+    // Auto-trim email to handle whitespace
+    public void setEmail(String email) {
+        this.email = email != null ? email.trim() : null;
+    }
 }

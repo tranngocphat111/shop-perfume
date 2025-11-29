@@ -128,15 +128,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return true;
         }
         
-        // Skip JWT filter for public auth endpoints (login, register, refresh)
+        // Skip JWT filter for public auth endpoints (login, register, refresh, forgot-password, reset-password)
         // But NOT for /auth/me (requires authentication)
         if ((pathToCheck != null && pathToCheck.startsWith("/auth/")) || 
             (requestURI != null && requestURI.startsWith("/api/auth/"))) {
             // Don't skip /auth/me - it needs authentication
             if ((pathToCheck != null && (pathToCheck.equals("/auth/me") || pathToCheck.endsWith("/auth/me"))) ||
                 (requestURI != null && (requestURI.endsWith("/auth/me") || requestURI.contains("/auth/me")))) {
+                logger.debug("JWT filter will process /auth/me - requires authentication");
                 return false; // Process JWT filter for /auth/me
             }
+            logger.debug("Skipping JWT filter for public auth endpoint: servletPath=" + servletPath + ", requestURI=" + requestURI + ", pathToCheck=" + pathToCheck);
             return true; // Skip for other auth endpoints
         }
         

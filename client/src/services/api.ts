@@ -19,6 +19,14 @@ const clearAuthData = () => {
 // Helper function to get auth headers
 const getAuthHeaders = (endpoint: string = ""): Record<string, string> => {
   const headers: Record<string, string> = {};
+
+  // Don't send token for public endpoints
+  if (isPublicEndpoint(endpoint)) {
+    return headers;
+  }
+
+  const token = localStorage.getItem("auth_token");
+  const headers: Record<string, string> = {};
   
   // Don't send token for public endpoints
   if (isPublicEndpoint(endpoint)) {
@@ -88,22 +96,25 @@ const isPublicEndpoint = (endpoint: string): boolean => {
   if (endpoint === "/auth/me" || endpoint.includes("/auth/me")) {
     return false;
   }
-  
   const publicEndpoints = [
     "/auth/login",
     "/auth/register",
     "/auth/refresh",
     "/auth/logout",
+    "/auth/forgot-password",
+    "/auth/reset-password",
     "/payment/check-qr",
     "/products/",
     "/brands/",
     "/categories/",
     "/webhooks/",
   ];
-  
+
   // Check if endpoint matches any public endpoint pattern
-  return publicEndpoints.some(publicPath => endpoint.includes(publicPath)) ||
-         /\/orders\/\d+\/cancel-timeout/.test(endpoint);
+  return (
+    publicEndpoints.some((publicPath) => endpoint.includes(publicPath)) ||
+    /\/orders\/\d+\/cancel-timeout/.test(endpoint)
+  );
 };
 
 // Handle 401 errors - try refresh token first, then redirect
@@ -223,11 +234,11 @@ export const apiService = {
 
       // Handle empty response (no content)
       const text = await response.text();
-      
+
       if (!text || text.trim() === "") {
         return {} as T; // Return empty object for void responses
       }
-      
+
       // Try to parse as JSON
       try {
         return JSON.parse(text) as T;
