@@ -102,6 +102,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         // So we use servletPath directly, or requestURI if servletPath is empty
         String pathToCheck = (servletPath != null && !servletPath.isEmpty()) ? servletPath : requestURI;
         
+        // Debug logging for auth endpoints
+        if (requestURI != null && requestURI.contains("/auth/")) {
+            logger.info("🔍 [JWT Filter] Checking auth endpoint - servletPath: " + servletPath + ", requestURI: " + requestURI + ", pathToCheck: " + pathToCheck + ", method: " + method);
+        }
+        
         // CRITICAL: Skip JWT filter for webhook endpoints FIRST
         // Check both servletPath (after context-path removal) and full requestURI
         boolean isWebhook = (pathToCheck != null && pathToCheck.startsWith("/webhooks/")) ||

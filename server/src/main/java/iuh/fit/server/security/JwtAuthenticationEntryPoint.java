@@ -28,9 +28,18 @@ public class JwtAuthenticationEntryPoint implements AuthenticationEntryPoint {
         String servletPath = request.getServletPath();
         String requestURI = request.getRequestURI();
         String contextPath = request.getContextPath();
+        String method = request.getMethod();
         
-        log.error("Unauthorized error - servletPath: {}, requestURI: {}, contextPath: {}, message: {}", 
-                servletPath, requestURI, contextPath, authException.getMessage());
+        log.error("❌ Unauthorized error - method: {}, servletPath: {}, requestURI: {}, contextPath: {}, message: {}", 
+                method, servletPath, requestURI, contextPath, authException.getMessage());
+        
+        // Log warning if this is a public endpoint that shouldn't require auth
+        if (requestURI != null && (requestURI.contains("/auth/forgot-password") || 
+            requestURI.contains("/auth/reset-password") ||
+            requestURI.contains("/auth/login") ||
+            requestURI.contains("/auth/register"))) {
+            log.warn("⚠️ WARNING: Public endpoint {} is being blocked! Check SecurityConfig.", requestURI);
+        }
 
         response.setContentType("application/json;charset=UTF-8");
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);

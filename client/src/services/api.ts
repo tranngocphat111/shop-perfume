@@ -26,8 +26,6 @@ const getAuthHeaders = (endpoint: string = ""): Record<string, string> => {
   }
 
   const token = localStorage.getItem("auth_token");
-  const headers: Record<string, string> = {};
-
   if (token) {
     headers["Authorization"] = `Bearer ${token}`;
   }
@@ -163,7 +161,7 @@ export const apiService = {
   async get<T>(endpoint: string): Promise<T> {
     const makeRequest = async (): Promise<T> => {
       const fullUrl = `${API_BASE_URL}${endpoint}`;
-      const headers = getAuthHeaders();
+      const headers = getAuthHeaders(endpoint);
       const response = await fetch(fullUrl, { headers });
 
       if (!response.ok) {
@@ -199,7 +197,7 @@ export const apiService = {
       const fullUrl = `${API_BASE_URL}${endpoint}`;
       const isFormData = data instanceof FormData;
       const headers: Record<string, string> = {
-        ...getAuthHeaders(),
+        ...getAuthHeaders(endpoint),
         ...(isFormData ? {} : { "Content-Type": "application/json" }),
         ...options?.headers,
       };
@@ -256,7 +254,7 @@ export const apiService = {
       const fullUrl = `${API_BASE_URL}${endpoint}`;
       const isFormData = data instanceof FormData;
       const headers: Record<string, string> = {
-        ...getAuthHeaders(),
+        ...getAuthHeaders(endpoint),
         ...(isFormData ? {} : { "Content-Type": "application/json" }),
         ...options?.headers,
       };
@@ -294,7 +292,7 @@ export const apiService = {
   async delete<T>(endpoint: string): Promise<T> {
     const makeRequest = async (): Promise<T> => {
       const fullUrl = `${API_BASE_URL}${endpoint}`;
-      const headers = getAuthHeaders();
+      const headers = getAuthHeaders(endpoint);
 
       const response = await fetch(fullUrl, {
         method: "DELETE",

@@ -276,11 +276,17 @@ public class AuthServiceImpl implements AuthService{
         try {
             emailService.sendPasswordResetEmail(user.getEmail(), token, resetUrl);
             log.info("Password reset email sent successfully to: {}", email);
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             log.error("Error sending password reset email to {}: {}", email, e.getMessage(), e);
             // Xóa token nếu không gửi được email
             passwordResetTokenRepository.delete(resetToken);
-            throw new RuntimeException("Không thể gửi email đặt lại mật khẩu. Vui lòng thử lại sau.");
+            // Re-throw với message từ EmailService (đã có thông tin chi tiết)
+            throw e;
+        } catch (Exception e) {
+            log.error("Unexpected error sending password reset email to {}: {}", email, e.getMessage(), e);
+            // Xóa token nếu không gửi được email
+            passwordResetTokenRepository.delete(resetToken);
+            throw new RuntimeException("Không thể gửi email đặt lại mật khẩu. Vui lòng thử lại sau. Chi tiết: " + e.getMessage());
         }
     }
     
@@ -336,4 +342,5 @@ public class AuthServiceImpl implements AuthService{
         return Base64.getUrlEncoder().withoutPadding().encodeToString(randomBytes);
     }
 }
+
 
