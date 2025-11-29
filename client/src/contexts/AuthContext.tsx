@@ -1,14 +1,31 @@
-import { createContext, useContext, useState, useEffect } from 'react';
-import type { ReactNode } from 'react';
-import { authService } from '../services/auth.service';
-import type { AuthResponse } from '../services/auth.service';
+/* eslint-disable react-refresh/only-export-components */
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+} from "react";
+import type { ReactNode } from "react";
+import { authService } from "../services/auth.service";
+import type { AuthResponse } from "../services/auth.service";
+
+export type UserRole = "GUEST" | "CUSTOMER" | "ADMIN";
 
 interface AuthContextType {
   user: AuthResponse | null;
   isAuthenticated: boolean;
   isAdmin: boolean;
+  isCustomer: boolean;
+  isGuest: boolean;
+  userRole: UserRole;
   isLoading: boolean;
-  login: (token: string, userData: AuthResponse) => void;
+  login: (
+    token: string,
+    userData: AuthResponse,
+    mergeCart?: () => Promise<void>
+  ) => Promise<void>;
+  refreshUser: () => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -18,26 +35,46 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<AuthResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Wrap logout trong useCallback để tránh dependency issues
+  const logout = useCallback(async (redirectTo?: string) => {
+    setIsLoading(true);
+    try {
+      await authService.logout();
+    } catch (error) {
+      console.error("Logout error:", error);
+      // Clear tokens anyway
+      localStorage.removeItem("auth_token");
+      localStorage.removeItem("refresh_token");
+      localStorage.removeItem("user_info");
+    } finally {
+      setUser(null);
+      setIsLoading(false);
+      // Redirect to specified page or default login page
+      const redirectPath = redirectTo || "/login";
+      window.location.href = redirectPath;
+    }
+  }, []);
+
   useEffect(() => {
-    // Validate and potentially refresh token on mount
+    // Load user info from localStorage on mount
     const initAuth = async () => {
       try {
         const savedUser = authService.getUser();
         if (savedUser) {
           // Validate token and refresh if needed
           const isValid = await authService.validateAndRefreshToken();
-          
+
           if (isValid) {
             setUser(savedUser);
           } else {
             // Token is invalid and couldn't be refreshed
-            authService.clearAuth();
+            authService.logout();
             setUser(null);
           }
         }
       } catch (error) {
-        console.error('Auth initialization error:', error);
-        authService.clearAuth();
+        console.error("Auth initialization error:", error);
+        authService.logout();
         setUser(null);
       } finally {
         setIsLoading(false);
@@ -47,56 +84,211 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     initAuth();
   }, []);
 
-  // Periodically check token expiration and refresh if needed
+  // Smart token refresh - tính toán thời gian chính xác thay vì check định kỳ
   useEffect(() => {
     if (!user) return;
 
-    const intervalId = setInterval(async () => {
+    let timeoutId: NodeJS.Timeout | null = null;
+    let isRefreshing = false;
+    let isMounted = true;
+
+    const scheduleRefresh = () => {
+      if (!isMounted) return;
+
       try {
-        if (authService.isTokenExpiringSoon()) {
-          console.log('Token expiring soon, refreshing...');
-          const success = await authService.refreshToken();
-          if (!success) {
-            console.error('Failed to refresh token');
-            await logout();
+        // Clear existing timeout
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+          timeoutId = null;
+        }
+
+        const token = authService.getToken();
+        const refreshToken = authService.getRefreshToken();
+
+        if (!token || !refreshToken) {
+          return;
+        }
+
+        // Tính toán thời gian còn lại của token
+        let timeRemaining: number | null = null;
+        try {
+          timeRemaining = authService.getTokenTimeRemaining();
+        } catch (error) {
+          console.error("Error calculating token time remaining:", error);
+          // Nếu không tính được, schedule lại sau 1 phút
+          if (isMounted) {
+            timeoutId = setTimeout(() => {
+              if (isMounted) {
+                scheduleRefresh();
+              }
+            }, 60000);
           }
+          return;
+        }
+
+        if (timeRemaining === null || timeRemaining <= 0) {
+          // Token đã hết hạn, refresh ngay
+          performRefresh();
+          return;
+        }
+
+        // Refresh khi còn 5 phút (300000ms)
+        // Nếu token còn ít hơn 5 phút, refresh ngay
+        // Nếu token còn nhiều hơn, schedule refresh sau (timeRemaining - 5 phút)
+        const refreshThreshold = 5 * 60 * 1000; // 5 minutes
+        const timeUntilRefresh = Math.max(0, timeRemaining - refreshThreshold);
+
+        if (timeUntilRefresh === 0) {
+          // Token sắp hết hạn, refresh ngay
+          performRefresh();
+        } else {
+          // Schedule refresh khi còn đúng 5 phút
+          timeoutId = setTimeout(() => {
+            if (isMounted) {
+              performRefresh();
+            }
+          }, timeUntilRefresh);
         }
       } catch (error) {
-        console.error('Token refresh error:', error);
-        await logout();
+        console.error("Error in scheduleRefresh:", error);
+        // Nếu có lỗi, thử lại sau 1 phút
+        if (isMounted) {
+          timeoutId = setTimeout(() => {
+            if (isMounted) {
+              scheduleRefresh();
+            }
+          }, 60000); // Retry after 1 minute
+        }
       }
-    }, 60000); // Check every minute
+    };
 
-    return () => clearInterval(intervalId);
+    const performRefresh = async () => {
+      if (!isMounted) return;
+
+      // Tránh multiple refresh cùng lúc (race condition protection)
+      if (isRefreshing) {
+        return;
+      }
+
+      try {
+        isRefreshing = true;
+
+        if (!authService.getToken() || !authService.getRefreshToken()) {
+          return;
+        }
+
+        // Chỉ refresh nếu token sắp hết hạn
+        if (authService.isTokenExpiringSoon()) {
+          console.log("🔄 Auto-refreshing token...");
+          const success = await authService.refreshToken(true); // delayClear = true để tránh clear khi đang refresh
+
+          if (success && isMounted) {
+            console.log("✅ Token refreshed successfully");
+            // Update user info với token mới
+            const updatedUser = authService.getUser();
+            if (updatedUser) {
+              setUser(updatedUser);
+            }
+            // Schedule next refresh với token mới
+            scheduleRefresh();
+          } else if (!success && isMounted) {
+            console.error("❌ Failed to refresh token");
+            // Don't call logout here to avoid infinite loop, just clear user
+            setUser(null);
+            // Clear tokens silently
+            try {
+              authService.logout();
+            } catch (err) {
+              console.error("Error clearing tokens:", err);
+            }
+          }
+        } else if (isMounted) {
+          // Token chưa sắp hết hạn, schedule lại
+          scheduleRefresh();
+        }
+      } catch (error) {
+        console.error("Token refresh error:", error);
+        if (isMounted) {
+          // Don't call logout to avoid infinite loop
+          setUser(null);
+          // Clear tokens silently
+          try {
+            authService.logout();
+          } catch (err) {
+            console.error("Error clearing tokens:", err);
+          }
+        }
+      } finally {
+        isRefreshing = false;
+      }
+    };
+
+    // Schedule refresh ban đầu
+    scheduleRefresh();
+
+    // Cleanup
+    return () => {
+      isMounted = false;
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
   }, [user]);
 
-  const login = (token: string, userData: AuthResponse) => {
-    authService.setToken(token);
-    authService.setRefreshToken(userData.refreshToken);
-    authService.setUser(userData);
-    setUser(userData);
-  };
-
-  const logout = async () => {
-    setIsLoading(true);
+  const login = async (token: string, userData: AuthResponse) => {
     try {
-      await authService.logout();
+      authService.setToken(token);
+      if (userData.refreshToken) {
+        authService.setRefreshToken(userData.refreshToken);
+      }
+      authService.setUser(userData);
+      setUser(userData);
     } catch (error) {
-      console.error('Logout error:', error);
-    } finally {
-      setUser(null);
-      setIsLoading(false);
-      // Redirect to login page
-      window.location.href = '/login';
+      console.error("Login error:", error);
+      throw error;
     }
   };
 
+  const refreshUser = async () => {
+    try {
+      const { userService } = await import("../services/user.service");
+      const userInfo = await userService.getCurrentUser();
+      if (userInfo) {
+        const currentUser = authService.getUser();
+        if (currentUser) {
+          const updatedUser: AuthResponse = {
+            ...currentUser,
+            name: userInfo.name,
+            email: userInfo.email,
+          };
+          authService.setUser(updatedUser);
+          setUser(updatedUser);
+        }
+      }
+    } catch (error) {
+      console.error("Error refreshing user:", error);
+    }
+  };
+
+  // Determine user role
+  const userRole: UserRole =
+    !user || isLoading ? "GUEST" : user.role === "ADMIN" ? "ADMIN" : "CUSTOMER";
+
+  const isAdmin = userRole === "ADMIN";
+  const isCustomer = userRole === "CUSTOMER" || userRole === "ADMIN"; // Admin can do everything Customer can
+  const isGuest = userRole === "GUEST";
+  const isAuthenticated = !!user && !isLoading;
+
   const value = {
     user,
-    isAuthenticated: !!user && !isLoading,
-    isAdmin: user?.role === 'ADMIN',
+    isAuthenticated,
+    isAdmin,
+    isCustomer,
+    isGuest,
+    userRole,
     isLoading,
     login,
+    refreshUser,
     logout,
   };
 
@@ -106,8 +298,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 };
-

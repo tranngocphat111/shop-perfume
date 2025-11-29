@@ -1,5 +1,5 @@
 import React from 'react';
-import { FaTruck, FaCheckCircle, FaExclamationCircle } from 'react-icons/fa';
+import { FaCheckCircle, FaExclamationCircle } from 'react-icons/fa';
 import type { CartItem } from '../../types';
 import { getPrimaryImageUrl, formatCurrency } from '../../utils/helpers';
 
@@ -9,6 +9,7 @@ interface OrderSummaryProps {
   isProcessing: boolean;
   showQRWarning: boolean;
   isPaymentConfirmed: boolean;
+  discount?: number; // Thêm discount
 }
 
 export const OrderSummary: React.FC<OrderSummaryProps> = ({
@@ -17,13 +18,14 @@ export const OrderSummary: React.FC<OrderSummaryProps> = ({
   isProcessing,
   showQRWarning,
   isPaymentConfirmed,
+  discount = 0, // Default 0
 }) => {
   const subtotal = cartItems.reduce(
     (sum, item) => sum + item.product.unitPrice * item.quantity,
     0
   );
   const shippingFee = 0; // Free shipping
-  const total = subtotal + shippingFee;
+  const total = subtotal + shippingFee - discount; // Trừ discount
 
   return (
     <div className="bg-white p-6 md:p-8 rounded-xl shadow-sm sticky top-5">
@@ -51,7 +53,7 @@ export const OrderSummary: React.FC<OrderSummaryProps> = ({
                   </h4>
                   <p className="text-sm text-gray-500">× {item.quantity}</p>
                 </div>
-                <div className="text-base font-semibold text-gray-900 whitespace-nowrap">
+                <div className="text-lg md:text-xl font-semibold text-gray-900 whitespace-nowrap">
                   {formatCurrency(item.product.unitPrice * item.quantity)} ₫
                 </div>
               </div>
@@ -71,10 +73,14 @@ export const OrderSummary: React.FC<OrderSummaryProps> = ({
             {formatCurrency(subtotal)} ₫
           </span>
         </div>
-        <div className="flex justify-between text-base">
-          <span className="text-gray-600">Phí vận chuyển</span>
-          <span className="font-medium text-green-600">Miễn phí</span>
-        </div>
+        {discount > 0 && (
+          <div className="flex justify-between text-base">
+            <span className="text-gray-600">Giảm giá</span>
+            <span className="font-semibold text-red-600">
+              -{formatCurrency(discount)} ₫
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Total */}
@@ -137,12 +143,6 @@ export const OrderSummary: React.FC<OrderSummaryProps> = ({
       )}
 
       {/* Shipping Note */}
-      <div className="mt-6 p-4 bg-gray-50 rounded-lg text-center">
-        <div className="flex items-center justify-center gap-2 text-sm text-gray-600">
-          <FaTruck className="text-green-600" />
-          <span>Giá trên chưa bao gồm phí vận chuyển</span>
-        </div>
-      </div>
 
       <style>{`
         .custom-scrollbar::-webkit-scrollbar {

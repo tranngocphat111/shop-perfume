@@ -92,7 +92,7 @@ export interface PurchaseInvoice {
     email: string;
     phone: string;
   };
-  details: PurchaseInvoiceDetail[];
+  details?: PurchaseInvoiceDetail[];
 }
 
 export interface PurchaseInvoiceDetail {
@@ -115,6 +115,7 @@ export interface PurchaseInvoiceDetail {
 }
 
 export interface PurchaseInvoiceFormData {
+  purchaseInvoiceId?: number;
   supplierId: number;
   email: string;
   status: "PENDING" | "COMPLETED" | "CANCELLED";
@@ -128,6 +129,7 @@ export interface PurchaseInvoiceFormData {
 export interface CartItem {
   product: Product;
   quantity: number;
+  stockQuantity?: number; // Số lượng tồn kho
 }
 
 export interface Cart {
@@ -227,6 +229,7 @@ export interface OrderRequest {
   paymentMethod: string;
   cartItems: OrderItemRequest[];
   totalAmount: number;
+  couponId?: number; // ID của coupon (nếu user đã chọn coupon)
 }
 
 export interface OrderResponse {

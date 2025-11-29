@@ -1,109 +1,212 @@
 package iuh.fit.server.controller;
 
+import iuh.fit.server.dto.request.ForgotPasswordRequest;
+import iuh.fit.server.dto.request.GoogleSignInRequest;
 import iuh.fit.server.dto.request.LoginRequest;
 import iuh.fit.server.dto.request.RefreshTokenRequest;
 import iuh.fit.server.dto.request.RegisterRequest;
+import iuh.fit.server.dto.request.ResetPasswordRequest;
+import iuh.fit.server.dto.request.UpdateUserRequest;
+import iuh.fit.server.dto.request.ChangePasswordRequest;
 import iuh.fit.server.dto.response.AuthResponse;
 import iuh.fit.server.dto.response.TokenRefreshResponse;
-import iuh.fit.server.model.entity.RefreshToken;
-import iuh.fit.server.model.entity.User;
+import iuh.fit.server.dto.response.UserInfoResponse;
 import iuh.fit.server.services.AuthService;
-import iuh.fit.server.services.RefreshTokenService;
-import iuh.fit.server.util.JwtTokenProvider;
+import iuh.fit.server.repository.UserRepository;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
+import java.util.Optional;
 
-import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Controller xử lý authentication và authorization (Simplified for academic project)
+ * Controller xử lý đăng ký và đăng nhập
  */
 @RestController
 @RequestMapping("/auth")
 @RequiredArgsConstructor
 @Slf4j
-@Tag(name = "Authentication", description = "API xử lý authentication và authorization")
+@Tag(name = "Authentication", description = "API xử lý đăng ký và đăng nhập")
 public class AuthController {
 
     private final AuthService authService;
-    private final RefreshTokenService refreshTokenService;
-    private final JwtTokenProvider jwtTokenProvider;
+    private final UserRepository userRepository;
 
     @PostMapping("/register")
     @Operation(summary = "Đăng ký tài khoản mới")
-    public ResponseEntity<AuthResponse> register(
-            @Valid @RequestBody RegisterRequest request,
-            HttpServletRequest httpRequest) {
-        log.info("Registration attempt for email: {}", request.getEmail());
+    public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request) {
         return ResponseEntity.ok(authService.register(request));
     }
 
     @PostMapping("/login")
     @Operation(summary = "Đăng nhập")
-    public ResponseEntity<AuthResponse> login(
-            @Valid @RequestBody LoginRequest request,
-            HttpServletRequest httpRequest) {
-        log.info("Login attempt for email: {}", request.getEmail());
+    public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
         return ResponseEntity.ok(authService.login(request));
     }
 
-    @PostMapping("/refresh")
-    @Operation(summary = "Refresh access token bằng refresh token")
-    public ResponseEntity<TokenRefreshResponse> refreshToken(
-            @Valid @RequestBody RefreshTokenRequest request,
-            HttpServletRequest httpRequest) {
-        String requestRefreshToken = request.getRefreshToken();
-        
-        // Verify refresh token
-        RefreshToken refreshToken = refreshTokenService.verifyRefreshToken(requestRefreshToken);
-        User user = refreshToken.getUser();
-        
-        // Generate new access token
-        String newAccessToken = jwtTokenProvider.generateToken(user.getEmail());
-        
-        // Generate new refresh token (rotate refresh token)
-        RefreshToken newRefreshToken = refreshTokenService.createRefreshToken(user, httpRequest);
-        
-        // Revoke old refresh token
-        refreshTokenService.revokeRefreshToken(requestRefreshToken);
-        
-        log.info("Token refreshed successfully for user: {}", user.getEmail());
-        
-        return ResponseEntity.ok(TokenRefreshResponse.builder()
-                .accessToken(newAccessToken)
-                .refreshToken(newRefreshToken.getToken())
-                .type("Bearer")
-                .build());
+    @PostMapping("/google-signin")
+    @Operation(summary = "Đăng nhập bằng Google", description = "Xác thực và đăng nhập bằng Google ID token")
+    public ResponseEntity<AuthResponse> googleSignIn(@Valid @RequestBody GoogleSignInRequest request) {
+        return ResponseEntity.ok(authService.signInWithGoogle(request.getIdToken()));
     }
 
+    @PostMapping("/refresh")
+    @Operation(summary = "Làm mới access token bằng refresh token")
+    public ResponseEntity<TokenRefreshResponse> refreshToken(@Valid @RequestBody RefreshTokenRequest request) {
+        return ResponseEntity.ok(authService.refreshToken(request));
+    }
+
+    /**
+     * Đăng xuất - revoke tất cả refresh tokens
+     * Yêu cầu user phải đăng nhập
+     */
     @PostMapping("/logout")
-    @SecurityRequirement(name = "Bearer Authentication")
-    @Operation(summary = "Đăng xuất và revoke refresh token")
-    public ResponseEntity<Map<String, String>> logout(
-            @RequestBody(required = false) RefreshTokenRequest request) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String email = authentication != null ? authentication.getName() : "unknown";
-        
-        // Revoke refresh token nếu có
-        if (request != null && request.getRefreshToken() != null) {
-            refreshTokenService.revokeRefreshToken(request.getRefreshToken());
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Đăng xuất - revoke tất cả refresh tokens")
+    public ResponseEntity<Void> logout(Authentication authentication) {
+        if (authentication != null && authentication.isAuthenticated()) {
+            UserDetails userDetails = (UserDetails) authentication.getPrincipal();
+            String email = userDetails.getUsername();
+            authService.logout(email);
         }
-        
-        log.info("User logged out: {}", email);
-        
-        Map<String, String> response = new HashMap<>();
-        response.put("message", "Đăng xuất thành công");
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok().build();
+    }
+
+    /**
+     * GET /api/auth/me - Lấy thông tin user hiện tại (bao gồm điểm tích lũy)
+     */
+    @GetMapping("/me")
+    @Operation(summary = "Get current user info", description = "Get current authenticated user information including loyalty points")
+    public ResponseEntity<UserInfoResponse> getCurrentUser(Authentication authentication) {
+        try {
+            if (authentication == null || !authentication.isAuthenticated() ||
+                    authentication.getPrincipal().equals("anonymousUser")) {
+                log.warn("Unauthenticated request to /auth/me");
+                return ResponseEntity.status(401).build();
+            }
+
+            UserDetails userDetails = (UserDetails) authentication.getPrincipal();
+            String email = userDetails.getUsername();
+            log.info("Getting user info for email: {}", email);
+
+            Optional<iuh.fit.server.model.entity.User> userOpt = userRepository.findByEmail(email);
+            if (userOpt.isEmpty()) {
+                log.warn("User not found for email: {}", email);
+                return ResponseEntity.status(404).build();
+            }
+
+            iuh.fit.server.model.entity.User user = userOpt.get();
+            UserInfoResponse response = new UserInfoResponse();
+            response.setUserId(user.getUserId());
+            response.setName(user.getName());
+            response.setEmail(user.getEmail());
+            response.setLoyaltyPoints(user.getLoyaltyPoints() != null ? user.getLoyaltyPoints() : 0);
+
+            // Safely get role
+            String role = "CUSTOMER";
+            if (user.getRoles() != null && !user.getRoles().isEmpty()) {
+                role = user.getRoles().stream()
+                        .map(r -> r != null ? r.getName() : "CUSTOMER")
+                        .filter(name -> name != null)
+                        .findFirst()
+                        .orElse("CUSTOMER");
+            }
+            response.setRole(role);
+
+            log.info("Successfully retrieved user info for userId: {}, loyaltyPoints: {}",
+                    user.getUserId(), response.getLoyaltyPoints());
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("Error getting current user info", e);
+            return ResponseEntity.status(500).build();
+        }
+    }
+
+    /**
+     * PUT /api/auth/me - Cập nhật thông tin user hiện tại
+     */
+    @PutMapping("/me")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Update current user profile", description = "Update current authenticated user information (name)")
+    public ResponseEntity<UserInfoResponse> updateProfile(
+            @Valid @RequestBody UpdateUserRequest request,
+            Authentication authentication) {
+        try {
+            if (authentication == null || !authentication.isAuthenticated() ||
+                    authentication.getPrincipal().equals("anonymousUser")) {
+                log.warn("Unauthenticated request to PUT /auth/me");
+                return ResponseEntity.status(401).build();
+            }
+
+            UserDetails userDetails = (UserDetails) authentication.getPrincipal();
+            String email = userDetails.getUsername();
+            log.info("Updating profile for email: {}", email);
+
+            UserInfoResponse response = authService.updateProfile(email, request);
+            log.info("Successfully updated profile for userId: {}", response.getUserId());
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("Error updating user profile", e);
+            return ResponseEntity.status(500).build();
+        }
+    }
+
+    /**
+     * PUT /api/auth/change-password - Đổi mật khẩu
+     */
+    @PutMapping("/change-password")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Change password", description = "Change password for authenticated user")
+    public ResponseEntity<Void> changePassword(
+            @Valid @RequestBody ChangePasswordRequest request,
+            Authentication authentication) {
+        try {
+            if (authentication == null || !authentication.isAuthenticated() ||
+                    authentication.getPrincipal().equals("anonymousUser")) {
+                log.warn("Unauthenticated request to PUT /auth/change-password");
+                return ResponseEntity.status(401).build();
+            }
+
+            UserDetails userDetails = (UserDetails) authentication.getPrincipal();
+            String email = userDetails.getUsername();
+            log.info("Changing password for email: {}", email);
+
+            authService.changePassword(email, request);
+            log.info("Password changed successfully for email: {}", email);
+            return ResponseEntity.ok().build();
+        } catch (RuntimeException e) {
+            log.error("Error changing password: {}", e.getMessage());
+            // Return error message in response body
+            return ResponseEntity.badRequest().body(null);
+        } catch (Exception e) {
+            log.error("Error changing password", e);
+            return ResponseEntity.status(500).build();
+        }
+    }
+
+    @PostMapping("/forgot-password")
+    @Operation(summary = "Quên mật khẩu", description = "Gửi email chứa link đặt lại mật khẩu")
+    public ResponseEntity<Map<String, String>> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+        authService.forgotPassword(request);
+        return ResponseEntity.ok(Map.of("message", "Nếu email của bạn tồn tại trong hệ thống, một liên kết đặt lại mật khẩu đã được gửi đến bạn."));
+    }
+
+    /**
+     * Đặt lại mật khẩu với token
+     * Public endpoint
+     */
+    @PostMapping("/reset-password")
+    @Operation(summary = "Đặt lại mật khẩu", description = "Đặt lại mật khẩu mới bằng token từ email")
+    public ResponseEntity<Map<String, String>> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        authService.resetPassword(request);
+        return ResponseEntity.ok(Map.of("message", "Mật khẩu đã được đặt lại thành công."));
     }
 }
-

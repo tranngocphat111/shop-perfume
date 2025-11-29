@@ -2,8 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Eye, ShoppingCart } from "lucide-react";
 import { motion } from "framer-motion";
-import type { Inventory } from "../types";
-import { useBrands } from "../hooks/useBrands";
+import type { Inventory, Brand } from "../types";
 import { useCart } from "../contexts/CartContext";
 import {
   getPrimaryImageUrl,
@@ -13,11 +12,11 @@ import {
 
 interface ProductCardProps {
   inventory: Inventory;
+  brands?: Brand[];
 }
 
-export const PerfumeCard = ({ inventory }: ProductCardProps) => {
+export const PerfumeCard = ({ inventory, brands = [] }: ProductCardProps) => {
   const product = inventory.product;
-  const { brands } = useBrands();
   const { addToCart } = useCart();
   const navigate = useNavigate();
   const [isAdding, setIsAdding] = useState(false);
@@ -28,23 +27,11 @@ export const PerfumeCard = ({ inventory }: ProductCardProps) => {
 
   const imageUrl = getPrimaryImageUrl(product);
 
-  // Get brand logo from brands API - handle Cloudinary URL
-  const brand = brands.find((b) => b.brandId === product.brand.brandId);
+  // Get brand logo from passed brands
+  const brand = brands.length > 0 
+    ? brands.find((b) => b.brandId === product.brand.brandId)
+    : null;
   const brandLogoUrl = getBrandLogoUrl(brand?.url);
-
-  // Debug logging
-  console.log(`🔍 Brand Logo Debug for "${product.brand.name}":`, {
-    brandId: product.brand.brandId,
-    brandFound: !!brand,
-    brandName: brand?.name,
-    urlFromServer: brand?.url,
-    brandLogoUrl: brandLogoUrl,
-    brandsCount: brands.length,
-  });
-
-  if (brand && !brandLogoUrl) {
-    console.warn(`⚠️ Brand "${brand.name}" has no valid URL:`, brand.url);
-  }
 
   // Show "Liên hệ" if price is 0, otherwise show price
   const showPrice = product.unitPrice > 0;
@@ -57,7 +44,7 @@ export const PerfumeCard = ({ inventory }: ProductCardProps) => {
 
     try {
       setIsAdding(true);
-      addToCart(product, 1);
+      await addToCart(product, 1);
 
       // Trigger header to show (white background) without scrolling
       const currentScrollY = window.scrollY;
@@ -133,24 +120,15 @@ export const PerfumeCard = ({ inventory }: ProductCardProps) => {
             <img
               src={brandLogoUrl}
               alt={product.brand.name}
-              loading="lazy"
+              loading="eager"
+              fetchPriority="high"
               onError={(e) => {
-                console.error(
-                  `❌ Failed to load brand image for "${product.brand.name}":`,
-                  brandLogoUrl
-                );
                 const target = e.currentTarget;
                 target.style.display = "none";
                 const parent = target.parentElement;
                 if (parent) {
                   parent.innerHTML = `<span>${product.brand.name}</span>`;
                 }
-              }}
-              onLoad={() => {
-                console.log(
-                  `✅ Successfully loaded brand image for "${product.brand.name}":`,
-                  brandLogoUrl
-                );
               }}
             />
           ) : (
@@ -228,7 +206,7 @@ export const PerfumeCard = ({ inventory }: ProductCardProps) => {
       {/* Product Info */}
       <div className="product-info space-y-1">
         <h3
-          className={`text-[11px] sm:text-xs md:text-sm font-normal text-gray-900 line-clamp-2 min-h-[1.75rem] sm:min-h-[2rem] leading-relaxed transition-colors ${
+          className={`text-sm sm:text-base md:text-lg font-normal text-gray-900 line-clamp-2 min-h-[2rem] sm:min-h-[2.5rem] leading-relaxed transition-colors ${
             isHovered ? "text-gray-600" : ""
           }`}>
           {product.name}
@@ -236,11 +214,11 @@ export const PerfumeCard = ({ inventory }: ProductCardProps) => {
 
         <div className="product-price">
           {showPrice ? (
-            <span className="text-xs sm:text-sm md:text-base font-medium text-black">
+            <span className="text-base sm:text-lg md:text-xl font-semibold text-black">
               {formatCurrency(product.unitPrice)}&nbsp;₫
             </span>
           ) : (
-            <span className="text-xs sm:text-sm md:text-base font-normal text-gray-500">
+            <span className="text-base sm:text-lg md:text-xl font-normal text-gray-500">
               Liên hệ
             </span>
           )}

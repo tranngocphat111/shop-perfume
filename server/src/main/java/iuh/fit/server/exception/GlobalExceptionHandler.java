@@ -183,26 +183,6 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Xử lý TokenRefreshException
-     */
-    @ExceptionHandler(TokenRefreshException.class)
-    public ResponseEntity<ErrorResponse> handleTokenRefreshException(
-            TokenRefreshException ex,
-            WebRequest request
-    ) {
-        log.error("TokenRefreshException: {}", ex.getMessage());
-
-        ErrorResponse errorResponse = new ErrorResponse(
-                HttpStatus.UNAUTHORIZED.value(),
-                ex.getMessage(),
-                LocalDateTime.now(),
-                request.getDescription(false).replace("uri=", "")
-        );
-
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorResponse);
-    }
-
-    /**
      * Xử lý RuntimeException chung (trừ các exception đã được xử lý riêng)
      */
     @ExceptionHandler(RuntimeException.class)

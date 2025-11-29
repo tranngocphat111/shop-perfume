@@ -8,6 +8,8 @@ import iuh.fit.server.dto.response.PaymentCheckResponse;
 import java.util.List;
 
 public interface OrderService {
+    Long getSizeOfPendingOrders();
+
     Long getTotalSize();
 
     double getTotalRevenue();
@@ -20,6 +22,8 @@ public interface OrderService {
     void cancelOrderIfTimeout(Integer orderId);
     
     boolean isOrderCancelled(Integer orderId);
+    
+    void cancelOrder(Integer orderId);
     
     List<OrderResponse> getOrdersByEmail(String email);
     

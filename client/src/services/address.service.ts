@@ -84,10 +84,15 @@ export const addressService = {
    */
   deleteAddress: async (addressId: number): Promise<void> => {
     try {
+      // DELETE endpoint returns 204 No Content, so we don't expect JSON response
       await apiService.delete(`/addresses/${addressId}`);
     } catch (error: any) {
       console.error('Error deleting address:', error);
-      throw new Error(error.response?.data?.message || 'Không thể xóa địa chỉ');
+      // Handle different error formats
+      const errorMessage = error.message || 
+                          error.response?.data?.message || 
+                          (typeof error === 'string' ? error : 'Không thể xóa địa chỉ');
+      throw new Error(errorMessage);
     }
   },
 

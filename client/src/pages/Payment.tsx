@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { FaInfoCircle, FaClock, FaCheckCircle, FaSpinner, FaSearch, FaMoneyBillWave, FaQrcode, FaUniversity } from 'react-icons/fa';
 import { apiService } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
 import type { OrderResponse } from '../types';
 import { formatCurrency } from '../utils/helpers';
 import { generateOrderQRCode } from '../services/sepay';
@@ -22,6 +23,7 @@ interface PaymentLocationState {
 export const Payment: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { isAuthenticated } = useAuth();
   const state = location.state as PaymentLocationState;
 
   const [order, setOrder] = useState<OrderResponse | null>(null);
@@ -109,6 +111,11 @@ export const Payment: React.FC = () => {
       checkTimeout();
     }
   }, [order, state, checkTimeout]);
+
+  // Scroll to top when page loads or when order changes
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [order, state]);
 
   // Redirect if no state
   useEffect(() => {
@@ -285,11 +292,19 @@ export const Payment: React.FC = () => {
               <h1 className="text-3xl font-bold text-slate-800 mb-2">Thanh toán đơn hàng</h1>
               <p className="text-sm text-slate-600">Mã đơn hàng: <span className="font-mono font-semibold text-slate-800">#{order.orderId}</span></p>
             </div>
-            <div className="flex items-center gap-3 px-4 py-2.5 bg-white rounded-lg border border-slate-200 shadow-sm">
-              <PaymentIcon className={`text-xl ${
-                state.paymentMethod === 'cod' ? 'text-green-600' : 'text-blue-600'
-              }`} />
-              <span className="text-sm font-semibold text-slate-700">{paymentMethodLabels[state.paymentMethod]}</span>
+            <div className={`flex items-center gap-3 px-5 py-3 bg-white rounded-xl border-2 shadow-sm ${
+              state.paymentMethod === 'cod' 
+                ? 'border-green-200 bg-green-50' 
+                : 'border-blue-200 bg-blue-50'
+            }`}>
+              <div className={`p-2 rounded-lg ${
+                state.paymentMethod === 'cod' ? 'bg-green-100' : 'bg-blue-100'
+              }`}>
+                <PaymentIcon className={`text-xl ${
+                  state.paymentMethod === 'cod' ? 'text-green-600' : 'text-blue-600'
+                }`} />
+              </div>
+              <span className="text-sm font-semibold text-slate-800">{paymentMethodLabels[state.paymentMethod]}</span>
             </div>
           </div>
         </div>
@@ -463,7 +478,13 @@ export const Payment: React.FC = () => {
                     <p className="text-green-700 text-sm mb-3">Đơn hàng của bạn đã được xác nhận</p>
                     <div className="flex items-center gap-2 mb-4">
                       <button
-                        onClick={() => navigate('/my-orders', { state: { email: order.guestEmail } })}
+                        onClick={() => {
+                          if (isAuthenticated) {
+                            navigate('/profile');
+                          } else {
+                            navigate('/my-orders', { state: { email: order.guestEmail } });
+                          }
+                        }}
                         className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
                       >
                         Xem đơn hàng
@@ -488,26 +509,65 @@ export const Payment: React.FC = () => {
 
             {/* COD Payment Success */}
             {state.paymentMethod === 'cod' && (
-              <div className="bg-white border-l-4 border-green-500 p-5 rounded-lg shadow-sm">
-                <div className="flex items-start gap-4">
-                  <FaCheckCircle className="text-green-500 text-xl mt-0.5 flex-shrink-0" />
-                  <div className="flex-1">
-                    <h5 className="text-green-800 font-semibold text-base mb-2">Đặt hàng thành công! 🎉</h5>
-                    <p className="text-green-700 text-sm mb-4">Đơn hàng đã được xác nhận. Bạn sẽ thanh toán khi nhận hàng.</p>
-                    <div className="flex items-center gap-3">
-                      <button
-                        onClick={() => navigate('/my-orders', { state: { email: order.guestEmail } })}
-                        className="bg-blue-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
-                      >
-                        Xem đơn hàng
-                      </button>
-                      <button
-                        onClick={() => navigate('/')}
-                        className="bg-gray-200 text-gray-700 px-5 py-2 rounded-lg text-sm font-medium hover:bg-gray-300 transition-colors"
-                      >
-                        Về trang chủ
-                      </button>
+              <div className="bg-white rounded-xl shadow-lg border-2 border-green-200 overflow-hidden animate-fadeIn">
+                {/* Success Header with Green Background */}
+                <div className="bg-gradient-to-r from-green-500 to-green-600 px-8 py-6">
+                  <div className="flex items-center gap-4">
+                    <div className="bg-white rounded-full p-3 shadow-lg">
+                      <FaCheckCircle className="text-green-600 text-3xl" />
                     </div>
+                    <div>
+                      <h2 className="text-2xl font-bold text-white mb-1">Đặt hàng thành công!</h2>
+                      <p className="text-green-50 text-sm">Mã đơn hàng: <span className="font-mono font-semibold">#{order.orderId}</span></p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Success Content */}
+                <div className="p-8">
+                  {/* Success Message */}
+                  <div className="mb-6">
+                    <div className="flex items-start gap-3 mb-4">
+                      <div className="w-1 h-12 bg-green-500 rounded-full"></div>
+                      <div className="flex-1">
+                        <h3 className="text-lg font-semibold text-gray-900 mb-2">Đơn hàng đã được xác nhận</h3>
+                        <p className="text-gray-600 leading-relaxed">
+                          Cảm ơn bạn đã đặt hàng! Đơn hàng của bạn đã được tiếp nhận và đang được xử lý. 
+                          Bạn sẽ thanh toán khi nhận hàng (COD).
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Payment Method Badge */}
+                  <div className="flex items-center justify-center mb-6">
+                    <div className="inline-flex items-center gap-2 px-4 py-2 bg-green-50 border border-green-200 rounded-lg">
+                      <FaMoneyBillWave className="text-green-600" />
+                      <span className="text-sm font-semibold text-green-700">Trả tiền mặt khi nhận hàng</span>
+                    </div>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <button
+                      onClick={() => {
+                        if (isAuthenticated) {
+                          navigate('/profile');
+                        } else {
+                          navigate('/my-orders', { state: { email: order.guestEmail } });
+                        }
+                      }}
+                      className="flex-1 bg-black text-white px-6 py-3 rounded-lg font-semibold hover:bg-gray-800 transition-colors shadow-md hover:shadow-lg flex items-center justify-center gap-2"
+                    >
+                      <FaSearch />
+                      Xem đơn hàng
+                    </button>
+                    <button
+                      onClick={() => navigate('/')}
+                      className="flex-1 bg-white text-gray-900 px-6 py-3 rounded-lg font-semibold border-2 border-gray-300 hover:bg-gray-50 transition-colors shadow-sm hover:shadow-md"
+                    >
+                      Về trang chủ
+                    </button>
                   </div>
                 </div>
               </div>

@@ -1,167 +1,186 @@
-// const API_BASE_URL = "http://13.251.125.90:8080/api";
-const API_BASE_URL = "http://localhost:8080/api";
+const API_BASE_URL = "http://13.251.125.90:8080/api";
+// const API_BASE_URL = "http://localhost:8080/api";
 
 interface ApiError {
   message: string;
   status: number;
   response?: {
-    data?: any;
+    data?: unknown;
   };
 }
 
-// Track if we're currently refreshing the token
-let isRefreshing = false;
-let failedQueue: Array<{
-  resolve: (value?: unknown) => void;
-  reject: (reason?: any) => void;
-}> = [];
-
-const processQueue = (error: any = null) => {
-  failedQueue.forEach((prom) => {
-    if (error) {
-      prom.reject(error);
-    } else {
-      prom.resolve();
-    }
-  });
-  failedQueue = [];
+// Helper function to clear auth without importing authService (avoid circular dependency)
+const clearAuthData = () => {
+  localStorage.removeItem("auth_token");
+  localStorage.removeItem("refresh_token");
+  localStorage.removeItem("user_info");
 };
 
 // Helper function to get auth headers
-const getAuthHeaders = (): Record<string, string> => {
+const getAuthHeaders = (endpoint: string = ""): Record<string, string> => {
+  const headers: Record<string, string> = {};
+
+  // Don't send token for public endpoints
+  if (isPublicEndpoint(endpoint)) {
+    return headers;
+  }
+
   const token = localStorage.getItem("auth_token");
   if (token) {
-    return { Authorization: `Bearer ${token}` };
+    headers["Authorization"] = `Bearer ${token}`;
   }
-  return {};
+
+  return headers;
 };
 
-// Helper function to determine correct login page based on current route
-const getLoginPath = (): string => {
-  const currentPath = window.location.pathname;
-  // If we're on an admin route, redirect to admin login
-  if (currentPath.startsWith("/admin")) {
-    return "/admin/login";
-  }
-  return "/login";
-};
-
-// Handle 401 errors and token refresh
-const handle401Error = async (
-  originalRequest: () => Promise<any>
-): Promise<any> => {
-  if (isRefreshing) {
-    // If already refreshing, queue this request
-    return new Promise((resolve, reject) => {
-      failedQueue.push({ resolve, reject });
-    })
-      .then(() => originalRequest())
-      .catch((err) => Promise.reject(err));
-  }
-
-  isRefreshing = true;
-
+// Helper to refresh token (avoid circular dependency)
+const attemptTokenRefresh = async (): Promise<boolean> => {
   const refreshToken = localStorage.getItem("refresh_token");
   if (!refreshToken) {
-    processQueue(new Error("No refresh token"));
-    isRefreshing = false;
-    // Clear auth and redirect to appropriate login page
-    try {
-      const { authService } = await import("./auth.service");
-      authService.clearAuth();
-    } catch (e) {
-      // If import fails, manually clear localStorage
-      localStorage.removeItem("auth_token");
-      localStorage.removeItem("refresh_token");
-      localStorage.removeItem("user_info");
-    }
-    window.location.href = getLoginPath();
-    return Promise.reject(new Error("No refresh token"));
+    return false;
   }
 
   try {
-    // Import dynamically to avoid circular dependency
-    const { authService } = await import("./auth.service");
-    const success = await authService.refreshToken();
+    const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ refreshToken }),
+    });
 
-    if (success) {
-      processQueue();
-      isRefreshing = false;
-      return originalRequest();
-    } else {
-      throw new Error("Token refresh failed");
+    if (!response.ok) {
+      return false;
     }
-  } catch (error) {
-    processQueue(error);
-    isRefreshing = false;
-    // Clear auth and redirect to appropriate login page
-    // authService.refreshToken() already clears auth on failure, but ensure it's cleared
-    try {
-      const { authService } = await import("./auth.service");
-      // refreshToken() already clears auth, but ensure it's cleared
-      if (!authService.getToken()) {
-        authService.clearAuth();
+
+    const data = await response.json();
+
+    // Update tokens
+    localStorage.setItem("auth_token", data.accessToken);
+    localStorage.setItem("refresh_token", data.refreshToken);
+
+    // Update user info
+    const userInfo = localStorage.getItem("user_info");
+    if (userInfo) {
+      try {
+        const user = JSON.parse(userInfo);
+        user.token = data.accessToken;
+        user.refreshToken = data.refreshToken;
+        localStorage.setItem("user_info", JSON.stringify(user));
+      } catch {
+        // Ignore parse errors
       }
-    } catch (e) {
-      // If import fails, manually clear localStorage
-      localStorage.removeItem("auth_token");
-      localStorage.removeItem("refresh_token");
-      localStorage.removeItem("user_info");
     }
-    window.location.href = getLoginPath();
-    return Promise.reject(error);
+
+    return true;
+  } catch (error) {
+    console.error("Token refresh failed:", error);
+    return false;
   }
+};
+
+// Check if endpoint is public (doesn't require authentication)
+// NOTE: /orders/create and /orders/my-orders are NOT in this list
+// - We want to send token if user is logged in
+// - Backend allows guest access (permitAll), but if token is present, it will use userId
+const isPublicEndpoint = (endpoint: string): boolean => {
+  // /auth/me requires authentication, so it's not public
+  if (endpoint === "/auth/me" || endpoint.includes("/auth/me")) {
+    return false;
+  }
+  const publicEndpoints = [
+    "/auth/login",
+    "/auth/register",
+    "/auth/refresh",
+    "/auth/logout",
+    "/auth/forgot-password",
+    "/auth/reset-password",
+    "/payment/check-qr",
+    "/products/",
+    "/brands/",
+    "/categories/",
+    "/webhooks/",
+  ];
+
+  // Check if endpoint matches any public endpoint pattern
+  return (
+    publicEndpoints.some((publicPath) => endpoint.includes(publicPath)) ||
+    /\/orders\/\d+\/cancel-timeout/.test(endpoint)
+  );
+};
+
+// Handle 401 errors - try refresh token first, then redirect
+const handle401Error = async <T>(
+  endpoint: string,
+  originalRequest?: () => Promise<T>
+): Promise<T> => {
+  // If this is a public endpoint, don't logout - just reject the error
+  if (isPublicEndpoint(endpoint)) {
+    console.warn(`401 on public endpoint ${endpoint} - not logging out`);
+    return Promise.reject(new Error("Unauthorized"));
+  }
+
+  // Try to refresh token first
+  const refreshed = await attemptTokenRefresh();
+
+  if (refreshed && originalRequest) {
+    // Retry the original request with new token
+    try {
+      return await originalRequest();
+    } catch (retryError) {
+      // If retry still fails, proceed to logout
+      console.error("Request failed after token refresh:", retryError);
+    }
+  }
+
+  // If refresh failed or retry failed, clear auth and redirect
+  clearAuthData();
+  const isAdminEndpoint = endpoint.includes("/admin/");
+  window.location.href = isAdminEndpoint ? "/admin/login" : "/login";
+  return Promise.reject(new Error("Unauthorized"));
+};
+
+// Helper to parse error response
+const parseErrorResponse = async (response: Response) => {
+  try {
+    return await response.json();
+  } catch {
+    return {};
+  }
+};
+
+// Helper to create ApiError
+const createApiError = (
+  errorData: unknown,
+  status: number
+): ApiError & { response?: { data?: unknown } } => {
+  const data = errorData as { message?: string };
+  return {
+    message: data?.message || `HTTP error! status: ${status}`,
+    status,
+    response: { data: errorData },
+  };
 };
 
 export const apiService = {
   async get<T>(endpoint: string): Promise<T> {
     const makeRequest = async (): Promise<T> => {
       const fullUrl = `${API_BASE_URL}${endpoint}`;
-      const headers = { ...getAuthHeaders() };
-
-      // Only log non-polling requests (payment check is called frequently)
-      const isPollingRequest = endpoint.includes("/payment/check-qr");
-      if (!isPollingRequest) {
-        console.log("[API] 🔵 GET Request:", fullUrl);
-      }
-
-      const response = await fetch(fullUrl, {
-        headers,
-      });
+      const headers = getAuthHeaders(endpoint);
+      const response = await fetch(fullUrl, { headers });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        console.error("[API] ❌ GET Error:", {
-          url: fullUrl,
-          status: response.status,
-          error: errorData,
-        });
+        const errorData = await parseErrorResponse(response);
 
-        // Handle 401 Unauthorized
+        // Handle 401 Unauthorized - try refresh token first
         if (response.status === 401 && !endpoint.includes("/auth/")) {
-          return handle401Error(makeRequest);
+          return handle401Error(endpoint, makeRequest);
         }
 
-        throw {
-          message:
-            errorData.message || `HTTP error! status: ${response.status}`,
-          status: response.status,
-          response: { data: errorData },
-        } as ApiError & { response?: { data?: any } };
+        throw createApiError(errorData, response.status);
       }
 
-      const data = await response.json();
-
-      // Only log non-polling requests or if payment status changed
-      if (!isPollingRequest || data.paid || data.cancelled) {
-        console.log("[API] ✅ GET Response:", {
-          url: fullUrl,
-          status: response.status,
-          data: data,
-        });
-      }
-
-      return data;
+      return response.json();
     };
 
     try {
@@ -170,7 +189,6 @@ export const apiService = {
       if ((error as ApiError).status) {
         throw error;
       }
-      console.error("[API] ❌ GET Network Error:", error);
       throw new Error("Network error. Please check your connection.");
     }
   },
@@ -184,14 +202,10 @@ export const apiService = {
       const fullUrl = `${API_BASE_URL}${endpoint}`;
       const isFormData = data instanceof FormData;
       const headers: Record<string, string> = {
-        ...getAuthHeaders(),
+        ...getAuthHeaders(endpoint),
         ...(isFormData ? {} : { "Content-Type": "application/json" }),
         ...options?.headers,
       };
-
-      console.log("[API] 🔵 POST Request:", fullUrl);
-      console.log("[API] 🔵 Request Data:", isFormData ? "[FormData]" : data);
-      console.log("[API] 🔵 Headers:", headers);
 
       const response = await fetch(fullUrl, {
         method: "POST",
@@ -200,35 +214,30 @@ export const apiService = {
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        console.error("[API] ❌ POST Error:", {
-          url: fullUrl,
-          status: response.status,
-          error: errorData,
-          requestData: isFormData ? "[FormData]" : data,
-        });
+        const errorData = await parseErrorResponse(response);
 
-        // Handle 401 Unauthorized
+        // Handle 401 Unauthorized - try refresh token first
         if (response.status === 401 && !endpoint.includes("/auth/")) {
-          return handle401Error(makeRequest);
+          return handle401Error(endpoint, makeRequest);
         }
 
-        throw {
-          message:
-            errorData.message || `HTTP error! status: ${response.status}`,
-          status: response.status,
-          response: { data: errorData },
-        } as ApiError & { response?: { data?: any } };
+        throw createApiError(errorData, response.status);
       }
 
-      const responseData = await response.json();
-      console.log("[API] ✅ POST Response:", {
-        url: fullUrl,
-        status: response.status,
-        data: responseData,
-      });
+      // Handle empty response (no content)
+      const text = await response.text();
 
-      return responseData;
+      if (!text || text.trim() === "") {
+        return {} as T; // Return empty object for void responses
+      }
+
+      // Try to parse as JSON
+      try {
+        return JSON.parse(text) as T;
+      } catch {
+        // If not JSON, return as text (shouldn't happen with our API)
+        return text as unknown as T;
+      }
     };
 
     try {
@@ -237,7 +246,6 @@ export const apiService = {
       if ((error as ApiError).status) {
         throw error;
       }
-      console.error("[API] ❌ POST Network Error:", error);
       throw new Error("Network error. Please check your connection.");
     }
   },
@@ -248,34 +256,31 @@ export const apiService = {
     options?: { headers?: Record<string, string> }
   ): Promise<T> {
     const makeRequest = async (): Promise<T> => {
+      const fullUrl = `${API_BASE_URL}${endpoint}`;
       const isFormData = data instanceof FormData;
       const headers: Record<string, string> = {
-        ...getAuthHeaders(),
+        ...getAuthHeaders(endpoint),
         ...(isFormData ? {} : { "Content-Type": "application/json" }),
         ...options?.headers,
       };
 
-      const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      const response = await fetch(fullUrl, {
         method: "PUT",
         headers,
         body: isFormData ? data : JSON.stringify(data),
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
+        const errorData = await parseErrorResponse(response);
 
-        // Handle 401 Unauthorized
+        // Handle 401 Unauthorized - try refresh token first
         if (response.status === 401 && !endpoint.includes("/auth/")) {
-          return handle401Error(makeRequest);
+          return handle401Error(endpoint, makeRequest);
         }
 
-        throw {
-          message:
-            errorData.message || `HTTP error! status: ${response.status}`,
-          status: response.status,
-          response: { data: errorData },
-        } as ApiError & { response?: { data?: any } };
+        throw createApiError(errorData, response.status);
       }
+
       return response.json();
     };
 
@@ -291,28 +296,37 @@ export const apiService = {
 
   async delete<T>(endpoint: string): Promise<T> {
     const makeRequest = async (): Promise<T> => {
-      const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      const fullUrl = `${API_BASE_URL}${endpoint}`;
+      const headers = getAuthHeaders(endpoint);
+
+      const response = await fetch(fullUrl, {
         method: "DELETE",
-        headers: {
-          ...getAuthHeaders(),
-        },
+        headers,
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
+        const errorData = await parseErrorResponse(response);
 
-        // Handle 401 Unauthorized
+        // Handle 401 Unauthorized - try refresh token first
         if (response.status === 401 && !endpoint.includes("/auth/")) {
-          return handle401Error(makeRequest);
+          return handle401Error(endpoint, makeRequest);
         }
 
-        throw {
-          message:
-            errorData.message || `HTTP error! status: ${response.status}`,
-          status: response.status,
-          response: { data: errorData },
-        } as ApiError & { response?: { data?: any } };
+        throw createApiError(errorData, response.status);
       }
+
+      // Handle 204 No Content (successful delete with no body)
+      if (response.status === 204 || response.status === 200) {
+        const contentType = response.headers.get("content-type");
+        // Only parse JSON if there's actually content
+        if (contentType && contentType.includes("application/json")) {
+          const text = await response.text();
+          return text ? JSON.parse(text) : (null as T);
+        }
+        return null as T;
+      }
+
+      // For other success statuses, try to parse JSON
       return response.json();
     };
 
@@ -321,6 +335,11 @@ export const apiService = {
     } catch (error) {
       if ((error as ApiError).status) {
         throw error;
+      }
+      // Check if it's a JSON parse error from empty response
+      if (error instanceof SyntaxError && error.message.includes('JSON')) {
+        // This is likely a 204 No Content response, which is actually success
+        return null as T;
       }
       throw new Error("Network error. Please check your connection.");
     }

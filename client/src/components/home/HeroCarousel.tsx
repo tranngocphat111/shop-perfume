@@ -1,10 +1,14 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
 import type { HeroCarouselProps } from "../../types/home";
+import { useProductsFilter } from "../../contexts/ProductsFilterContext";
 
 export const HeroCarousel = ({ slides }: HeroCarouselProps) => {
   const [currentSlide, setCurrentSlide] = useState(0);
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { resetFilters } = useProductsFilter();
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -79,7 +83,7 @@ export const HeroCarousel = ({ slides }: HeroCarouselProps) => {
                     y: currentSlide === index ? 0 : 20,
                   }}
                   transition={{ delay: 1.1, duration: 1 }}
-                  className="text-4xl md:text-6xl lg:text-7xl whitespace-nowrap tracking-tight font-normal"
+                  className="text-5xl md:text-7xl lg:text-8xl whitespace-nowrap tracking-tight font-normal"
                 >
                   {slide.title}
                 </motion.h1>
@@ -104,6 +108,30 @@ export const HeroCarousel = ({ slides }: HeroCarouselProps) => {
                 >
                   <Link
                     to="/products"
+                    onClick={(e) => {
+                      // Reset filters directly from context when clicking "Mua ngay"
+                      // Try to get priceBounds from sessionStorage if available
+                      let priceBounds: [number, number] | null = null;
+                      try {
+                        const cached = sessionStorage.getItem('products_cache_price_bounds');
+                        if (cached) {
+                          priceBounds = JSON.parse(cached);
+                        }
+                      } catch (err) {
+                        // Ignore error, use null
+                      }
+                      
+                      // Reset filters in context
+                      resetFilters(priceBounds);
+                      
+                      // Always navigate to /products without params
+                      if (location.pathname === "/products") {
+                        e.preventDefault();
+                        // Force navigation to /products without params
+                        navigate("/products", { replace: true });
+                      }
+                      // Otherwise, let Link handle navigation normally
+                    }}
                     className="relative inline-flex items-center gap-3 border border-white text-white px-9 py-3.5 text-sm md:text-base overflow-hidden group rounded-full"
                     onMouseEnter={(e) => {
                       const overlay = e.currentTarget.querySelector(
@@ -134,7 +162,7 @@ export const HeroCarousel = ({ slides }: HeroCarouselProps) => {
                     <span className="wipe-overlay absolute inset-0 bg-gray-400/90 -translate-x-full transition-transform duration-500 ease-out rounded-full"></span>
 
                     <span className="relative font-medium z-10 transition-colors duration-200">
-                      Mua ngay
+                      Xem sản phẩm
                     </span>
                     <svg
                       className="relative w-4 h-4 group-hover:translate-x-1 transition-transform duration-200 z-10"

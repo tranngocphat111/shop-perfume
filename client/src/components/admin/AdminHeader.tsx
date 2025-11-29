@@ -6,14 +6,16 @@ interface AdminHeaderProps {
 }
 
 export const AdminHeader = ({ onToggleSidebar }: AdminHeaderProps) => {
-  const { user, logout } = useAuth();
+  const { logout, user } = useAuth();
 
   const handleLogout = async () => {
     try {
-      await logout();
-      // Logout will handle navigation
+      // Call logout with redirect to admin login page
+      await logout("/admin/login");
     } catch (error) {
-      console.error('Logout failed:', error);
+      console.error("Logout error:", error);
+      // Even if logout fails, redirect to admin login
+      window.location.href = "/admin/login";
     }
   };
 
@@ -33,19 +35,34 @@ export const AdminHeader = ({ onToggleSidebar }: AdminHeaderProps) => {
           </Link>
         </div>
 
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <i className="fas fa-user-circle text-2xl"></i>
-            <div className="text-sm">
-              <div className="font-semibold">{user?.name || 'Admin User'}</div>
-              <div className="text-blue-200 text-xs">{user?.email || 'admin@gmail.com'}</div>
+        <div className="flex items-center gap-3">
+          {/* User Info - Hiển thị thông tin người dùng đang đăng nhập */}
+          <div className="flex items-center gap-2 px-3 py-2 bg-blue-700/50 rounded-lg">
+            <i className="fas fa-user-circle text-xl"></i>
+            <div className="text-sm hidden md:block">
+              <div className="font-semibold">{user?.name || "Admin User"}</div>
+              <div className="text-blue-200 text-xs truncate max-w-[180px]">
+                {user?.email || "admin@gmail.com"}
+              </div>
             </div>
           </div>
+
+          {/* View Store Button - Chuyển sang trang web bán hàng */}
+          <Link
+            to="/"
+            className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg transition-colors text-white font-medium"
+            title="Xem trang web bán hàng">
+            <i className="fas fa-store"></i>
+            <span className="hidden sm:inline">Xem cửa hàng</span>
+          </Link>
+
+          {/* Logout Button - Đăng xuất */}
           <button
             onClick={handleLogout}
-            className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded transition-colors">
-            <i className="fas fa-sign-out-alt mr-2"></i>
-            Logout
+            className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition-colors font-medium"
+            title="Đăng xuất">
+            <i className="fas fa-sign-out-alt"></i>
+            <span className="hidden sm:inline">Logout</span>
           </button>
         </div>
       </div>

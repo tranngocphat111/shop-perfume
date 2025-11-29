@@ -15,7 +15,7 @@ export interface RegisterRequest {
 
 export interface AuthResponse {
   token: string;
-  refreshToken: string;
+  refreshToken?: string;
   type: string;
   userId: number;
   name: string;
@@ -27,6 +27,15 @@ export interface TokenRefreshResponse {
   accessToken: string;
   refreshToken: string;
   type: string;
+}
+
+export interface ForgotPasswordRequest {
+  email: string;
+}
+
+export interface ResetPasswordRequest {
+  token: string;
+  newPassword: string;
 }
 
 class AuthService {
@@ -43,7 +52,9 @@ class AuthService {
 
     // Lưu token và thông tin user vào localStorage
     this.setToken(response.token);
-    this.setRefreshToken(response.refreshToken);
+    if (response.refreshToken) {
+      this.setRefreshToken(response.refreshToken);
+    }
     this.setUser(response);
 
     return response;
@@ -57,7 +68,9 @@ class AuthService {
 
     // Lưu token và thông tin user vào localStorage
     this.setToken(response.token);
-    this.setRefreshToken(response.refreshToken);
+    if (response.refreshToken) {
+      this.setRefreshToken(response.refreshToken);
+    }
     this.setUser(response);
 
     return response;
@@ -65,23 +78,30 @@ class AuthService {
 
   async logout(): Promise<void> {
     try {
-      const refreshToken = this.getRefreshToken();
-      if (refreshToken) {
-        // Call logout API to revoke refresh token
-        await apiService.post("/auth/logout", { refreshToken });
+      // Gọi API logout để revoke tất cả refresh tokens trên server
+      const token = this.getToken();
+      if (token) {
+        // Try to call logout endpoint, but don't fail if it errors
+        // (user might already be logged out or token expired)
+        try {
+          await apiService.post("/auth/logout", {});
+        } catch (error) {
+          // Ignore errors - user might already be logged out
+          console.log(
+            "Logout API call failed (user may already be logged out):",
+            error
+          );
+        }
       }
     } catch (error) {
-      console.error("Logout API failed:", error);
+      // Ignore errors - clear local storage anyway
+      console.log("Error during logout:", error);
     } finally {
       // Always clear local storage
-      this.clearAuth();
+      localStorage.removeItem(this.TOKEN_KEY);
+      localStorage.removeItem(this.REFRESH_TOKEN_KEY);
+      localStorage.removeItem(this.USER_KEY);
     }
-  }
-
-  clearAuth(): void {
-    localStorage.removeItem(this.TOKEN_KEY);
-    localStorage.removeItem(this.REFRESH_TOKEN_KEY);
-    localStorage.removeItem(this.USER_KEY);
   }
 
   getToken(): string | null {
@@ -90,14 +110,6 @@ class AuthService {
 
   setToken(token: string): void {
     localStorage.setItem(this.TOKEN_KEY, token);
-  }
-
-  getRefreshToken(): string | null {
-    return localStorage.getItem(this.REFRESH_TOKEN_KEY);
-  }
-
-  setRefreshToken(token: string): void {
-    localStorage.setItem(this.REFRESH_TOKEN_KEY, token);
   }
 
   getUser(): AuthResponse | null {
@@ -115,20 +127,26 @@ class AuthService {
     localStorage.setItem(this.USER_KEY, JSON.stringify(user));
   }
 
+  getRefreshToken(): string | null {
+    return localStorage.getItem(this.REFRESH_TOKEN_KEY);
+  }
+
+  setRefreshToken(refreshToken: string): void {
+    localStorage.setItem(this.REFRESH_TOKEN_KEY, refreshToken);
+  }
+
   isAuthenticated(): boolean {
     const token = this.getToken();
     if (!token) return false;
-    
     // Check if token is expired
     if (this.isTokenExpired()) {
       return false;
     }
-    
     return true;
   }
 
   isAdmin(): boolean {
-    const user = this.getUser();
+    const user = this.getUser(); // Get user from localStorage
     return user?.role === "ADMIN";
   }
 
@@ -141,14 +159,14 @@ class AuthService {
       // Decode JWT token (without verification, just to check expiration)
       const payload = JSON.parse(atob(token.split(".")[1]));
       const expirationTime = payload.exp * 1000; // Convert to milliseconds
-      // Add 30 seconds buffer to refresh before actual expiration
-      return Date.now() >= expirationTime - 30000;
+      return Date.now() >= expirationTime;
     } catch {
       return true; // If can't parse, consider it expired
     }
   }
 
   // Check if token will expire soon (within 5 minutes)
+  // Với access token 30 phút, refresh khi còn 5 phút để đảm bảo không bị gián đoạn
   isTokenExpiringSoon(): boolean {
     const token = this.getToken();
     if (!token) return true;
@@ -156,17 +174,31 @@ class AuthService {
     try {
       const payload = JSON.parse(atob(token.split(".")[1]));
       const expirationTime = payload.exp * 1000;
-      const fiveMinutes = 5 * 60 * 1000;
+      const fiveMinutes = 5 * 60 * 1000; // 5 minutes in milliseconds
       return Date.now() >= expirationTime - fiveMinutes;
     } catch {
       return true;
     }
   }
 
+  // Tính toán thời gian còn lại của token (milliseconds)
+  getTokenTimeRemaining(): number | null {
+    const token = this.getToken();
+    if (!token) return null;
+
+    try {
+      const payload = JSON.parse(atob(token.split(".")[1]));
+      const expirationTime = payload.exp * 1000;
+      const remaining = expirationTime - Date.now();
+      return remaining > 0 ? remaining : 0;
+    } catch {
+      return null;
+    }
+  }
+
   // Get valid token (refresh if needed)
   async getValidToken(): Promise<string | null> {
     const token = this.getToken();
-    
     if (!token) {
       return null;
     }
@@ -181,20 +213,28 @@ class AuthService {
   }
 
   // Refresh access token using refresh token
-  async refreshToken(): Promise<boolean> {
-    // If there's already a refresh in progress, wait for it
+  // Race condition được xử lý: nếu đang refresh, các request khác sẽ chờ
+  async refreshToken(_delayClear: boolean = false): Promise<boolean> {
+    // Nếu đang có refresh request đang chạy, chờ nó hoàn thành
     if (this.refreshPromise) {
       try {
         await this.refreshPromise;
-        return true;
+        // Kiểm tra token đã được refresh chưa
+        const newToken = this.getToken();
+        return newToken !== null && !this.isTokenExpired();
       } catch {
+        // Nếu refresh thất bại, clear promise để có thể thử lại
+        this.refreshPromise = null;
         return false;
       }
     }
 
     const refreshToken = this.getRefreshToken();
     if (!refreshToken) {
-      this.clearAuth();
+      // If delayClear is true, don't clear auth here - let handle401Error do it
+      if (!_delayClear) {
+        this.logout();
+      }
       return false;
     }
 
@@ -211,31 +251,79 @@ class AuthService {
       this.setToken(response.accessToken);
       this.setRefreshToken(response.refreshToken);
 
+      // Update user info with new token (keep other user data)
+      const user = this.getUser();
+      if (user) {
+        user.token = response.accessToken;
+        this.setUser(user);
+      }
+
       console.log("Token refreshed successfully");
+
+      // Clear promise on success
+      this.refreshPromise = null;
       return true;
     } catch (error) {
       console.error("Token refresh failed:", error);
-      this.clearAuth();
-      return false;
-    } finally {
+      // Clear promise on error
       this.refreshPromise = null;
+      // If delayClear is true, don't clear auth here - let handle401Error do it
+      if (!_delayClear) {
+        this.logout();
+      }
+      return false;
     }
   }
 
   // Validate token on app load
   async validateAndRefreshToken(): Promise<boolean> {
     const token = this.getToken();
-    
     if (!token) {
       return false;
     }
 
-    // If token is expired or expiring soon, refresh it
-    if (this.isTokenExpired() || this.isTokenExpiringSoon()) {
-      return await this.refreshToken();
+    // If token is expired, try to refresh it
+    if (this.isTokenExpired()) {
+      const refreshed = await this.refreshToken();
+      return refreshed;
     }
 
     return true;
+  }
+
+  /**
+   * Gửi yêu cầu quên mật khẩu
+   */
+  async forgotPassword(email: string): Promise<void> {
+    const request: ForgotPasswordRequest = { email };
+    await apiService.post("/auth/forgot-password", request);
+  }
+
+  /**
+   * Đặt lại mật khẩu với token
+   */
+  async resetPassword(token: string, newPassword: string): Promise<void> {
+    const request: ResetPasswordRequest = { token, newPassword };
+    await apiService.post("/auth/reset-password", request);
+  }
+
+  /**
+   * Đăng nhập bằng Google
+   */
+  async signInWithGoogle(idToken: string): Promise<AuthResponse> {
+    const response = await apiService.post<AuthResponse>(
+      "/auth/google-signin",
+      { idToken }
+    );
+
+    // Lưu token và thông tin user vào localStorage
+    this.setToken(response.token);
+    if (response.refreshToken) {
+      this.setRefreshToken(response.refreshToken);
+    }
+    this.setUser(response);
+
+    return response;
   }
 }
 

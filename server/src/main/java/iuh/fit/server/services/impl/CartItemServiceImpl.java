@@ -97,7 +97,6 @@ public class CartItemServiceImpl implements CartItemService {
         CartItem cartItem = cartItemRepository.findById(cartItemId)
                 .orElseThrow(() -> new ResourceNotFoundException("Cart item not found with id: " + cartItemId));
 
-        Cart cart = cartItem.getCart();
         cartItemRepository.delete(cartItem);
 
         log.info("Removed cart item with id: {}", cartItemId);

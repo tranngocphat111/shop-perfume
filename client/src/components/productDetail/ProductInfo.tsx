@@ -32,7 +32,7 @@ export const ProductInfo = ({
       whileInView={{ opacity: 1, x: 0 }}
       viewport={{ once: true, margin: "-50px" }}
       transition={{ duration: 0.5, delay: 0.2, ease: "easeOut" }}
-      className="space-y-6">
+      className="space-y-4">
       {/* Brand & Category */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
@@ -67,7 +67,7 @@ export const ProductInfo = ({
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, margin: "-50px" }}
         transition={{ duration: 0.4, delay: 0.4 }}
-        className="text-2xl md:text-3xl font-bold text-black leading-tight">
+        className="text-1xl md:text-2xl font-bold text-black leading-tight">
         {product.name}
       </motion.h1>
 
@@ -79,11 +79,11 @@ export const ProductInfo = ({
         transition={{ duration: 0.4, delay: 0.5 }}
         className="flex items-center gap-4">
         {showPrice ? (
-          <span className="text-3xl md:text-4xl font-bold text-black">
+          <span className="text-2xl md:text-3xl lg:text-4xl font-bold text-black">
             {formatCurrency(product.unitPrice)} ₫
           </span>
         ) : (
-          <span className="text-2xl md:text-3xl font-medium text-gray-500">
+          <span className="text-3xl md:text-4xl lg:text-5xl font-medium text-gray-500">
             Liên hệ
           </span>
         )}
@@ -99,7 +99,7 @@ export const ProductInfo = ({
         {product.perfumeLongevity && (
           <div>
             <p className="text-sm text-gray-600 mb-1">Độ lưu hương</p>
-            <p className="text-base font-medium text-black">
+            <p className="text-lg font-medium text-black">
               {product.perfumeLongevity}
             </p>
           </div>
@@ -107,7 +107,7 @@ export const ProductInfo = ({
         {product.perfumeConcentration && (
           <div>
             <p className="text-sm text-gray-600 mb-1">Nồng độ</p>
-            <p className="text-base font-medium text-black">
+            <p className="text-lg font-medium text-black">
               {product.perfumeConcentration}
             </p>
           </div>
@@ -115,7 +115,7 @@ export const ProductInfo = ({
         {product.releaseYear && (
           <div>
             <p className="text-sm text-gray-600 mb-1">Năm phát hành</p>
-            <p className="text-base font-medium text-black">
+            <p className="text-lg font-medium text-black">
               {product.releaseYear}
             </p>
           </div>
@@ -123,7 +123,7 @@ export const ProductInfo = ({
         {product.columeMl && product.columeMl > 0 && (
           <div>
             <p className="text-sm text-gray-600 mb-1">Dung tích</p>
-            <p className="text-base font-medium text-black">
+            <p className="text-lg font-medium text-black">
               {product.columeMl} ml
             </p>
           </div>
@@ -145,7 +145,7 @@ export const ProductInfo = ({
                 <span className="text-sm font-semibold text-emerald-700">
                   Còn hàng
                 </span>
-                <span className="text-xs text-emerald-600 font-medium">
+                <span className="text-sm text-emerald-600 font-semibold">
                   ({inventory.quantity || 0} sản phẩm)
                 </span>
               </div>
@@ -167,7 +167,7 @@ export const ProductInfo = ({
               <button
                 onClick={() => onQuantityChange(quantity - 1)}
                 disabled={quantity <= 1}
-                className="p-2.5 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+                className="p-3 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
                 <Minus className="w-4 h-4 text-gray-700" />
               </button>
               <input
@@ -179,13 +179,13 @@ export const ProductInfo = ({
                   const val = parseInt(e.target.value) || 1;
                   onQuantityChange(val);
                 }}
-                className="w-20 text-center border-0 focus:outline-none focus:ring-0 py-2.5 font-medium text-gray-900 bg-transparent flex items-center justify-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                style={{ textAlign: "center" }}
+                className=" w-20 text-center border-0 focus:outline-none focus:ring-0 py-1.5 text-lg font-semibold text-gray-900 bg-transparent flex items-center justify-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                style={{ textAlign: "center", fontFamily: "var(--font-family-base)" }}
               />
               <button
                 onClick={() => onQuantityChange(quantity + 1)}
                 disabled={quantity >= (inventory?.quantity || 999)}
-                className="p-2.5 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+                className="p-3 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
                 <Plus className="w-4 h-4 text-gray-700" />
               </button>
             </div>
@@ -211,7 +211,7 @@ export const ProductInfo = ({
           className={`flex-1 flex items-center justify-center gap-2 px-5 py-3 rounded-full text-sm font-semibold overflow-hidden transition-shadow focus:outline-none focus:ring-0 focus-visible:outline-none ${
             !isInStock || !showPrice
               ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-              : "btn-slide-overlay-dark relative bg-black text-white shadow-lg hover:shadow-2xl"
+              : "btn-slide-overlay-dark relative bg-black text-white "
           }`}>
           <ShoppingBag className="w-4 h-4 relative z-10" />
           <span className="relative z-10">Mua ngay</span>
@@ -222,7 +222,7 @@ export const ProductInfo = ({
           className={`flex-1 flex items-center justify-center gap-2 px-5 py-3 rounded-full text-sm font-semibold overflow-hidden transition-shadow focus:outline-none focus:ring-0 focus-visible:outline-none ${
             !isInStock || !showPrice
               ? "bg-gray-200 text-gray-500 cursor-not-allowed"
-              : "btn-slide-overlay relative border border-black text-black bg-white shadow-sm hover:shadow-md"
+              : "btn-slide-overlay relative border border-black text-black bg-white"
           }`}>
           {isAddingToCart ? (
             <>

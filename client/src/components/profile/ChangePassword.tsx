@@ -1,61 +1,241 @@
 import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Lock, Eye, EyeOff, CheckCircle, XCircle } from "lucide-react";
+import { userService } from "../../services/user.service";
 
 export const ChangePassword = () => {
-  const [current, setCurrent] = useState("");
-  const [next, setNext] = useState("");
-  const [confirm, setConfirm] = useState("");
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setSuccess("");
-    if (next.length < 6) {
-      setError("Mật khẩu mới tối thiểu 6 ký tự");
+
+    // Validation
+    if (!currentPassword.trim()) {
+      setError("Vui lòng nhập mật khẩu hiện tại");
+      setTimeout(() => setError(""), 3000);
       return;
     }
-    if (next !== confirm) {
+
+    if (!newPassword.trim()) {
+      setError("Vui lòng nhập mật khẩu mới");
+      setTimeout(() => setError(""), 3000);
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      setError("Mật khẩu mới phải có ít nhất 6 ký tự");
+      setTimeout(() => setError(""), 3000);
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
       setError("Xác nhận mật khẩu không khớp");
+      setTimeout(() => setError(""), 3000);
       return;
     }
-    setSuccess("Đổi mật khẩu thành công (demo)");
-    setTimeout(() => setSuccess(""), 2000);
-    setCurrent("");
-    setNext("");
-    setConfirm("");
+
+    if (currentPassword === newPassword) {
+      setError("Mật khẩu mới phải khác mật khẩu hiện tại");
+      setTimeout(() => setError(""), 3000);
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      await userService.changePassword({
+        currentPassword: currentPassword.trim(),
+        newPassword: newPassword.trim(),
+      });
+      
+      setSuccess("Đổi mật khẩu thành công!");
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      setTimeout(() => setSuccess(""), 3000);
+    } catch (error: any) {
+      let errorMessage = "Có lỗi xảy ra khi đổi mật khẩu";
+      
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (error?.message) {
+        errorMessage = error.message;
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      }
+      
+      setError(errorMessage);
+      setTimeout(() => setError(""), 4000);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
-    <div className="bg-white border border-gray-100 rounded-lg shadow-sm p-6">
-      <h3 className="text-lg font-medium mb-4">Đổi mật khẩu</h3>
-      {error && <div className="mb-3 p-3 bg-red-50 text-red-700 rounded">{error}</div>}
-      {success && <div className="mb-3 p-3 bg-green-50 text-green-700 rounded">{success}</div>}
-      <form onSubmit={handleSubmit} className="space-y-4 max-w-md">
-        <input
-          type="password"
-          value={current}
-          onChange={(e) => setCurrent(e.target.value)}
-          placeholder="Mật khẩu hiện tại"
-          className="w-full px-4 py-3 border rounded"
-        />
-        <input
-          type="password"
-          value={next}
-          onChange={(e) => setNext(e.target.value)}
-          placeholder="Mật khẩu mới"
-          className="w-full px-4 py-3 border rounded"
-        />
-        <input
-          type="password"
-          value={confirm}
-          onChange={(e) => setConfirm(e.target.value)}
-          placeholder="Xác nhận mật khẩu mới"
-          className="w-full px-4 py-3 border rounded"
-        />
-        <button type="submit" className="px-4 py-2 bg-black text-white rounded hover:bg-gray-800">Đổi mật khẩu</button>
-      </form>
+    <div className="bg-white border border-gray-100 rounded-xl shadow-sm overflow-hidden">
+      {/* Header */}
+      <div className="px-6 py-5 bg-gradient-to-r from-gray-50 to-white border-b border-gray-100 flex justify-between items-center">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+            <Lock size={20} className="text-gray-700" />
+          </div>
+          <div>
+            <h3 className="text-lg font-bold text-gray-900">Đổi mật khẩu</h3>
+            <p className="text-xs text-gray-500 ">Bảo mật tài khoản của bạn</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="p-6">
+        {/* Success Message */}
+        <AnimatePresence>
+          {success && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="mb-4 flex items-center gap-2 px-4 py-3 bg-green-50 border border-green-200 rounded-lg"
+            >
+              <CheckCircle size={18} className="text-green-600 flex-shrink-0" />
+              <p className="text-sm font-medium text-green-700">{success}</p>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Error Message */}
+        <AnimatePresence>
+          {error && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="mb-4 flex items-center gap-2 px-4 py-3 bg-red-50 border border-red-200 rounded-lg"
+            >
+              <XCircle size={18} className="text-red-600 flex-shrink-0" />
+              <p className="text-sm font-medium text-red-700">{error}</p>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Current Password */}
+          <div className="space-y-1.5">
+            <label className="block text-xs font-semibold text-gray-700 flex items-center gap-2">
+              Mật khẩu hiện tại <span className="text-red-500">*</span>
+            </label>
+            <div className="relative">
+              <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                <Lock size={16} />
+              </div>
+              <input
+                type={showCurrentPassword ? "text" : "password"}
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                disabled={isLoading}
+                className="w-full pl-10 pr-10 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-1 focus:ring-gray-400 focus:border-gray-400 transition-all outline-none disabled:bg-gray-50 disabled:cursor-not-allowed"
+                placeholder="Nhập mật khẩu hiện tại"
+                autoComplete="current-password"
+              />
+              <button
+                type="button"
+                onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                tabIndex={-1}
+              >
+                {showCurrentPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
+          </div>
+
+          {/* New Password */}
+          <div className="space-y-1.5">
+            <label className="block text-xs font-semibold text-gray-700 flex items-center gap-2">
+              Mật khẩu mới <span className="text-red-500">*</span>
+            </label>
+            <div className="relative">
+              <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                <Lock size={16} />
+              </div>
+              <input
+                type={showNewPassword ? "text" : "password"}
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                disabled={isLoading}
+                className="w-full pl-10 pr-10 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-1 focus:ring-gray-400 focus:border-gray-400 transition-all outline-none disabled:bg-gray-50 disabled:cursor-not-allowed"
+                placeholder="Nhập mật khẩu mới (tối thiểu 6 ký tự)"
+                autoComplete="new-password"
+              />
+              <button
+                type="button"
+                onClick={() => setShowNewPassword(!showNewPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                tabIndex={-1}
+              >
+                {showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
+          </div>
+
+          {/* Confirm Password */}
+          <div className="space-y-1.5">
+            <label className="block text-xs font-semibold text-gray-700 flex items-center gap-2">
+              Xác nhận mật khẩu mới <span className="text-red-500">*</span>
+            </label>
+            <div className="relative">
+              <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                <Lock size={16} />
+              </div>
+              <input
+                type={showConfirmPassword ? "text" : "password"}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                disabled={isLoading}
+                className="w-full pl-10 pr-10 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-1 focus:ring-gray-400 focus:border-gray-400 transition-all outline-none disabled:bg-gray-50 disabled:cursor-not-allowed"
+                placeholder="Nhập lại mật khẩu mới"
+                autoComplete="new-password"
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                tabIndex={-1}
+              >
+                {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
+          </div>
+
+          {/* Submit Button */}
+          <div className="pt-2">
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="btn-slide-overlay-dark relative overflow-hidden w-full px-5 py-2.5 text-sm font-semibold text-white bg-black rounded-full hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              {isLoading ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  <span>Đang xử lý...</span>
+                </>
+              ) : (
+                <span className="relative z-index-10">Đổi mật khẩu</span>
+              )}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 };
-

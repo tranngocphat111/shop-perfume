@@ -12,8 +12,11 @@ import iuh.fit.server.model.enums.ShipmentStatus;
 import iuh.fit.server.repository.OrderRepository;
 import iuh.fit.server.repository.PaymentRepository;
 import iuh.fit.server.repository.ProductRepository;
+import iuh.fit.server.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,11 +33,18 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
     private final OrderRepository orderRepository;
     private final PaymentRepository paymentRepository;
     private final ProductRepository productRepository;
+    private final UserRepository userRepository;
     private final OrderMapper orderMapper;
+    private final iuh.fit.server.repository.CouponRepository couponRepository;
     
     // Timeout for QR payment: 30 minutes in milliseconds
     private static final long QR_PAYMENT_TIMEOUT_MS = 30 * 60 * 1000;
 
+
+    @Override
+    public Long getSizeOfPendingOrders() {
+        return orderRepository.getSizeOfOrdersHaveStatus(PaymentStatus.PENDING);
+    }
 
     @Override
     public Long getTotalSize() {
@@ -61,6 +71,42 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
         order.setGuestPhone(request.getPhone());
         order.setGuestAddress(request.getAddress());
         order.setCreatedAt(new Date());
+        
+        // Lấy userId từ SecurityContext nếu user đã đăng nhập
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            log.info("🔍 [createOrder] Authentication check: authentication={}, isAuthenticated={}", 
+                    authentication != null ? "present" : "null",
+                    authentication != null ? authentication.isAuthenticated() : false);
+            
+            if (authentication != null && authentication.isAuthenticated() && 
+                !authentication.getPrincipal().equals("anonymousUser")) {
+                Object principal = authentication.getPrincipal();
+                log.info("🔍 [createOrder] Principal type: {}", principal.getClass().getName());
+                
+                if (principal instanceof org.springframework.security.core.userdetails.UserDetails) {
+                    String email = ((org.springframework.security.core.userdetails.UserDetails) principal).getUsername();
+                    log.info("🔍 [createOrder] User email from token: {}", email);
+                    
+                    Optional<User> userOpt = userRepository.findByEmail(email);
+                    if (userOpt.isPresent()) {
+                        User user = userOpt.get();
+                        order.setUser(user);
+                        log.info("✅ [createOrder] Set user_id={} for order (authenticated user: {})", 
+                                user.getUserId(), email);
+                    } else {
+                        log.warn("⚠️ [createOrder] User not found in database for email: {}", email);
+                    }
+                } else {
+                    log.warn("⚠️ [createOrder] Principal is not UserDetails: {}", principal.getClass().getName());
+                }
+            } else {
+                log.info("ℹ️ [createOrder] No authentication or anonymous user - creating guest order");
+            }
+        } catch (Exception e) {
+            log.error("❌ [createOrder] Error setting user for order: {}", e.getMessage(), e);
+            // Continue as guest order if cannot get user
+        }
 
         // Create OrderItems
         List<OrderItem> orderItems = request.getCartItems().stream().map(cartItem -> {
@@ -111,7 +157,54 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
         shipment.setOrder(order);
         order.setShipment(shipment);
 
-        // Save order (cascade will save orderItems, payment, and shipment)
+        // Xử lý coupon và điểm tích lũy nếu user đã đăng nhập
+        User orderUser = order.getUser();
+        if (orderUser != null && request.getCouponId() != null) {
+            try {
+                log.info("Processing coupon: couponId={}, userId={}", 
+                        request.getCouponId(), orderUser.getUserId());
+                
+                Optional<Coupon> couponOpt = couponRepository.findById(request.getCouponId());
+                
+                if (couponOpt.isPresent()) {
+                    Coupon coupon = couponOpt.get();
+                    Date currentDate = new Date();
+                    
+                    // Validate coupon
+                    if (!coupon.isActive()) {
+                        log.warn("⚠️ Coupon is not active: {}", request.getCouponId());
+                    } else if (currentDate.before(coupon.getStartDate()) || currentDate.after(coupon.getEndDate())) {
+                        log.warn("⚠️ Coupon is expired or not yet valid: {}", request.getCouponId());
+                    } else if (orderUser.getLoyaltyPoints() < coupon.getRequiredPoints()) {
+                        log.warn("⚠️ User has {} points, but coupon requires {} points", 
+                                orderUser.getLoyaltyPoints(), coupon.getRequiredPoints());
+                    } else {
+                        // Apply coupon discount
+                        double discountAmount = (request.getTotalAmount() * coupon.getDiscountPercent()) / 100.0;
+                        double finalAmount = request.getTotalAmount() - discountAmount;
+                        order.setTotalAmount(finalAmount);
+                        
+                        // Set coupon reference
+                        order.setCoupon(coupon);
+                        
+                        // Deduct loyalty points
+                        int newPoints = orderUser.getLoyaltyPoints() - coupon.getRequiredPoints();
+                        orderUser.setLoyaltyPoints(newPoints);
+                        userRepository.save(orderUser);
+                        
+                        log.info("✅ Coupon applied: discount={}, points deducted={}, remaining points={}", 
+                                discountAmount, coupon.getRequiredPoints(), newPoints);
+                    }
+                } else {
+                    log.warn("⚠️ Coupon not found: {}", request.getCouponId());
+                }
+            } catch (Exception e) {
+                log.error("❌ Error processing coupon", e);
+                // Don't fail order creation if coupon processing fails
+            }
+        }
+
+        // Save order first (cascade will save orderItems, payment, and shipment)
         Order savedOrder = orderRepository.save(order);
 
 
@@ -285,6 +378,34 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
     }
     
     @Override
+    @Transactional
+    public void cancelOrder(Integer orderId) {
+        Optional<Order> orderOpt = orderRepository.findById(orderId);
+        if (orderOpt.isEmpty()) {
+            throw new RuntimeException("Không tìm thấy đơn hàng với ID: " + orderId);
+        }
+        
+        Order order = orderOpt.get();
+        Payment payment = order.getPayment();
+        
+        if (payment == null) {
+            throw new RuntimeException("Đơn hàng không có thông tin thanh toán");
+        }
+        
+        // Chỉ cho phép hủy đơn hàng chưa thanh toán
+        if (payment.getStatus() != PaymentStatus.PENDING) {
+            throw new RuntimeException("Chỉ có thể hủy đơn hàng đang chờ thanh toán");
+        }
+        
+        // Hủy đơn hàng bằng cách đặt trạng thái thanh toán thành FAILED
+        payment.setStatus(PaymentStatus.FAILED);
+        paymentRepository.save(payment);
+        
+        log.info("✅ Order {} has been cancelled", orderId);
+    }
+    
+    @Override
+    @Transactional(readOnly = true)
     public List<OrderResponse> getOrdersByEmail(String email) {
         List<Order> orders = orderRepository.findByGuestEmailOrderByOrderDateDesc(email);
         return orders.stream()
@@ -293,6 +414,7 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
     }
     
     @Override
+    @Transactional(readOnly = true)
     public List<OrderResponse> getOrdersByUserId(Integer userId) {
         List<Order> orders = orderRepository.findByUserIdOrderByOrderDateDesc(userId);
         return orders.stream()
@@ -388,6 +510,25 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
                 payment.setPaymentDate(new Date());
                 paymentRepository.save(payment);
                 log.info("🎉 Payment status updated successfully! Order ID: {}", orderId);
+                
+                // Tích điểm cho user khi đơn hàng được thanh toán
+                // Quy tắc: 1 điểm = 10,000 VND
+                if (order.getUser() != null) {
+                    try {
+                        User user = order.getUser();
+                        int pointsToAdd = (int) Math.floor(order.getTotalAmount() / 10000.0);
+                        int newPoints = user.getLoyaltyPoints() + pointsToAdd;
+                        user.setLoyaltyPoints(newPoints);
+                        userRepository.save(user);
+                        
+                        log.info("🎁 Added {} points to user {} (total: {} points) after order {}", 
+                                pointsToAdd, user.getUserId(), newPoints, orderId);
+                    } catch (Exception e) {
+                        log.error("❌ Error adding loyalty points", e);
+                        // Don't fail the payment if points adding fails
+                    }
+                }
+                
                 return true;
             } else {
                 log.warn("⚠️ Payment status is not PENDING. Current status: {}. Order ID: {}", 

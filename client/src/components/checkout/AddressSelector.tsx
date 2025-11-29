@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { User, Phone, MapPin, Building2, Map, Check, X } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { addressService, type Address } from '../../services/address.service';
 import type { CheckoutFormData, Province, District, Ward, ProvinceDetail, DistrictDetail } from '../../types';
-import { FaMapMarkerAlt, FaChevronDown, FaChevronUp } from 'react-icons/fa';
+import { FaMapMarkerAlt, FaPlus } from 'react-icons/fa';
+import { GoSync } from "react-icons/go";
+import { CustomSelect } from '../profile/CustomSelect';
 
 interface AddressSelectorProps {
   formData: CheckoutFormData;
@@ -25,13 +28,62 @@ export const AddressSelector: React.FC<AddressSelectorProps> = ({
   const { user, isAuthenticated } = useAuth();
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [isOpen, setIsOpen] = useState(false);
+  const [showAddForm, setShowAddForm] = useState(false);
   const [selectedAddressId, setSelectedAddressId] = useState<number | null>(null);
+  
+  // Form state for adding new address
+  const [newAddressForm, setNewAddressForm] = useState({
+    recipientName: '',
+    phone: '',
+    addressLine: '',
+    ward: '',
+    district: '',
+    city: '',
+    isDefault: false,
+  });
+  const [provinces, setProvinces] = useState<Province[]>([]);
+  const [districts, setDistricts] = useState<District[]>([]);
+  const [wards, setWards] = useState<Ward[]>([]);
+  const [loading, setLoading] = useState({
+    provinces: false,
+    districts: false,
+    wards: false,
+    saving: false,
+  });
+  const [formError, setFormError] = useState('');
 
   useEffect(() => {
     if (isAuthenticated && user) {
       loadAddresses();
     }
   }, [isAuthenticated, user]);
+
+  // Load provinces when add form opens
+  useEffect(() => {
+    if (showAddForm && provinces.length === 0) {
+      loadProvincesForForm();
+    }
+  }, [showAddForm]);
+
+  // Auto-load districts when city is selected
+  useEffect(() => {
+    if (showAddForm && newAddressForm.city && provinces.length > 0) {
+      const province = provinces.find(p => p.name === newAddressForm.city);
+      if (province) {
+        loadDistrictsForForm(province.code.toString());
+      }
+    }
+  }, [showAddForm, newAddressForm.city, provinces]);
+
+  // Auto-load wards when district is selected
+  useEffect(() => {
+    if (showAddForm && newAddressForm.district && districts.length > 0) {
+      const district = districts.find(d => d.name === newAddressForm.district);
+      if (district) {
+        loadWardsForForm(district.code.toString());
+      }
+    }
+  }, [showAddForm, newAddressForm.district, districts]);
 
   const loadAddresses = async () => {
     try {
@@ -47,6 +99,93 @@ export const AddressSelector: React.FC<AddressSelectorProps> = ({
       }
     } catch (error) {
       console.error('Error loading addresses:', error);
+    }
+  };
+
+  const loadProvincesForForm = async () => {
+    try {
+      setLoading(prev => ({ ...prev, provinces: true }));
+      const response = await fetch(PROVINCES_API);
+      const data: Province[] = await response.json();
+      setProvinces(data);
+    } catch (error) {
+      console.error('Error loading provinces:', error);
+    } finally {
+      setLoading(prev => ({ ...prev, provinces: false }));
+    }
+  };
+
+  const loadDistrictsForForm = async (provinceCode: string) => {
+    try {
+      setLoading(prev => ({ ...prev, districts: true }));
+      const response = await fetch(`${PROVINCES_API}${provinceCode}?depth=2`);
+      const data: ProvinceDetail = await response.json();
+      setDistricts(data.districts || []);
+    } catch (error) {
+      console.error('Error loading districts:', error);
+    } finally {
+      setLoading(prev => ({ ...prev, districts: false }));
+    }
+  };
+
+  const loadWardsForForm = async (districtCode: string) => {
+    try {
+      setLoading(prev => ({ ...prev, wards: true }));
+      const response = await fetch(`${DISTRICTS_API}${districtCode}?depth=2`);
+      const data: DistrictDetail = await response.json();
+      setWards(data.wards || []);
+    } catch (error) {
+      console.error('Error loading wards:', error);
+    } finally {
+      setLoading(prev => ({ ...prev, wards: false }));
+    }
+  };
+
+  const handleAddAddress = async () => {
+    if (!newAddressForm.recipientName || !newAddressForm.phone || !newAddressForm.addressLine || 
+        !newAddressForm.city || !newAddressForm.district || !newAddressForm.ward) {
+      setFormError('Vui lòng điền đầy đủ thông tin');
+      return;
+    }
+
+    try {
+      setLoading(prev => ({ ...prev, saving: true }));
+      setFormError('');
+      
+      const newAddress = await addressService.createAddress({
+        recipientName: newAddressForm.recipientName,
+        phone: newAddressForm.phone,
+        addressLine: newAddressForm.addressLine,
+        ward: newAddressForm.ward,
+        district: newAddressForm.district,
+        city: newAddressForm.city,
+        isDefault: newAddressForm.isDefault,
+      });
+
+      // Reload addresses
+      await loadAddresses();
+      
+      // Auto-select the newly created address
+      await handleSelectAddress(newAddress);
+      
+      // Close form
+      setShowAddForm(false);
+      setNewAddressForm({
+        recipientName: '',
+        phone: '',
+        addressLine: '',
+        ward: '',
+        district: '',
+        city: '',
+        isDefault: false,
+      });
+      setDistricts([]);
+      setWards([]);
+    } catch (error: any) {
+      console.error('Error creating address:', error);
+      setFormError(error.message || 'Không thể tạo địa chỉ mới');
+    } finally {
+      setLoading(prev => ({ ...prev, saving: false }));
     }
   };
 
@@ -164,66 +303,65 @@ export const AddressSelector: React.FC<AddressSelectorProps> = ({
 
   return (
     <div className="mb-6">
-      <div className="flex items-center justify-between mb-3">
-        <label className="block text-sm font-medium text-gray-700">
-          <FaMapMarkerAlt className="inline mr-2" />
+      <div className="flex items-center justify-between mb-4">
+        <label className="flex items-center text-base font-semibold text-gray-900">
+          <FaMapMarkerAlt className="mr-2 text-gray-600" />
           Chọn địa chỉ đã lưu
         </label>
         <button
           type="button"
-          onClick={() => setIsOpen(!isOpen)}
-          className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1"
+          onClick={() => {
+            setShowAddForm(true);
+            setFormError('');
+            if (provinces.length === 0) {
+              loadProvincesForForm();
+            }
+          }}
+          className="px-4 py-2 text-sm font-medium text-white bg-black rounded-lg hover:bg-gray-800 transition-colors flex items-center gap-2 shadow-sm hover:shadow-md"
         >
-          {isOpen ? (
-            <>
-              <FaChevronUp className="text-xs" />
-              Thu gọn
-            </>
-          ) : (
-            <>
-              <FaChevronDown className="text-xs" />
-              Xem địa chỉ
-            </>
-          )}
+          <FaPlus className="text-xs" />
+          Thêm địa chỉ mới
         </button>
       </div>
 
       {isOpen && (
-        <div className="space-y-2 max-h-64 overflow-y-auto border border-gray-200 rounded-lg p-3 bg-gray-50">
+        <div className="space-y-3 max-h-80 overflow-y-auto border-2 border-gray-200 rounded-xl p-4 bg-white shadow-sm">
           {addresses.map((address) => (
             <div
               key={address.id}
               onClick={() => handleSelectAddress(address)}
-              className={`p-3 border-2 rounded-lg cursor-pointer transition-all ${
+              className={`p-4 border-2 rounded-xl cursor-pointer transition-all duration-200 ${
                 selectedAddressId === address.id
-                  ? 'border-blue-500 bg-blue-50'
-                  : 'border-gray-200 bg-white hover:border-gray-300'
+                  ? 'border-black bg-gray-100 shadow-md'
+                  : 'border-gray-200 bg-gray-50 hover:border-gray-400 hover:bg-gray-100 hover:shadow-sm'
               }`}
             >
               <div className="flex items-start justify-between">
                 <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <p className="font-semibold text-gray-900">{address.recipientName}</p>
+                  <div className="flex items-center gap-2 mb-2">
+                    <p className="font-semibold text-gray-900 text-base">{address.recipientName}</p>
                     {address.isDefault && (
-                      <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded">
+                      <span className="px-2.5 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">
                         Mặc định
                       </span>
                     )}
                   </div>
-                  <p className="text-sm text-gray-600 mb-1">{address.phone}</p>
-                  <p className="text-sm text-gray-700">
+                  <p className="text-sm text-gray-600 mb-1.5">{address.phone}</p>
+                  <p className="text-sm text-gray-700 leading-relaxed">
                     {address.addressLine}, {address.ward}, {address.district}, {address.city}
                   </p>
                 </div>
                 {selectedAddressId === address.id && (
-                  <div className="ml-3 text-blue-600">
-                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                      <path
-                        fillRule="evenodd"
-                        d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
+                  <div className="ml-4 flex-shrink-0">
+                    <div className="w-6 h-6 bg-black rounded-full flex items-center justify-center">
+                      <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                        <path
+                          fillRule="evenodd"
+                          d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                    </div>
                   </div>
                 )}
               </div>
@@ -232,23 +370,257 @@ export const AddressSelector: React.FC<AddressSelectorProps> = ({
         </div>
       )}
 
-      {selectedAddress && !isOpen && (
-        <div className="p-3 border border-gray-200 rounded-lg bg-gray-50">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-semibold text-gray-900">{selectedAddress.recipientName}</p>
-              <p className="text-sm text-gray-600">{selectedAddress.phone}</p>
-              <p className="text-sm text-gray-700">
+      {selectedAddress && !isOpen && !showAddForm && (
+        <div className="p-4 border-2 border-gray-200 rounded-xl bg-gray-50 shadow-sm">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-2">
+                <p className="font-semibold text-gray-900 text-base">{selectedAddress.recipientName}</p>
+                {selectedAddress.isDefault && (
+                  <span className="px-2.5 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">
+                    Mặc định
+                  </span>
+                )}
+              </div>
+              <p className="text-sm text-gray-600 mb-1.5">{selectedAddress.phone}</p>
+              <p className="text-sm text-gray-700 leading-relaxed">
                 {selectedAddress.addressLine}, {selectedAddress.ward}, {selectedAddress.district}, {selectedAddress.city}
               </p>
             </div>
             <button
               type="button"
               onClick={() => setIsOpen(true)}
-              className="text-sm text-blue-600 hover:text-blue-700"
+              className="p-2 text-white bg-black border-2 border-black rounded-lg hover:bg-gray-800 transition-colors flex-shrink-0 shadow-sm hover:shadow-md flex items-center justify-center"
+              title="Đổi địa chỉ"
             >
-              Đổi
+              <GoSync  className="w-5 h-5" />
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal thêm địa chỉ mới */}
+      {showAddForm && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-white w-full max-w-2xl rounded-xl shadow-2xl overflow-hidden">
+            {/* Header */}
+            <div className="px-5 py-3.5 bg-gradient-to-r from-gray-50 to-white border-b border-gray-100 flex items-center justify-between">
+              <h4 className="text-base font-bold text-gray-900">
+                Thêm địa chỉ
+              </h4>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAddForm(false);
+                  setFormError('');
+                  setNewAddressForm({
+                    recipientName: '',
+                    phone: '',
+                    addressLine: '',
+                    ward: '',
+                    district: '',
+                    city: '',
+                    isDefault: false,
+                  });
+                  setDistricts([]);
+                  setWards([]);
+                }}
+                className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {/* Name Field */}
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-gray-700">
+                    Tên người nhận
+                  </label>
+                  <div className="relative">
+                    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                      <User size={16} />
+                    </div>
+                    <input
+                      className="w-full pl-10 pr-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-1 focus:ring-gray-400 focus:border-gray-400 transition-all outline-none"
+                      placeholder="Nhập tên người nhận"
+                      value={newAddressForm.recipientName}
+                      onChange={(e) => setNewAddressForm({ ...newAddressForm, recipientName: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                {/* Phone Field */}
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-gray-700">
+                    Số điện thoại
+                  </label>
+                  <div className="relative">
+                    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                      <Phone size={16} />
+                    </div>
+                    <input
+                      className="w-full pl-10 pr-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-1 focus:ring-gray-400 focus:border-gray-400 transition-all outline-none"
+                      placeholder="Nhập số điện thoại"
+                      value={newAddressForm.phone}
+                      onChange={(e) => setNewAddressForm({ ...newAddressForm, phone: e.target.value })}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Address Line Field */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-gray-700">
+                  Địa chỉ
+                </label>
+                <div className="relative">
+                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                    <MapPin size={16} />
+                  </div>
+                  <input
+                    className="w-full pl-10 pr-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-1 focus:ring-gray-400 focus:border-gray-400 transition-all outline-none"
+                    placeholder="Số nhà, tên đường..."
+                    value={newAddressForm.addressLine}
+                    onChange={(e) => setNewAddressForm({ ...newAddressForm, addressLine: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              {/* Location Dropdowns */}
+              <div className="space-y-3">
+                {/* Province/City Dropdown */}
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-gray-700">
+                    Tỉnh/Thành phố <span className="text-red-500">*</span>
+                  </label>
+                  <CustomSelect
+                    value={provinces.find(p => p.name === newAddressForm.city)?.code.toString() || ''}
+                    onChange={async (code) => {
+                      const selected = provinces.find(p => p.code.toString() === code);
+                      if (selected) {
+                        setNewAddressForm({ ...newAddressForm, city: selected.name, district: '', ward: '' });
+                        setDistricts([]);
+                        setWards([]);
+                        await loadDistrictsForForm(code);
+                      }
+                    }}
+                    options={provinces}
+                    placeholder="Chọn tỉnh/thành phố"
+                    icon={<Building2 size={16} />}
+                    disabled={loading.provinces}
+                    loading={loading.provinces}
+                  />
+                </div>
+
+                {/* District Dropdown */}
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-gray-700">
+                    Quận/Huyện <span className="text-red-500">*</span>
+                  </label>
+                  <CustomSelect
+                    value={districts.find(d => d.name === newAddressForm.district)?.code.toString() || ''}
+                    onChange={async (code) => {
+                      const selected = districts.find(d => d.code.toString() === code);
+                      if (selected) {
+                        setNewAddressForm({ ...newAddressForm, district: selected.name, ward: '' });
+                        setWards([]);
+                        await loadWardsForForm(code);
+                      }
+                    }}
+                    options={districts}
+                    placeholder="Chọn quận/huyện"
+                    icon={<Map size={16} />}
+                    disabled={!newAddressForm.city || loading.districts}
+                    loading={loading.districts}
+                  />
+                </div>
+
+                {/* Ward Dropdown */}
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-gray-700">
+                    Xã/Phường/Thị trấn <span className="text-red-500">*</span>
+                  </label>
+                  <CustomSelect
+                    value={wards.find(w => w.name === newAddressForm.ward)?.code.toString() || ''}
+                    onChange={(code) => {
+                      const selected = wards.find(w => w.code.toString() === code);
+                      if (selected) {
+                        setNewAddressForm({ ...newAddressForm, ward: selected.name });
+                      }
+                    }}
+                    options={wards}
+                    placeholder="Chọn xã/phường/thị trấn"
+                    icon={<MapPin size={16} />}
+                    disabled={!newAddressForm.district || loading.wards}
+                    loading={loading.wards}
+                  />
+                </div>
+              </div>
+
+              {/* Default Address Checkbox */}
+              <div className="flex items-center gap-3 pt-2">
+                <label className="relative flex items-center cursor-pointer group">
+                  <input
+                    type="checkbox"
+                    checked={newAddressForm.isDefault}
+                    onChange={(e) => setNewAddressForm({ ...newAddressForm, isDefault: e.target.checked })}
+                    className="sr-only"
+                  />
+                  <div className={`w-4 h-4 rounded border-2 transition-all flex items-center justify-center ${
+                    newAddressForm.isDefault 
+                      ? 'bg-black border-black' 
+                      : 'border-gray-300 group-hover:border-gray-400'
+                  }`}>
+                    {newAddressForm.isDefault && (
+                      <Check size={12} className="text-white" />
+                    )}
+                  </div>
+                  <span className="ml-3 text-sm font-medium text-gray-700 group-hover:text-gray-900 transition-colors">
+                    Đặt làm địa chỉ mặc định
+                  </span>
+                </label>
+              </div>
+            </div>
+            {/* Error Message */}
+            {formError && (
+              <div className="px-6 py-3 bg-red-50 border-t border-red-100">
+                <p className="text-sm text-red-700 font-medium">{formError}</p>
+              </div>
+            )}
+
+            {/* Footer Buttons */}
+            <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex gap-3 justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAddForm(false);
+                  setFormError('');
+                  setNewAddressForm({
+                    recipientName: '',
+                    phone: '',
+                    addressLine: '',
+                    ward: '',
+                    district: '',
+                    city: '',
+                    isDefault: false,
+                  });
+                  setDistricts([]);
+                  setWards([]);
+                }}
+                className="min-w-24 relative btn-slide-overlay px-5 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-full hover:bg-gray-50 transition-colors"
+              >
+                <span className="relative z-index-10">Hủy</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleAddAddress}
+                disabled={loading.saving}
+                className="min-w-24 relative btn-slide-overlay-dark overflow-hidden px-5 py-2.5 text-sm font-semibold text-white bg-black rounded-full hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <span className="relative z-index-10">{loading.saving ? 'Đang lưu...' : 'Lưu'}</span>
+              </button>
+            </div>
           </div>
         </div>
       )}

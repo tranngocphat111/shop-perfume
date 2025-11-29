@@ -18,10 +18,14 @@ public class Coupon {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int couponId;
+    
     private String code;
     private String description;
     private double discountPercent;
-    private double minOrderValue;
+    
+    @Column(name = "required_points")
+    private Integer requiredPoints = 0;
+    
     private Date startDate;
     private Date endDate;
     private boolean isActive;

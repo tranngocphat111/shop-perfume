@@ -1,27 +1,33 @@
 import { motion } from 'framer-motion';
+import { ShoppingBag, ArrowRight } from 'lucide-react';
 
 interface EmptyCartProps {}
 
 export const EmptyCart = ({}: EmptyCartProps) => {
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.9 }}
+      initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
-      className="text-center py-16"
+      className="flex flex-col items-center justify-center py-20 px-4 text-center bg-white rounded-2xl border border-gray-100 border-dashed mx-auto max-w-2xl"
     >
-      <i className="fas fa-shopping-cart text-6xl text-gray-400 mb-4"></i>
-      <h3 className="text-2xl font-medium text-gray-700 mb-4">
+      <div className="w-24 h-24 bg-gray-50 rounded-full flex items-center justify-center mb-6">
+        <ShoppingBag className="text-gray-300" size={48} strokeWidth={1.5} />
+      </div>
+      
+      <h3 className="text-2xl font-bold text-gray-900 mb-2">
         Giỏ hàng của bạn đang trống
       </h3>
-      <p className="text-gray-500 mb-8">
-        Hãy thêm sản phẩm vào giỏ hàng để tiếp tục mua sắm
+      
+      <p className="text-gray-500 mb-8 max-w-md">
+        Có vẻ như bạn chưa thêm sản phẩm nào. Hãy khám phá cửa hàng và chọn cho mình những món đồ ưng ý nhé.
       </p>
+      
       <a
         href="/products"
-        className="inline-flex items-center gap-2 px-6 py-3 bg-black text-white rounded hover:bg-gray-800 transition-colors"
+        className="group inline-flex items-center gap-2 px-8 py-3.5 bg-black text-white rounded-xl font-bold hover:bg-gray-800 hover:shadow-lg transition-all active:scale-95"
       >
-        <i className="fas fa-shopping-bag text-xl"></i>
         <span>Tiếp tục mua sắm</span>
+        <ArrowRight size={18} className="transition-transform group-hover:translate-x-1" />
       </a>
     </motion.div>
   );

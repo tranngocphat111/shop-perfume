@@ -19,6 +19,7 @@ export const ProductDetail = () => {
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
   const [sameCategoryProducts, setSameCategoryProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingRelated, setLoadingRelated] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isAddingToCart, setIsAddingToCart] = useState(false);
   const [inventory, setInventory] = useState<Inventory | null>(null);
@@ -92,11 +93,12 @@ export const ProductDetail = () => {
     fetchProduct();
   }, [id]);
 
-  // Lazy load related products (sau khi trang đã render)
+  // Load related products sau khi product chính đã hiển thị (không block UI)
   useEffect(() => {
     if (!product || loading) return;
 
     const fetchRelatedProducts = async () => {
+      setLoadingRelated(true);
       const productId = product.productId;
       
       try {
@@ -150,12 +152,16 @@ export const ProductDetail = () => {
         setSameCategoryProducts(relatedByCategoryFiltered);
       } catch (err) {
         console.warn("Failed to fetch related products:", err);
-        // Không set error vì đây là non-critical data
+        // Set empty arrays on error
+        setRelatedProducts([]);
+        setSameCategoryProducts([]);
+      } finally {
+        setLoadingRelated(false);
       }
     };
 
-    // Delay một chút để ưu tiên render trang chính
-    const timeoutId = setTimeout(fetchRelatedProducts, 100);
+    // Delay nhỏ để ưu tiên render product chính trước
+    const timeoutId = setTimeout(fetchRelatedProducts, 50);
     return () => clearTimeout(timeoutId);
   }, [product, loading]);
 
@@ -164,7 +170,7 @@ export const ProductDetail = () => {
 
     try {
       setIsAddingToCart(true);
-      addToCart(product, quantity);
+      await addToCart(product, quantity);
 
       // Show success notification
       const notification = document.createElement("div");
@@ -193,9 +199,12 @@ export const ProductDetail = () => {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[400px]">
-        <div className="w-12 h-12 border-4 border-gray-200 border-t-black rounded-full animate-spin mb-4"></div>
-        <p className="text-gray-600">Đang tải sản phẩm...</p>
+      <div className="fixed inset-0 bg-white z-50 flex items-center justify-center">
+        <div className="bg-white p-8 flex flex-col items-center">
+          <div className="w-16 h-16 border-4 border-gray-200 border-t-black rounded-full animate-spin mb-4"></div>
+          <p className="text-gray-600 text-lg">Đang tải sản phẩm...</p>
+          <p className="text-gray-400 text-sm mt-2">Vui lòng đợi trong giây lát</p>
+        </div>
       </div>
     );
   }
@@ -216,7 +225,7 @@ export const ProductDetail = () => {
   }
 
   return (
-    <div className="bg-white min-h-screen pt-20">
+    <div className="bg-white min-h-screen p-10">
       {/* Breadcrumb */}
       <ProductBreadcrumb product={product} />
 
@@ -224,8 +233,7 @@ export const ProductDetail = () => {
       <div className="max-w-7xl mx-auto px-4 md:px-6 py-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: "-50px" }}
+          animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, ease: "easeOut" }}
           className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 mb-16">
           {/* Left Column - Images */}
@@ -245,8 +253,7 @@ export const ProductDetail = () => {
         {/* Tabs Section and Related Products - 2 Columns */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: "-50px" }}
+          animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.3, ease: "easeOut" }}
           className="mb-16 lg:mt-0">
           <div className="grid grid-cols-1 lg:grid-cols-8 gap-24">
@@ -259,6 +266,7 @@ export const ProductDetail = () => {
             <RelatedProducts
               relatedProducts={relatedProducts}
               sameCategoryProducts={sameCategoryProducts}
+              isLoading={loadingRelated}
             />
           </div>
         </motion.div>
