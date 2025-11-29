@@ -1,8 +1,10 @@
 package iuh.fit.server.controller;
 
 import iuh.fit.server.dto.request.LoginRequest;
+import iuh.fit.server.dto.request.RefreshTokenRequest;
 import iuh.fit.server.dto.request.RegisterRequest;
 import iuh.fit.server.dto.response.AuthResponse;
+import iuh.fit.server.dto.response.TokenRefreshResponse;
 import iuh.fit.server.services.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -32,6 +34,13 @@ public class AuthController {
     @Operation(summary = "Đăng nhập")
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
         return ResponseEntity.ok(authService.login(request));
+    }
+
+    @PostMapping("/refresh")
+    @Operation(summary = "Refresh access token")
+    public ResponseEntity<TokenRefreshResponse> refreshToken(
+            @Valid @RequestBody RefreshTokenRequest request) {
+        return ResponseEntity.ok(authService.refreshToken(request));
     }
 }
 

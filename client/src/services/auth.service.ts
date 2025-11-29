@@ -1,4 +1,5 @@
 import { apiService } from "./api";
+import { refreshTokenManager } from "./refreshTokenManager";
 
 export interface LoginRequest {
   email: string;
@@ -33,7 +34,6 @@ class AuthService {
   private readonly TOKEN_KEY = "auth_token";
   private readonly REFRESH_TOKEN_KEY = "refresh_token";
   private readonly USER_KEY = "user_info";
-  private refreshPromise: Promise<TokenRefreshResponse> | null = null;
 
   async login(credentials: LoginRequest): Promise<AuthResponse> {
     const response = await apiService.post<AuthResponse>(
@@ -78,7 +78,10 @@ class AuthService {
           await apiService.post("/auth/logout", {});
         } catch (error) {
           // Ignore errors - user might already be logged out
-          console.log("Logout API call failed (user may already be logged out):", error);
+          console.log(
+            "Logout API call failed (user may already be logged out):",
+            error
+          );
         }
       }
     } catch (error) {
@@ -201,22 +204,8 @@ class AuthService {
   }
 
   // Refresh access token using refresh token
-  // Race condition được xử lý: nếu đang refresh, các request khác sẽ chờ
+  // Race condition được xử lý bởi refreshTokenManager: nếu đang refresh, các request khác sẽ chờ
   async refreshToken(_delayClear: boolean = false): Promise<boolean> {
-    // Nếu đang có refresh request đang chạy, chờ nó hoàn thành
-    if (this.refreshPromise) {
-      try {
-        await this.refreshPromise;
-        // Kiểm tra token đã được refresh chưa
-        const newToken = this.getToken();
-        return newToken !== null && !this.isTokenExpired();
-      } catch {
-        // Nếu refresh thất bại, clear promise để có thể thử lại
-        this.refreshPromise = null;
-        return false;
-      }
-    }
-
     const refreshToken = this.getRefreshToken();
     if (!refreshToken) {
       // If delayClear is true, don't clear auth here - let handle401Error do it
@@ -226,41 +215,29 @@ class AuthService {
       return false;
     }
 
-    try {
-      // Create a promise for this refresh attempt
-      this.refreshPromise = apiService.post<TokenRefreshResponse>(
-        "/auth/refresh",
-        { refreshToken }
-      );
+    // Use shared refresh token manager to prevent race conditions
+    const refreshed = await refreshTokenManager.refreshToken();
 
-      const response = await this.refreshPromise;
-
-      // Update tokens
-      this.setToken(response.accessToken);
-      this.setRefreshToken(response.refreshToken);
-
-      // Update user info with new token (keep other user data)
-      const user = this.getUser();
-      if (user) {
-        user.token = response.accessToken;
-        this.setUser(user);
-      }
-
-      console.log("Token refreshed successfully");
-
-      // Clear promise on success
-      this.refreshPromise = null;
-      return true;
-    } catch (error) {
-      console.error("Token refresh failed:", error);
-      // Clear promise on error
-      this.refreshPromise = null;
+    if (!refreshed) {
       // If delayClear is true, don't clear auth here - let handle401Error do it
       if (!_delayClear) {
         this.logout();
       }
       return false;
     }
+
+    // Token has been updated by refreshTokenManager
+    // Update user info with new token (keep other user data)
+    const user = this.getUser();
+    if (user) {
+      const newToken = this.getToken();
+      if (newToken) {
+        user.token = newToken;
+        this.setUser(user);
+      }
+    }
+
+    return true;
   }
 
   // Validate token on app load
