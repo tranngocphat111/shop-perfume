@@ -14,7 +14,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 /**
  * Service load thông tin user từ database cho Spring Security
@@ -33,9 +32,12 @@ public class CustomUserDetailsService implements UserDetailsService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("Không tìm thấy user với email: " + email));
 
+        // Handle Google users (no password) - use empty string or a placeholder
+        String password = user.getPasswordHash() != null ? user.getPasswordHash() : "{noop}";
+        
         return org.springframework.security.core.userdetails.User.builder()
                 .username(user.getEmail())
-                .password(user.getPasswordHash())
+                .password(password)
                 .authorities(getAuthorities(user))
                 .accountLocked(false)
                 .accountExpired(false)

@@ -87,7 +87,10 @@ class AuthService {
           await apiService.post("/auth/logout", {});
         } catch (error) {
           // Ignore errors - user might already be logged out
-          console.log("Logout API call failed (user may already be logged out):", error);
+          console.log(
+            "Logout API call failed (user may already be logged out):",
+            error
+          );
         }
       }
     } catch (error) {
@@ -302,6 +305,25 @@ class AuthService {
   async resetPassword(token: string, newPassword: string): Promise<void> {
     const request: ResetPasswordRequest = { token, newPassword };
     await apiService.post("/auth/reset-password", request);
+  }
+
+  /**
+   * Đăng nhập bằng Google
+   */
+  async signInWithGoogle(idToken: string): Promise<AuthResponse> {
+    const response = await apiService.post<AuthResponse>(
+      "/auth/google-signin",
+      { idToken }
+    );
+
+    // Lưu token và thông tin user vào localStorage
+    this.setToken(response.token);
+    if (response.refreshToken) {
+      this.setRefreshToken(response.refreshToken);
+    }
+    this.setUser(response);
+
+    return response;
   }
 }
 
