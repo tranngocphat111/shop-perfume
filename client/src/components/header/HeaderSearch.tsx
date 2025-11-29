@@ -80,15 +80,14 @@ export const HeaderSearch = ({
       }}
       className="hidden lg:flex flex-1 justify-center items-center mx-6 relative z-50"
     >
-      <div ref={searchContainerRef} className={`w-full transition-all duration-300 ${isCompact ? 'max-w-xl' : 'max-w-2xl'} relative group`}>
+      {/* Đã giảm max-w để thanh tìm kiếm gọn hơn theo chiều ngang */}
+      <div ref={searchContainerRef} className={`w-full transition-all duration-300 ${isCompact ? 'max-w-lg' : 'max-w-xl'} relative group`}>
         
         {/* Search Input Container */}
         <div className="relative rounded-full transition-all duration-300 group">
-          {/* Search Icon Left */}
+          {/* Search Icon Left - Chỉnh size w-4 h-4 */}
           <svg
-            className={`absolute left-4 top-1/2 -translate-y-1/2 transition-all duration-300 ${
-              isCompact ? "w-4 h-4" : "w-5 h-5"
-            } ${
+            className={`absolute left-4 top-1/2 -translate-y-1/2 transition-all duration-300 w-4 h-4 ${
               !isScrolled 
                 ? "text-white/70 group-focus-within:text-gray-500" 
                 : "text-gray-400 group-focus-within:text-gray-500"
@@ -119,7 +118,6 @@ export const HeaderSearch = ({
               if (searchQuery.trim()) searchProducts(searchQuery);
             }}
             onBlur={(e) => {
-              // Close dropdown when input loses focus
               setTimeout(() => {
                 const relatedTarget = e.relatedTarget as HTMLElement;
                 if (!searchContainerRef.current?.contains(relatedTarget)) {
@@ -133,8 +131,9 @@ export const HeaderSearch = ({
             autoCorrect="off"
             autoCapitalize="off"
             spellCheck="false"
+            // Đã chỉnh: py-2 text-sm (thay vì py-3 text-base) để giảm chiều cao
             className={`w-full rounded-full border px-10 transition-all duration-300 focus:outline-none 
-              ${isCompact ? "py-2 text-sm" : "py-3 text-base"}
+              ${isCompact ? "py-1.5 text-sm" : "py-2 text-sm"}
               ${
                 !isScrolled 
                   ? "bg-white/10 border-white/30 text-white placeholder-white/70 focus:bg-white focus:text-gray-900 focus:placeholder-gray-400 focus:border-transparent" 
@@ -154,10 +153,11 @@ export const HeaderSearch = ({
               clearSearch();
             }}
             className={`absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full transition-all duration-200 group-focus-within:text-gray-500   ${
-                !isScrolled ? "text-white/70 hover:text-white hover:bg-white/20 group-focus-within:hover:bg-gray-200" : "text-gray-500 hover:text-gray-500 hover:bg-gray-100 hover:focus:bg-gray-200"
+              !isScrolled ? "text-white/70 hover:text-white hover:bg-white/20 group-focus-within:hover:bg-gray-200" : "text-gray-500 hover:text-gray-500 hover:bg-gray-100 hover:focus:bg-gray-200"
             }`}
           >
-            <svg className={`${isCompact ? "w-4 h-4" : "w-5 h-5"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            {/* Chỉnh icon close nhỏ gọn w-4 h-4 */}
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
@@ -205,16 +205,16 @@ export const HeaderSearch = ({
                           />
                         </div>
                         <div className="flex-1 min-w-0 flex flex-col justify-center">
-                          <h4 className="text-base font-medium text-gray-900 truncate group-hover:text-black transition-colors">
+                          <h4 className="text-sm font-medium text-gray-900 truncate group-hover:text-black transition-colors">
                             {product.name}
                           </h4>
-                          <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mt-0.5 truncate">
+                          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mt-0.5 truncate">
                             {product.brand.name}
                           </p>
                         </div>
                         <div className="text-right flex-shrink-0 pl-2">
                           {product.unitPrice > 0 ? (
-                            <span className="text-base font-semibold text-gray-900">
+                            <span className="text-sm font-semibold text-gray-900">
                               {formatCurrency(product.unitPrice)}
                             </span>
                           ) : (
@@ -244,7 +244,7 @@ export const HeaderSearch = ({
                 </div>
               ) : (
                 <div className="p-6 text-center">
-                  <p className="text-base text-gray-900 font-medium">Không tìm thấy kết quả</p>
+                  <p className="text-sm text-gray-900 font-medium">Không tìm thấy kết quả</p>
                 </div>
               )}
             </motion.div>
@@ -254,4 +254,3 @@ export const HeaderSearch = ({
     </motion.div>
   );
 };
-
