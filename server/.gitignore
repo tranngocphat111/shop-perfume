@@ -35,7 +35,6 @@ build/
 # Development/Production secrets
 application-dev.properties
 application-prod.properties
-.env
-*.md 
-# Allow .env.example and documentation files (explicitly)
-.env.example
+*.example
+*.env
+*.md
