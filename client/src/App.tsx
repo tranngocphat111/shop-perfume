@@ -19,6 +19,7 @@ import ForgotPassword from "./pages/auth/ForgotPassword";
 import ResetPassword from "./pages/auth/ResetPassword";
 import Profile from "./pages/Profile";
 import { About } from "./pages/About";
+import { PrivacyPolicy } from "./pages/PrivacyPolicy";
 import {
   GuestRoute,
   CustomerRoute,
@@ -125,6 +126,14 @@ function AppContent() {
             element={
               <GuestRoute>
                 <About />
+              </GuestRoute>
+            }
+          />
+          <Route
+            path="/privacy-policy"
+            element={
+              <GuestRoute>
+                <PrivacyPolicy />
               </GuestRoute>
             }
           />
