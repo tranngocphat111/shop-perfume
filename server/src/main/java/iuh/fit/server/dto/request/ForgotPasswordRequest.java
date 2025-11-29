@@ -10,5 +10,10 @@ public class ForgotPasswordRequest {
     @Email(message = "Email không hợp lệ")
     @NotBlank(message = "Email không được để trống")
     private String email;
+    
+    // Auto-trim email to handle whitespace
+    public void setEmail(String email) {
+        this.email = email != null ? email.trim() : null;
+    }
 }
 

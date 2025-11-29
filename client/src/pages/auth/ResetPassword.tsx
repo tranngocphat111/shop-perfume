@@ -53,17 +53,16 @@ const ResetPassword: React.FC = () => {
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // Redirect if already logged in
-  if (isAuthenticated) {
-    return <Navigate to="/" replace />;
-  }
-
-  // Redirect if no token
+  // Redirect if no token - must be before any early returns
   useEffect(() => {
     if (!token) {
       navigate("/forgot-password", { replace: true });
     }
   }, [token, navigate]);
+
+  if (isAuthenticated) {
+    return <Navigate to="/" replace />;
+  }
 
   if (!token) {
     return null;
