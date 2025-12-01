@@ -3,7 +3,7 @@ name: Auto Deploy Backend to AWS EC2
 on:
   push:
     branches:
-      - develop # Thay đổi branch này nếu bạn dùng branch khác (main, master, develop, etc.)
+      - fix/deploy # Thay đổi branch này nếu bạn dùng branch khác (main, master, develop, etc.)
     paths:
       - "server/**" # Chỉ deploy khi có thay đổi trong folder server
   workflow_dispatch: # Cho phép chạy thủ công từ GitHub Actions tab
@@ -61,6 +61,9 @@ jobs:
             ExecStart=/usr/bin/java -jar /home/${{ secrets.EC2_USER }}/app/backend.jar
             Restart=always
             RestartSec=10
+            # Spring Profile - QUAN TRỌNG: Phải set để load application-prod.properties
+            Environment="SPRING_PROFILES_ACTIVE=prod"
+            
             # Database Configuration
             Environment="DATABASE_URL=${{ secrets.DATABASE_URL }}"
             Environment="DATABASE_USERNAME=${{ secrets.DATABASE_USERNAME }}"
