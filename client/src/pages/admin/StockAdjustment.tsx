@@ -121,7 +121,7 @@ export const StockAdjustments = () => {
   const handleSort = (field: string) => {
     // Map frontend field names to backend field names
     const fieldMapping: Record<string, string> = {
-      productId: "productId",
+      productId: "product.productId",
       productName: "product.name",
       brand: "product.brand.name",
       category: "product.category.name",
