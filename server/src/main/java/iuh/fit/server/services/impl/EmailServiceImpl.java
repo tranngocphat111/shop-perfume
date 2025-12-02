@@ -6,13 +6,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
-import software.amazon.awssdk.regions.Region;
-import software.amazon.awssdk.services.ses.SesClient;
-import software.amazon.awssdk.services.ses.model.*;
-import software.amazon.awssdk.services.ses.model.SesException;
-
-import java.nio.charset.StandardCharsets;
+import com.resend.Resend;
+import com.resend.core.exception.ResendException;
+import com.resend.services.emails.model.CreateEmailOptions;
+import com.resend.services.emails.model.CreateEmailResponse;
 
 @Service
 @RequiredArgsConstructor
@@ -21,95 +18,69 @@ public class EmailServiceImpl implements EmailService {
     
     private final PasswordResetEmailTemplate passwordResetEmailTemplate;
     
-    @Value("${aws.ses.region:us-east-1}")
-    private String awsRegion;
+    @Value("${resend.api-key:}")
+    private String resendApiKey;
     
-    @Value("${aws.ses.from-email:phamdacthinh2301@gmail.com}")
+    @Value("${resend.from-email:}")
     private String fromEmail;
     
-    private SesClient getSesClient() {
-        log.debug("Creating SES client with region: {}", awsRegion);
-        try {
-            DefaultCredentialsProvider credentialsProvider = DefaultCredentialsProvider.create();
-            log.debug("AWS Credentials Provider created successfully");
-            
-            SesClient client = SesClient.builder()
-                    .region(Region.of(awsRegion))
-                    .credentialsProvider(credentialsProvider)
-                    .build();
-            
-            log.debug("SES client created successfully");
-            return client;
-        } catch (Exception e) {
-            log.error("Failed to create SES client: {}", e.getMessage(), e);
-            throw new RuntimeException("Không thể khởi tạo AWS SES client. Vui lòng kiểm tra AWS credentials và region. Chi tiết: " + e.getMessage(), e);
+    private Resend getResendClient() {
+        if (resendApiKey == null || resendApiKey.isEmpty()) {
+            throw new RuntimeException("Resend API key chưa được cấu hình. Vui lòng set RESEND_API_KEY environment variable.");
         }
+        return new Resend(resendApiKey);
     }
     
     @Override
     public void sendPasswordResetEmail(String toEmail, String resetToken, String resetUrl) {
         log.info("Attempting to send password reset email to: {}", toEmail);
-        log.info("Using AWS SES Region: {}, From Email: {}", awsRegion, fromEmail);
+        log.info("Using Resend, From Email: {}", fromEmail);
         
-        try (SesClient sesClient = getSesClient()) {
+        if (fromEmail == null || fromEmail.isEmpty()) {
+            throw new RuntimeException("Resend from email chưa được cấu hình. Vui lòng set RESEND_FROM_EMAIL environment variable.");
+        }
+        
+        try {
+            Resend resend = getResendClient();
             String subject = passwordResetEmailTemplate.getSubject(resetUrl);
             String htmlBody = passwordResetEmailTemplate.buildHtml(resetUrl);
             String textBody = passwordResetEmailTemplate.buildText(resetUrl);
             
             log.debug("Building email request for destination: {}", toEmail);
             
-            SendEmailRequest emailRequest = SendEmailRequest.builder()
-                    .destination(Destination.builder()
-                            .toAddresses(toEmail)
-                            .build())
-                    .message(Message.builder()
-                            .subject(Content.builder()
-                                    .data(subject)
-                                    .charset(StandardCharsets.UTF_8.name())
-                                    .build())
-                            .body(Body.builder()
-                                    .html(Content.builder()
-                                            .data(htmlBody)
-                                            .charset(StandardCharsets.UTF_8.name())
-                                            .build())
-                                    .text(Content.builder()
-                                            .data(textBody)
-                                            .charset(StandardCharsets.UTF_8.name())
-                                            .build())
-                                    .build())
-                            .build())
-                    .source(fromEmail)
+            CreateEmailOptions emailOptions = CreateEmailOptions.builder()
+                    .from(fromEmail)
+                    .to(toEmail)
+                    .subject(subject)
+                    .html(htmlBody)
+                    .text(textBody)
                     .build();
             
-            log.info("Sending email via AWS SES...");
-            SendEmailResponse response = sesClient.sendEmail(emailRequest);
+            log.info("Sending email via Resend...");
+            CreateEmailResponse response = resend.emails().send(emailOptions);
             log.info("✅ Password reset email sent successfully!");
             log.info("   - To: {}", toEmail);
-            log.info("   - Message ID: {}", response.messageId());
-            log.info("   - Region: {}", awsRegion);
+            log.info("   - Email ID: {}", response.getId());
             log.info("   - From: {}", fromEmail);
-        } catch (SesException e) {
-            log.error("❌ AWS SES Error sending password reset email to {}: {}", toEmail, e.getMessage());
-            log.error("   - Error Code: {}", e.awsErrorDetails().errorCode());
-            log.error("   - Error Message: {}", e.awsErrorDetails().errorMessage());
-            log.error("   - Request ID: {}", e.requestId());
-            log.error("   - Status Code: {}", e.statusCode());
+        } catch (ResendException e) {
+            log.error("❌ Resend Error sending password reset email to {}: {}", toEmail, e.getMessage());
+            log.error("   - Error Type: {}", e.getClass().getSimpleName());
             
             // Provide more helpful error messages
-            String errorCode = e.awsErrorDetails().errorCode();
             String errorMessage = "Không thể gửi email đặt lại mật khẩu";
             
-            if ("MessageRejected".equals(errorCode)) {
-                errorMessage = "Email bị từ chối. Có thể email người nhận chưa được verify trong AWS SES (Sandbox mode) hoặc email người gửi chưa được verify.";
-            } else if ("MailFromDomainNotVerifiedException".equals(errorCode)) {
-                errorMessage = "Email người gửi chưa được verify trong AWS SES. Vui lòng verify email: " + fromEmail;
-            } else if ("ConfigurationSetDoesNotExistException".equals(errorCode)) {
-                errorMessage = "Cấu hình AWS SES không đúng. Vui lòng kiểm tra lại.";
-            } else if ("AccountSendingPausedException".equals(errorCode)) {
-                errorMessage = "Tài khoản AWS SES đang bị tạm dừng gửi email.";
+            if (e.getMessage() != null) {
+                String message = e.getMessage().toLowerCase();
+                if (message.contains("invalid") || message.contains("unauthorized")) {
+                    errorMessage = "Resend API key không hợp lệ hoặc chưa được cấu hình đúng. Vui lòng kiểm tra RESEND_API_KEY.";
+                } else if (message.contains("domain") || message.contains("verify")) {
+                    errorMessage = "Email hoặc domain người gửi chưa được verify trong Resend. Vui lòng verify email: " + fromEmail;
+                } else if (message.contains("rate limit") || message.contains("quota")) {
+                    errorMessage = "Đã vượt quá giới hạn gửi email của Resend. Vui lòng thử lại sau.";
+                }
             }
             
-            throw new RuntimeException(errorMessage + " (Error: " + errorCode + ")", e);
+            throw new RuntimeException(errorMessage + " (Error: " + e.getMessage() + ")", e);
         } catch (Exception e) {
             log.error("❌ Unexpected error sending password reset email to {}: {}", toEmail, e.getMessage(), e);
             log.error("   - Exception Type: {}", e.getClass().getName());
