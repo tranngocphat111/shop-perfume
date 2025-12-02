@@ -16,7 +16,6 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 @Slf4j
 @Tag(name = "Contact", description = "API xử lý liên hệ")
-@CrossOrigin(origins = "*")
 public class ContactController {
 
     private final EmailService emailService;

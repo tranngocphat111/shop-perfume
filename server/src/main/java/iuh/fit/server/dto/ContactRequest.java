@@ -22,7 +22,7 @@ public class ContactRequest {
     private String email;
 
     @NotBlank(message = "Số điện thoại không được để trống")
-    @Pattern(regexp = "^[0-9]{10,11}$", message = "Số điện thoại phải là 10-11 chữ số")
+    @Pattern(regexp = "^[0-9\\s]{10,15}$", message = "Số điện thoại phải có 10-11 chữ số")
     private String phone;
 
     @NotBlank(message = "Chủ đề không được để trống")

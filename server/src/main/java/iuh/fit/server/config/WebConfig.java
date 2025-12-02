@@ -88,18 +88,18 @@ public class WebConfig implements WebMvcConfigurer {
         
         List<String> origins = parseAndFilterOrigins();
         
-        // CRITICAL: Use setAllowedOrigins with explicit list, NOT "*"
-        // This will throw IllegalArgumentException if origins contains "*"
+        // CRITICAL: Use setAllowedOriginPatterns instead of setAllowedOrigins
+        // This supports patterns and works with allowCredentials(true)
         try {
-            configuration.setAllowedOrigins(origins);
-            log.info("Successfully set CORS allowed origins: {}", origins);
-        } catch (IllegalArgumentException e) {
-            log.error("ERROR: Failed to set CORS origins. Error: {}", e.getMessage());
+            configuration.setAllowedOriginPatterns(origins);
+            log.info("Successfully set CORS allowed origin patterns: {}", origins);
+        } catch (Exception e) {
+            log.error("ERROR: Failed to set CORS origin patterns. Error: {}", e.getMessage());
             log.error("Origins that caused error: {}", origins);
             // Use safe defaults
             origins = Arrays.asList("http://localhost:3000", "https://shop-perfume.vercel.app");
-            configuration.setAllowedOrigins(origins);
-            log.info("Using safe default origins: {}", origins);
+            configuration.setAllowedOriginPatterns(origins);
+            log.info("Using safe default origin patterns: {}", origins);
         }
         
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
