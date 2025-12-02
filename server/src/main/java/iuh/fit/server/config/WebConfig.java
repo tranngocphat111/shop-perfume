@@ -22,7 +22,7 @@ import java.util.stream.Collectors;
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
 
-    @Value("${cors.allowed.origins:http://localhost:3000,https://shop-perfume.vercel.app}")
+    @Value("${cors.allowed.origins:http://localhost:3000,http://localhost:5173,https://shop-perfume.vercel.app}")
     private String allowedOrigins;
     
     /**

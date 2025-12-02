@@ -31,8 +31,11 @@ export const OutOfStockModal: React.FC<OutOfStockModalProps> = ({
       setCountdown((prev) => {
         if (prev <= 1) {
           clearInterval(countdownInterval);
+          // Use setTimeout to avoid setState during render
           if (onAutoRedirect) {
-            onAutoRedirect();
+            setTimeout(() => {
+              onAutoRedirect();
+            }, 0);
           }
           return 0;
         }

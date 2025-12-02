@@ -215,7 +215,9 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
             );
             query.setParameter("productId", cartItem.getProductId());
             query.setLockMode(LockModeType.PESSIMISTIC_WRITE);
-            query.setHint("jakarta.persistence.lock.timeout", 0); // 0 = wait indefinitely
+            // Set lock timeout to 50 seconds (MariaDB default lock wait timeout)
+            // This prevents indefinite waiting and allows proper error handling
+            query.setHint("jakarta.persistence.lock.timeout", 50000); // 50 seconds in milliseconds
             
             iuh.fit.server.model.entity.Inventory inventory;
             try {
