@@ -61,11 +61,9 @@ jobs:
             ExecStart=/usr/bin/java -jar /home/${{ secrets.EC2_USER }}/app/backend.jar
             Restart=always
             RestartSec=10
-            Environment="AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}"
-            Environment="AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}"
-            Environment="AWS_SES_REGION=${{ secrets.AWS_SES_REGION }}"
-            Environment="AWS_SES_FROM_EMAIL=${{ secrets.AWS_SES_FROM_EMAIL }}"
-            
+
+            Environment="RESEND_API_KEY=${{ secrets.RESEND_API_KEY }}"
+            Environment="RESEND_FROM_EMAIL=${{ secrets.RESEND_FROM_EMAIL }}"
             [Install]
             WantedBy=multi-user.target
             SERVICE_EOF
