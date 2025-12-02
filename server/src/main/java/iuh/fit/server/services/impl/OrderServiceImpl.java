@@ -206,21 +206,26 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
             // Lock được giữ cho đến khi transaction commit
             log.info("🔒 [createOrder] Acquiring PESSIMISTIC_WRITE lock for productId: {}", cartItem.getProductId());
             
-            // Sử dụng findByProductIdWithLock để acquire lock ngay khi query
-            // Lock này sẽ block các transaction khác cho đến khi transaction này commit
-            iuh.fit.server.model.entity.Inventory inventory = inventoryRepository.findByProductIdWithLock(cartItem.getProductId());
-            if (inventory == null) {
+            // Sử dụng JPQL với lock mode PESSIMISTIC_WRITE
+            // Hibernate sẽ generate SQL: SELECT ... FROM inventory i WHERE i.product.productId = ? FOR UPDATE
+            // Lock được áp dụng ngay khi query, không có race condition
+            jakarta.persistence.TypedQuery<iuh.fit.server.model.entity.Inventory> query = entityManager.createQuery(
+                "SELECT i FROM Inventory i WHERE i.product.productId = :productId",
+                iuh.fit.server.model.entity.Inventory.class
+            );
+            query.setParameter("productId", cartItem.getProductId());
+            query.setLockMode(LockModeType.PESSIMISTIC_WRITE);
+            query.setHint("jakarta.persistence.lock.timeout", 0); // 0 = wait indefinitely
+            
+            iuh.fit.server.model.entity.Inventory inventory;
+            try {
+                inventory = query.getSingleResult();
+            } catch (jakarta.persistence.NoResultException e) {
                 throw new RuntimeException("Inventory not found for product: " + cartItem.getProductId());
             }
             
-            // Đảm bảo entity được quản lý và lock được giữ
-            if (!entityManager.contains(inventory)) {
-                inventory = entityManager.merge(inventory);
-            }
-            entityManager.lock(inventory, LockModeType.PESSIMISTIC_WRITE);
-            
-            log.info("✅ [createOrder] Lock acquired for productId: {}, current quantity: {}", 
-                    cartItem.getProductId(), inventory.getQuantity());
+            log.info("✅ [createOrder] Lock acquired for productId: {}, inventoryId: {}, current quantity: {}", 
+                    cartItem.getProductId(), inventory.getInventoryId(), inventory.getQuantity());
             
             // Validate stock - check quantity trong inventory (sau khi đã lock)
             if (inventory.getQuantity() < cartItem.getQuantity()) {
@@ -233,10 +238,12 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
             }
             
             // Trừ số lượng từ inventory ngay lập tức (cho tất cả loại thanh toán)
+            // Entity đã được lock và quản lý bởi EntityManager (từ find với lock)
+            // Chỉ cần set quantity, EntityManager sẽ tự động track thay đổi
+            // KHÔNG flush ở đây - để lock được giữ cho đến khi transaction commit
             int newQuantity = inventory.getQuantity() - cartItem.getQuantity();
             inventory.setQuantity(newQuantity);
-            // Flush ngay để đảm bảo lock được giữ và thay đổi được ghi vào DB
-            inventoryRepository.saveAndFlush(inventory);
+            // Entity đã được quản lý, không cần merge hay save - chỉ cần set property
             
             log.info("✅ [createOrder] Deducted {} units of product {} (new quantity: {}), lock held until transaction commit", 
                     cartItem.getQuantity(), cartItem.getProductId(), newQuantity);
