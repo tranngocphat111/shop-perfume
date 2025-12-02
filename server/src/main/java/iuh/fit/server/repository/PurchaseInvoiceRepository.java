@@ -11,12 +11,15 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface PurchaseInvoiceRepository extends JpaRepository<PurchaseInvoice, Integer> {
     @Query("SELECT pi FROM PurchaseInvoice pi WHERE " +
+           "(:isNumeric = false AND (" +
            "CAST(pi.purchaseInvoiceId AS string) LIKE CONCAT('%', :searchTerm, '%') OR " +
            "LOWER(pi.supplier.name) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
-           "LOWER(pi.email) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
-           "LOWER(pi.status) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
-           "CAST(pi.totalAmount AS string) LIKE CONCAT('%', :searchTerm, '%') OR " +
-           "LOWER(pi.createdBy) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
-           "LOWER(pi.lastUpdatedBy) LIKE LOWER(CONCAT('%', :searchTerm, '%'))")
-    Page<PurchaseInvoice> searchPurchaseInvoices(@Param("searchTerm") String searchTerm, Pageable pageable);
+           "LOWER(CAST(pi.status AS string)) LIKE LOWER(CONCAT('%', :searchTerm, '%'))" +
+           ")) OR " +
+           "(:isNumeric = true AND pi.totalAmount >= :numericValue)")
+    Page<PurchaseInvoice> searchPurchaseInvoices(
+            @Param("searchTerm") String searchTerm,
+            @Param("isNumeric") boolean isNumeric,
+            @Param("numericValue") Double numericValue,
+            Pageable pageable);
 }

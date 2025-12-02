@@ -9,3 +9,5 @@ export { SupplierDetailModal } from "./SupplierDetailModal";
 export { StockAdjustmentModal } from "./StockAdjustmentModal";
 export { InventoryDetailModal } from "./InventoryDetailModal";
 export { PurchaseInvoiceModal } from "./PurchaseInvoiceModal";
+export { PurchaseInvoiceViewModal } from "./PurchaseInvoiceViewModal";
+export { PurchaseInvoiceAddModal } from "./PurchaseInvoiceAddModal";

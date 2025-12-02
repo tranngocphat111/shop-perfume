@@ -23,6 +23,14 @@ public interface InventoryService {
      * Lấy sản phẩm có phân trang
      */
     Page<InventoryResponse> findAllPaginated(Pageable pageable);
+    
+    /**
+     * Tìm kiếm inventory với phân trang
+     * @param searchTerm Từ khóa tìm kiếm (hỗ trợ "ID xxx" để tìm theo inventory ID)
+     * @param pageable Thông tin phân trang
+     * @return Page inventory tìm được
+     */
+    Page<InventoryResponse> searchInventories(String searchTerm, Pageable pageable);
 
     /**
      * Tìm inventory theo ID

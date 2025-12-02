@@ -54,24 +54,31 @@ public class PurchaseInvoiceController {
     }
     
     /**
-     * Get purchase invoices with pagination
+     * Get purchase invoices with pagination and search
      * Chỉ ADMIN mới có quyền xem
      */
     @GetMapping("/page")
     @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Get purchase invoices with pagination")
+    @Operation(summary = "Get purchase invoices with pagination and search")
     public ResponseEntity<Page<PurchaseInvoiceResponse>> getInvoicesPaginated(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "25") int size,
             @RequestParam(required = false) String sortBy,
-            @RequestParam(required = false) String direction
+            @RequestParam(required = false) String direction,
+            @RequestParam(required = false) String search
     ) {
-        log.info("REST request to get purchase invoices with pagination - page: {}, size: {}", page, size);
+        log.info("REST request to get purchase invoices with pagination - page: {}, size: {}, search: {}", page, size, search);
         
         String fieldName = sortBy != null ? sortBy : "purchaseInvoiceId";
         Sort.Direction sortDirection = "DESC".equalsIgnoreCase(direction) ? Sort.Direction.DESC : Sort.Direction.ASC;
         
         Pageable pageable = PageRequest.of(page, size, Sort.by(sortDirection, fieldName));
+        
+        // If search term is provided, use search method
+        if (search != null && !search.trim().isEmpty()) {
+            return ResponseEntity.ok(purchaseInvoiceService.searchPurchaseInvoices(search.trim(), pageable));
+        }
+        
         return ResponseEntity.ok(purchaseInvoiceService.findAllPaginated(pageable));
     }
     

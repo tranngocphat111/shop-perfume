@@ -378,7 +378,18 @@ public class ProductServiceImpl implements ProductService {
         log.info("Filtering products with brandId: {}, categoryId: {}, status: '{}', searchTerm: '{}', pageable: {}", 
                 brandId, categoryId, status, searchTerm, pageable);
         
-        Page<Product> products = productRepository.filterProducts(brandId, categoryId, status, searchTerm, pageable);
+        // Convert String status to ProductStatus enum
+        ProductStatus productStatus = null;
+        if (status != null && !status.trim().isEmpty()) {
+            try {
+                productStatus = ProductStatus.valueOf(status.toUpperCase());
+            } catch (IllegalArgumentException e) {
+                log.warn("Invalid status value: {}", status);
+            }
+        }
+        
+        Page<Product> products = productRepository.filterProducts(brandId, categoryId, productStatus, searchTerm, pageable);
+        log.info("✅ Filter result: Found {} products", products.getNumberOfElements());
         return products.map(productMapper::toResponse);
     }
 
