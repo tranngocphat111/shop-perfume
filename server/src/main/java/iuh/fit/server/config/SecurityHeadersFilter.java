@@ -28,9 +28,10 @@ public class SecurityHeadersFilter extends OncePerRequestFilter {
     ) throws ServletException, IOException {
         
         // Set Cross-Origin-Opener-Policy để hỗ trợ Google Sign In popup
-        // "same-origin-allow-popups" cho phép popup từ cùng origin và cross-origin popups
-        // Điều này cần thiết cho Google Sign In popup hoạt động
-        response.setHeader("Cross-Origin-Opener-Policy", "same-origin-allow-popups");
+        // "unsafe-none" cho phép popup giao tiếp với parent window (cần cho Google Sign In)
+        // Hoặc "same-origin-allow-popups" nếu muốn bảo mật hơn nhưng vẫn cho phép popup
+        // Lưu ý: "unsafe-none" ít bảo mật hơn nhưng cần thiết cho Google Sign In
+        response.setHeader("Cross-Origin-Opener-Policy", "unsafe-none");
         
         // Set các security headers khác (tùy chọn)
         response.setHeader("X-Content-Type-Options", "nosniff");
