@@ -80,37 +80,14 @@ const getAuthHeaders = (endpoint: string = ""): Record<string, string> => {
 // - We want to send token if user is logged in
 // - Backend allows guest access (permitAll), but if token is present, it will use userId
 const isPublicEndpoint = (endpoint: string): boolean => {
-  // Protected endpoints that require authentication - always send token
-  const protectedEndpoints = [
-    "/auth/me",
-    "/auth/change-password",
-    "/auth/update",
-    "/admin/", // All admin endpoints require ADMIN role
-    "/dashboard/", // Dashboard requires ADMIN role
-    "/products/", // Products: POST/PUT/DELETE require ADMIN, GET is public but send token anyway
-    "/inventories/", // Inventories: PUT requires ADMIN, GET is public but send token anyway
-    "/addresses/", // All addresses endpoints require authentication
-    "/carts/", // All cart endpoints require authentication
-    "/orders/", // Most order endpoints require authentication (except /create and /my-orders)
-    "/reviews/", // Review endpoints require authentication
-    "/users/me", // User profile requires authentication
-    "/coupons/", // Coupon endpoints require authentication
-  ];
-
-  // If endpoint matches any protected pattern, it's NOT public
+  // Public endpoints that don't require authentication (check these FIRST)
+  // Special public order endpoints (guest can access)
   if (
-    protectedEndpoints.some((protectedPath) => endpoint.includes(protectedPath))
+    endpoint.includes("/orders/my-orders") ||
+    endpoint.includes("/orders/create") ||
+    /\/orders\/\d+\/cancel-timeout/.test(endpoint)
   ) {
-    // Special cases: Some endpoints under protected paths are actually public
-    if (
-      endpoint.includes("/orders/create") ||
-      endpoint.includes("/orders/my-orders") ||
-      /\/orders\/\d+\/cancel-timeout/.test(endpoint)
-    ) {
-      // These are public but we still want to send token if available
-      return false; // Send token anyway
-    }
-    return false; // Not public, send token
+    return true; // Public - guest can search orders by email or create order
   }
 
   // Public endpoints that don't require authentication
@@ -127,8 +104,40 @@ const isPublicEndpoint = (endpoint: string): boolean => {
     "/webhooks/",
   ];
 
-  // Check if endpoint matches any public endpoint pattern
-  return publicEndpoints.some((publicPath) => endpoint.includes(publicPath));
+  if (publicEndpoints.some((publicPath) => endpoint.includes(publicPath))) {
+    return true;
+  }
+
+  // Protected endpoints that require authentication - always send token
+  const protectedEndpoints = [
+    "/auth/me",
+    "/auth/change-password",
+    "/auth/update",
+    "/admin/", // All admin endpoints require ADMIN role
+    "/dashboard/", // Dashboard requires ADMIN role
+    "/products/", // Products: POST/PUT/DELETE require ADMIN, GET is public but send token anyway
+    "/inventories/", // Inventories: PUT requires ADMIN, GET is public but send token anyway
+    "/addresses/", // All addresses endpoints require authentication
+    "/carts/", // All cart endpoints require authentication
+    "/reviews/", // Review endpoints require authentication
+    "/users/me", // User profile requires authentication
+    "/coupons/", // Coupon endpoints require authentication
+  ];
+
+  // If endpoint matches any protected pattern, it's NOT public
+  if (
+    protectedEndpoints.some((protectedPath) => endpoint.includes(protectedPath))
+  ) {
+    return false; // Not public, send token
+  }
+
+  // Default: if endpoint contains /orders/ but not in public list above, it's protected
+  if (endpoint.includes("/orders/")) {
+    return false; // Protected, send token
+  }
+
+  // Default: not public
+  return false;
 };
 
 // Handle 401 errors - try refresh token first, then redirect
