@@ -37,6 +37,7 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
     private final UserRepository userRepository;
     private final OrderMapper orderMapper;
     private final CouponRepository couponRepository;
+    private final InventoryRepository inventoryRepository;
     
     // Timeout for QR payment: 30 minutes in milliseconds
     private static final long QR_PAYMENT_TIMEOUT_MS = 30 * 60 * 1000;

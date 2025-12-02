@@ -11,7 +11,9 @@ import {
   LoadingState,
   EmptyState,
 } from '../components/orders';
+import { ReviewModal } from '../components/orders/ReviewModal';
 import { ErrorModal } from '../components/common/ErrorModal';
+import { reviewService } from '../services/review.service';
 import { FaSpinner } from 'react-icons/fa';
 import { X, Calendar as CalendarIcon, Tag, ChevronLeft, ChevronRight } from 'lucide-react';
 import { CustomSelect } from '../components/profile/CustomSelect';
@@ -32,6 +34,11 @@ export const MyOrders: React.FC = () => {
   const [hasSearched, setHasSearched] = useState(false);
   const [qrUrls, setQrUrls] = useState<Record<number, string>>({});
   const [timeRemaining, setTimeRemaining] = useState<Record<number, number>>({});
+  
+  // Review states
+  const [reviewModalOpen, setReviewModalOpen] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<{ id: number; name: string } | null>(null);
+  const [reviewedProducts, setReviewedProducts] = useState<Set<number>>(new Set());
   
   // Filter states
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('ALL');
@@ -55,6 +62,41 @@ export const MyOrders: React.FC = () => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated, user, location]);
+
+  // Load reviewed products for all orders
+  useEffect(() => {
+    if (!isAuthenticated || orders.length === 0) return;
+
+    const loadReviewedProducts = async () => {
+      const reviewedSet = new Set<number>();
+      
+      // Get all unique product IDs from orders with PAID status
+      const productIds = new Set<number>();
+      orders.forEach(order => {
+        if (order.payment?.status === 'PAID') {
+          order.orderItems?.forEach(item => {
+            productIds.add(item.productId);
+          });
+        }
+      });
+
+      // Check each product if it's been reviewed
+      for (const productId of productIds) {
+        try {
+          const hasReviewed = await reviewService.hasUserReviewedProduct(productId);
+          if (hasReviewed) {
+            reviewedSet.add(productId);
+          }
+        } catch (error) {
+          console.error(`Error checking review for product ${productId}:`, error);
+        }
+      }
+
+      setReviewedProducts(reviewedSet);
+    };
+
+    loadReviewedProducts();
+  }, [orders, isAuthenticated]);
 
   const fetchOrders = useCallback(async (email?: string) => {
     // Nếu user đã đăng nhập và không có email param → gọi API không có email (backend sẽ dùng userId)
@@ -322,6 +364,20 @@ export const MyOrders: React.FC = () => {
     setOrders([]);
   };
 
+  const handleReviewProduct = (productId: number, productName: string) => {
+    setSelectedProduct({ id: productId, name: productName });
+    setReviewModalOpen(true);
+  };
+
+  const handleReviewSubmitted = () => {
+    // Add product to reviewed set
+    if (selectedProduct) {
+      setReviewedProducts(prev => new Set([...prev, selectedProduct.id]));
+    }
+    // Refresh orders to get updated data
+    fetchOrders();
+  };
+
   if (isLoading && !hasSearched) {
     return <LoadingState message="Đang tải danh sách đơn hàng..." />;
   }
@@ -480,6 +536,8 @@ export const MyOrders: React.FC = () => {
                         qrUrl={qrUrls[order.orderId]}
                         timeRemaining={timeRemaining[order.orderId]}
                         getPaymentMethodLabel={getPaymentMethodLabel}
+                        onReviewProduct={isAuthenticated ? handleReviewProduct : undefined}
+                        reviewedProducts={reviewedProducts}
                       />
                     </motion.div>
                   ))}
@@ -555,6 +613,20 @@ export const MyOrders: React.FC = () => {
         message={error || ''}
         onRetry={() => fetchOrders()}
       />
+
+      {/* Review Modal */}
+      {isAuthenticated && selectedProduct && (
+        <ReviewModal
+          isOpen={reviewModalOpen}
+          onClose={() => {
+            setReviewModalOpen(false);
+            setSelectedProduct(null);
+          }}
+          productId={selectedProduct.id}
+          productName={selectedProduct.name}
+          onReviewSubmitted={handleReviewSubmitted}
+        />
+      )}
 
       <style>{`
         @keyframes fadeIn {
