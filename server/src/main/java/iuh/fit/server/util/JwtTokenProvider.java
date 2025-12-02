@@ -10,6 +10,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.text.ParseException;
 import java.util.Date;
 
@@ -39,19 +41,8 @@ public class JwtTokenProvider {
                 throw new IllegalStateException("JWT secret key is not configured. Please set JWT_SECRET environment variable.");
             }
             
-            // HS512 requires at least 64 bytes (512 bits)
-            byte[] secretBytes = jwtSecret.getBytes();
-            if (secretBytes.length < 64) {
-                log.warn("JWT secret key is too short ({} bytes). HS512 requires at least 64 bytes. Consider using a longer secret key.", secretBytes.length);
-                // Pad the secret to 64 bytes if it's too short
-                byte[] paddedSecret = new byte[64];
-                System.arraycopy(secretBytes, 0, paddedSecret, 0, Math.min(secretBytes.length, 64));
-                // If secret is shorter, repeat it to fill the array
-                for (int i = secretBytes.length; i < 64; i++) {
-                    paddedSecret[i] = secretBytes[i % secretBytes.length];
-                }
-                secretBytes = paddedSecret;
-            }
+            // HS512 requires exactly 64 bytes (512 bits)
+            byte[] secretBytes = prepareSecretKey(jwtSecret);
             
             Date now = new Date();
             Date expiryDate = new Date(now.getTime() + jwtExpiration);
@@ -73,11 +64,55 @@ public class JwtTokenProvider {
 
             return signedJWT.serialize();
         } catch (JOSEException e) {
-            log.error("Error generating JWT token for email: {}. Error: {}", email, e.getMessage(), e);
+            log.error("Error generating JWT token for email: {}. Error: {} - {}", email, e.getMessage(), e.getClass().getName(), e);
             throw new RuntimeException("Không thể tạo JWT token: " + e.getMessage(), e);
         } catch (IllegalStateException e) {
             log.error("JWT configuration error: {}", e.getMessage());
             throw e;
+        } catch (Exception e) {
+            log.error("Unexpected error generating JWT token for email: {}. Error: {} - {}", email, e.getMessage(), e.getClass().getName(), e);
+            throw new RuntimeException("Không thể tạo JWT token: " + e.getMessage(), e);
+        }
+    }
+    
+    /**
+     * Chuẩn bị secret key cho HS512 (cần chính xác 64 bytes)
+     * Nếu secret key ngắn hơn 64 bytes, sử dụng SHA-256 hash để tạo 32 bytes, sau đó duplicate để có 64 bytes
+     * Nếu secret key dài hơn 64 bytes, lấy 64 bytes đầu tiên
+     */
+    private byte[] prepareSecretKey(String secret) {
+        try {
+            byte[] secretBytes = secret.getBytes(StandardCharsets.UTF_8);
+            
+            if (secretBytes.length == 64) {
+                return secretBytes;
+            } else if (secretBytes.length < 64) {
+                log.warn("JWT secret key is too short ({} bytes). HS512 requires 64 bytes. Using SHA-256 hash to generate 64 bytes.", secretBytes.length);
+                // Sử dụng SHA-256 để hash secret key thành 32 bytes, sau đó duplicate để có 64 bytes
+                MessageDigest digest = MessageDigest.getInstance("SHA-256");
+                byte[] hash = digest.digest(secretBytes);
+                // Duplicate hash để có 64 bytes
+                byte[] result = new byte[64];
+                System.arraycopy(hash, 0, result, 0, 32);
+                System.arraycopy(hash, 0, result, 32, 32);
+                return result;
+            } else {
+                log.warn("JWT secret key is too long ({} bytes). HS512 requires 64 bytes. Using first 64 bytes.", secretBytes.length);
+                // Lấy 64 bytes đầu tiên
+                byte[] result = new byte[64];
+                System.arraycopy(secretBytes, 0, result, 0, 64);
+                return result;
+            }
+        } catch (Exception e) {
+            log.error("Error preparing secret key: {}", e.getMessage(), e);
+            // Fallback: sử dụng cách cũ (padding)
+            byte[] secretBytes = secret.getBytes(StandardCharsets.UTF_8);
+            byte[] paddedSecret = new byte[64];
+            System.arraycopy(secretBytes, 0, paddedSecret, 0, Math.min(secretBytes.length, 64));
+            for (int i = secretBytes.length; i < 64; i++) {
+                paddedSecret[i] = secretBytes[i % secretBytes.length];
+            }
+            return paddedSecret;
         }
     }
 
@@ -111,17 +146,8 @@ public class JwtTokenProvider {
                 return false;
             }
             
-            // HS512 requires at least 64 bytes (512 bits)
-            byte[] secretBytes = jwtSecret.getBytes();
-            if (secretBytes.length < 64) {
-                // Pad the secret to 64 bytes if it's too short
-                byte[] paddedSecret = new byte[64];
-                System.arraycopy(secretBytes, 0, paddedSecret, 0, Math.min(secretBytes.length, 64));
-                for (int i = secretBytes.length; i < 64; i++) {
-                    paddedSecret[i] = secretBytes[i % secretBytes.length];
-                }
-                secretBytes = paddedSecret;
-            }
+            // HS512 requires exactly 64 bytes (512 bits)
+            byte[] secretBytes = prepareSecretKey(jwtSecret);
             
             SignedJWT signedJWT = SignedJWT.parse(token);
             JWSVerifier verifier = new MACVerifier(secretBytes);
@@ -181,19 +207,8 @@ public class JwtTokenProvider {
                 throw new IllegalStateException("JWT secret key is not configured. Please set JWT_SECRET environment variable.");
             }
             
-            // HS512 requires at least 64 bytes (512 bits)
-            byte[] secretBytes = jwtSecret.getBytes();
-            if (secretBytes.length < 64) {
-                log.warn("JWT secret key is too short ({} bytes). HS512 requires at least 64 bytes. Consider using a longer secret key.", secretBytes.length);
-                // Pad the secret to 64 bytes if it's too short
-                byte[] paddedSecret = new byte[64];
-                System.arraycopy(secretBytes, 0, paddedSecret, 0, Math.min(secretBytes.length, 64));
-                // If secret is shorter, repeat it to fill the array
-                for (int i = secretBytes.length; i < 64; i++) {
-                    paddedSecret[i] = secretBytes[i % secretBytes.length];
-                }
-                secretBytes = paddedSecret;
-            }
+            // HS512 requires exactly 64 bytes (512 bits)
+            byte[] secretBytes = prepareSecretKey(jwtSecret);
             
             Date now = new Date();
             Date expiryDate = new Date(now.getTime() + jwtRefreshExpiration);
@@ -216,28 +231,29 @@ public class JwtTokenProvider {
 
             return signedJWT.serialize();
         } catch (JOSEException e) {
-            log.error("Error generating refresh token for email: {}. Error: {}", email, e.getMessage(), e);
+            log.error("Error generating refresh token for email: {}. Error: {} - {}", email, e.getMessage(), e.getClass().getName(), e);
             throw new RuntimeException("Không thể tạo refresh token: " + e.getMessage(), e);
         } catch (IllegalStateException e) {
             log.error("JWT configuration error: {}", e.getMessage());
             throw e;
+        } catch (Exception e) {
+            log.error("Unexpected error generating refresh token for email: {}. Error: {} - {}", email, e.getMessage(), e.getClass().getName(), e);
+            throw new RuntimeException("Không thể tạo refresh token: " + e.getMessage(), e);
         }
     }
 
-
+    /**
+     * Validate refresh token
+     */
+    public boolean validateRefreshToken(String token) {
         try {
             if (jwtSecret == null || jwtSecret.isEmpty()) {
-            // HS512 requires at least 64 bytes (512 bits)
-            byte[] secretBytes = jwtSecret.getBytes();
-            if (secretBytes.length < 64) {
-                // Pad the secret to 64 bytes if it's too short
-                byte[] paddedSecret = new byte[64];
-                System.arraycopy(secretBytes, 0, paddedSecret, 0, Math.min(secretBytes.length, 64));
-                for (int i = secretBytes.length; i < 64; i++) {
-                    paddedSecret[i] = secretBytes[i % secretBytes.length];
-                }
-                secretBytes = paddedSecret;
+                log.error("JWT secret key is not configured");
+                return false;
             }
+            
+            // HS512 requires exactly 64 bytes (512 bits)
+            byte[] secretBytes = prepareSecretKey(jwtSecret);
             
             SignedJWT signedJWT = SignedJWT.parse(token);
             JWSVerifier verifier = new MACVerifier(secretBytes);
@@ -245,7 +261,12 @@ public class JwtTokenProvider {
             if (!signedJWT.verify(verifier)) {
                 log.warn("Refresh token signature verification failed");
                 return false;
+            }
 
+            // Kiểm tra đây có phải refresh token không
+            String tokenType = signedJWT.getJWTClaimsSet().getStringClaim("type");
+            if (!"refresh".equals(tokenType)) {
+                log.warn("Token is not a refresh token");
                 return false;
             }
 
