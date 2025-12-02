@@ -5,6 +5,7 @@ import iuh.fit.server.dto.request.SepayWebhookRequest;
 import iuh.fit.server.dto.response.OrderResponse;
 import iuh.fit.server.dto.response.PaymentCheckResponse;
 import iuh.fit.server.dto.response.RevenueStatsResponse;
+import iuh.fit.server.exception.BadRequestException;
 import iuh.fit.server.mapper.OrderMapper;
 import iuh.fit.server.model.entity.*;
 import iuh.fit.server.model.enums.Method;
@@ -249,7 +250,7 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
                     product.getName(), inventory.getQuantity(), cartItem.getQuantity()
                 );
                 log.error("❌ [createOrder] Stock validation failed: {}", errorMsg);
-                throw new RuntimeException(errorMsg);
+                throw new BadRequestException(errorMsg);
             }
             
             // Trừ số lượng từ inventory ngay lập tức (cho tất cả loại thanh toán)

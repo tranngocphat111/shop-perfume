@@ -32,11 +32,11 @@ export const PaymentStatusCard: React.FC<PaymentStatusCardProps> = ({
         <div className="flex items-start gap-3">
           <FaInfoCircle className="text-red-500 text-lg mt-0.5 flex-shrink-0" />
           <div className="flex-1">
-            <h5 className="text-red-800 font-semibold text-sm mb-1.5">Đơn hàng đã bị hủy</h5>
-            <p className="text-red-700 text-xs mb-3">Quá thời gian thanh toán (30 phút). Vui lòng đặt hàng lại.</p>
+            <h5 className="text-red-800 font-semibold text-base mb-2">Đơn hàng đã bị hủy</h5>
+            <p className="text-red-700 text-sm mb-3">Quá thời gian thanh toán (30 phút). Vui lòng đặt hàng lại.</p>
             <button
               onClick={() => navigate('/')}
-              className="bg-red-600 text-white px-4 py-1.5 rounded-lg text-xs font-medium hover:bg-red-700 transition-colors"
+              className="bg-red-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-red-700 transition-colors"
             >
               Về trang chủ
             </button>
@@ -52,8 +52,8 @@ export const PaymentStatusCard: React.FC<PaymentStatusCardProps> = ({
         <div className="flex items-start gap-3">
           <FaCheckCircle className="text-green-500 text-lg mt-0.5 flex-shrink-0" />
           <div className="flex-1">
-            <h5 className="text-green-800 font-semibold text-sm mb-1.5">Thanh toán thành công! 🎉</h5>
-            <p className="text-green-700 text-xs mb-2.5">Đơn hàng của bạn đã được xác nhận</p>
+            <h5 className="text-green-800 font-semibold text-base mb-2">Thanh toán thành công! 🎉</h5>
+            <p className="text-green-700 text-sm mb-3">Đơn hàng của bạn đã được xác nhận</p>
             <div className="flex items-center gap-2 mb-3">
               <button
                 onClick={() => {
@@ -63,18 +63,18 @@ export const PaymentStatusCard: React.FC<PaymentStatusCardProps> = ({
                     navigate('/my-orders', { state: { email: order.guestEmail } });
                   }
                 }}
-                className="bg-blue-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-blue-700 transition-colors"
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
               >
                 Xem đơn hàng
               </button>
               <button
                 onClick={() => navigate('/')}
-                className="bg-gray-200 text-gray-700 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-gray-300 transition-colors"
+                className="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-300 transition-colors"
               >
                 Về trang chủ
               </button>
             </div>
-            <div className="flex items-center gap-1.5 text-green-600 text-[10px]">
+            <div className="flex items-center gap-1.5 text-green-600 text-xs">
               <FaSpinner className="animate-spin" />
               <span>Tự động chuyển về trang chủ sau 5 giây...</span>
             </div>
@@ -89,36 +89,36 @@ export const PaymentStatusCard: React.FC<PaymentStatusCardProps> = ({
       <div className="flex items-start gap-3 mb-3">
         <FaClock className="text-yellow-500 text-lg mt-0.5 flex-shrink-0 animate-pulse" />
         <div className="flex-1">
-          <h5 className="text-yellow-800 font-semibold text-sm mb-1.5">Đang chờ thanh toán</h5>
-          <p className="text-yellow-700 text-xs mb-2">Vui lòng quét mã QR và hoàn tất thanh toán</p>
+          <h5 className="text-yellow-800 font-semibold text-base mb-2">Đang chờ thanh toán</h5>
+          <p className="text-yellow-700 text-sm mb-2">Vui lòng quét mã QR và hoàn tất thanh toán</p>
         </div>
       </div>
       {timeRemaining !== null && timeRemaining > 0 && (
-        <div className="bg-slate-50 rounded-lg px-3 py-2 mb-3 flex items-center justify-between">
-          <span className="text-xs text-slate-600 font-medium">Thời gian còn lại</span>
-          <span className={`font-mono font-bold text-base ${timeRemaining < 300 ? 'text-red-600' : 'text-slate-800'}`}>
+        <div className="bg-slate-50 rounded-lg px-4 py-2.5 mb-3 flex items-center justify-between">
+          <span className="text-sm text-slate-600 font-medium">Thời gian còn lại</span>
+          <span className={`font-mono font-bold text-lg ${timeRemaining < 300 ? 'text-red-600' : 'text-slate-800'}`}>
             {Math.floor(timeRemaining / 60)}:{(timeRemaining % 60).toString().padStart(2, '0')}
           </span>
         </div>
       )}
       <div className="flex items-center justify-between">
-        <div className="text-xs text-slate-600 flex items-center gap-1.5">
+        <div className="text-sm text-slate-600 flex items-center gap-2">
           <FaSpinner className="animate-spin text-blue-500" />
           <span>Tự động kiểm tra sau: <span className="font-semibold">{countdown}s</span></span>
         </div>
         <button
           onClick={onCheckPayment}
           disabled={isChecking}
-          className="bg-blue-600 text-white px-4 py-1.5 rounded-lg text-xs font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-1.5"
+          className="bg-blue-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2"
         >
           {isChecking ? (
             <>
-              <FaSpinner className="animate-spin text-xs" />
+              <FaSpinner className="animate-spin" />
               Đang kiểm tra...
             </>
           ) : (
             <>
-              <FaSearch className="text-xs" />
+              <FaSearch />
               Kiểm tra
             </>
           )}
