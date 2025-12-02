@@ -25,16 +25,17 @@ export const UserMenu = ({
   const navigate = useNavigate();
 
   const textColor = isScrolled ? "text-gray-700" : "text-white";
-  const hoverTextColor = isScrolled ? "hover:text-black" : "hover:text-gray-200";
+  const hoverTextColor = isScrolled
+    ? "hover:text-black"
+    : "hover:text-gray-200";
 
-  const handleLogout = () => {
-    logout();
-    navigate("/");
+  const handleLogout = async () => {
     setShowUserMenu(false);
+    await logout("/");
   };
 
   return (
-    <div 
+    <div
       className="relative user-menu-container"
       onMouseEnter={() => setShowUserMenu(true)}
       onMouseLeave={() => setShowUserMenu(false)}
@@ -44,12 +45,14 @@ export const UserMenu = ({
           <motion.button
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.95 }}
-            className={`transition-colors p-2 rounded-full ${textColor} ${hoverTextColor}`}>
+            className={`transition-colors p-2 rounded-full ${textColor} ${hoverTextColor}`}
+          >
             <svg
               className="w-6 h-6"
               fill="none"
               stroke="currentColor"
-              viewBox="0 0 24 24">
+              viewBox="0 0 24 24"
+            >
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -67,31 +70,31 @@ export const UserMenu = ({
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
                 transition={{ duration: 0.15 }}
-                className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-xl border border-gray-100 overflow-hidden z-50">
-                
+                className="absolute right-0 z-50 w-56 mt-2 overflow-hidden bg-white border border-gray-100 rounded-lg shadow-xl"
+              >
                 {/* User Info Section */}
                 <div className="px-3 pt-3 pb-2.5 bg-gradient-to-br from-gray-50 to-white border-b border-gray-100">
                   <p className="text-sm font-bold text-gray-900 truncate mb-0.5">
                     {user.name}
                   </p>
-                  <p className="text-xs text-gray-500 truncate mb-2">
+                  <p className="mb-2 text-xs text-gray-500 truncate">
                     {user.email}
                   </p>
-                  
+
                   {/* Loyalty Points Display */}
                   {userInfo && (
                     <div className="flex items-center gap-2 px-2.5 py-1.5 bg-gradient-to-r from-amber-50 via-yellow-50 to-amber-50 border border-amber-200/50 rounded-md">
-                      <div className="flex-shrink-0 w-6 h-6 rounded-full bg-gradient-to-br from-amber-400 to-amber-500 flex items-center justify-center">
+                      <div className="flex items-center justify-center flex-shrink-0 w-6 h-6 rounded-full bg-gradient-to-br from-amber-400 to-amber-500">
                         <Coins size={12} className="text-white" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-xs font-bold text-amber-900 leading-tight">
-                          {userInfo.loyaltyPoints.toLocaleString('vi-VN')} điểm
+                        <p className="text-xs font-bold leading-tight text-amber-900">
+                          {userInfo.loyaltyPoints.toLocaleString("vi-VN")} điểm
                         </p>
                       </div>
                     </div>
                   )}
-                  
+
                   {/* Admin Badge */}
                   {user.role === "ADMIN" && (
                     <div className="mt-2">
@@ -109,25 +112,34 @@ export const UserMenu = ({
                       setShowUserMenu(false);
                       navigate("/profile", { state: { activeTab: "account" } });
                     }}
-                    className="block w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer">
-                    <span className="font-medium hover:text-gray-900">Thông tin tài khoản</span>
+                    className="block w-full px-3 py-2 text-sm text-left text-gray-700 transition-colors cursor-pointer hover:bg-gray-50"
+                  >
+                    <span className="font-medium hover:text-gray-900">
+                      Thông tin tài khoản
+                    </span>
                   </button>
-                  
+
                   <button
                     onClick={() => {
                       setShowUserMenu(false);
                       navigate("/profile", { state: { activeTab: "orders" } });
                     }}
-                    className="block w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer">
-                    <span className="font-medium hover:text-gray-900">Đơn hàng của tôi</span>
+                    className="block w-full px-3 py-2 text-sm text-left text-gray-700 transition-colors cursor-pointer hover:bg-gray-50"
+                  >
+                    <span className="font-medium hover:text-gray-900">
+                      Đơn hàng của tôi
+                    </span>
                   </button>
-                  
+
                   {user.role === "ADMIN" && (
                     <Link
                       to="/admin"
                       onClick={() => setShowUserMenu(false)}
-                      className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer">
-                      <span className="font-medium hover:text-gray-900">Quản trị</span>
+                      className="block px-3 py-2 text-sm text-gray-700 transition-colors cursor-pointer hover:bg-gray-50"
+                    >
+                      <span className="font-medium hover:text-gray-900">
+                        Quản trị
+                      </span>
                     </Link>
                   )}
                 </div>
@@ -139,7 +151,8 @@ export const UserMenu = ({
                 <div className="p-1">
                   <button
                     onClick={handleLogout}
-                    className="block w-full text-left px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-md transition-colors">
+                    className="block w-full px-3 py-2 text-sm font-medium text-left text-red-600 transition-colors rounded-md hover:bg-red-50"
+                  >
                     <span className="hover:text-red-700">Đăng xuất</span>
                   </button>
                 </div>
@@ -148,17 +161,17 @@ export const UserMenu = ({
           </AnimatePresence>
         </>
       ) : (
-        <motion.div
-          whileHover={{ scale: 1.1 }}
-          whileTap={{ scale: 0.95 }}>
+        <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }}>
           <Link
             to="/login"
-            className={`transition-colors p-2 rounded-full ${textColor} ${hoverTextColor}`}>
+            className={`transition-colors p-2 rounded-full ${textColor} ${hoverTextColor}`}
+          >
             <svg
               className="w-6 h-6"
               fill="none"
               stroke="currentColor"
-              viewBox="0 0 24 24">
+              viewBox="0 0 24 24"
+            >
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -172,4 +185,3 @@ export const UserMenu = ({
     </div>
   );
 };
-
