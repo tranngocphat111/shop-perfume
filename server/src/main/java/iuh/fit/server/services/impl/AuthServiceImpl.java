@@ -28,6 +28,7 @@ import iuh.fit.server.util.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -37,6 +38,7 @@ import java.util.Base64;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashSet;
+import java.util.Optional;
 import java.util.Set;
 
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
@@ -69,13 +71,23 @@ public class AuthServiceImpl implements AuthService{
     @Transactional
     @Override
     public AuthResponse register(RegisterRequest request) {
-        if (userRepository.existsByEmail(request.getEmail())) {
+        // Normalize email (lowercase, trim) để tránh duplicate do format khác nhau
+        String normalizedEmail = request.getEmail() != null 
+            ? request.getEmail().trim().toLowerCase() 
+            : null;
+        
+        if (normalizedEmail == null || normalizedEmail.isEmpty()) {
+            throw new RegistrationException("Email không được để trống");
+        }
+        
+        // Kiểm tra email đã tồn tại chưa
+        if (userRepository.existsByEmail(normalizedEmail)) {
             throw new RegistrationException("Email đã tồn tại");
         }
 
         User user = new User();
         user.setName(request.getName());
-        user.setEmail(request.getEmail());
+        user.setEmail(normalizedEmail); // Lưu email đã được normalize
         user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
         user.setProvider("LOCAL"); // Set provider for local registration
         // Phone and address removed - users can add addresses after registration
@@ -112,7 +124,16 @@ public class AuthServiceImpl implements AuthService{
 
     @Override
     public AuthResponse login(LoginRequest request) {
-        User user = userRepository.findByEmail(request.getEmail())
+        // Normalize email (lowercase, trim) để đảm bảo tìm đúng user
+        String normalizedEmail = request.getEmail() != null 
+            ? request.getEmail().trim().toLowerCase() 
+            : null;
+        
+        if (normalizedEmail == null || normalizedEmail.isEmpty()) {
+            throw new AuthenticationException("Email hoặc mật khẩu không đúng");
+        }
+        
+        User user = userRepository.findByEmail(normalizedEmail)
                 .orElseThrow(() -> new AuthenticationException("Email hoặc mật khẩu không đúng"));
 
         // Kiểm tra nếu user đăng nhập bằng Google (không có password)
@@ -424,7 +445,7 @@ public class AuthServiceImpl implements AuthService{
     }
     
     @Override
-    @Transactional
+    @Transactional(rollbackFor = {Exception.class}, noRollbackFor = {AuthenticationException.class, RegistrationException.class, DataIntegrityViolationException.class})
     public AuthResponse signInWithGoogle(String googleIdToken) {
         if (googleClientId == null || googleClientId.isEmpty()) {
             throw new AuthenticationException("Google OAuth chưa được cấu hình. Vui lòng liên hệ quản trị viên.");
@@ -445,7 +466,7 @@ public class AuthServiceImpl implements AuthService{
             
             GoogleIdToken.Payload payload = idToken.getPayload();
             String googleId = payload.getSubject();
-            String email = payload.getEmail();
+            String emailRaw = payload.getEmail();
             String name = (String) payload.get("name");
             String picture = (String) payload.get("picture");
             boolean emailVerified = Boolean.valueOf(payload.getEmailVerified().toString());
@@ -454,9 +475,12 @@ public class AuthServiceImpl implements AuthService{
                 throw new AuthenticationException("Email chưa được xác minh bởi Google");
             }
             
-            if (email == null || email.isEmpty()) {
+            if (emailRaw == null || emailRaw.isEmpty()) {
                 throw new AuthenticationException("Không thể lấy email từ Google account");
             }
+            
+            // Normalize email (lowercase, trim)
+            final String email = emailRaw.trim().toLowerCase();
             
             // Tìm user theo Google ID hoặc email
             User user = userRepository.findByGoogleId(googleId)
@@ -468,6 +492,11 @@ public class AuthServiceImpl implements AuthService{
                 
                 if (user != null) {
                     // User đã tồn tại với email này, nhưng chưa có Google ID
+                    // Kiểm tra xem user này đã có Google ID chưa (có thể đã được link trước đó)
+                    if (user.getGoogleId() != null && !user.getGoogleId().equals(googleId)) {
+                        throw new AuthenticationException("Email này đã được liên kết với Google account khác");
+                    }
+                    
                     // Cập nhật Google ID và provider
                     if (user.getProvider() == null || "LOCAL".equals(user.getProvider())) {
                         // Kiểm tra xem user có password không (nếu có thì là LOCAL user)
@@ -479,6 +508,11 @@ public class AuthServiceImpl implements AuthService{
                             // User không có password, có thể là Google user cũ
                             user.setGoogleId(googleId);
                             user.setProvider("GOOGLE");
+                        }
+                    } else if ("GOOGLE".equals(user.getProvider())) {
+                        // User đã là Google user, cập nhật Google ID nếu chưa có
+                        if (user.getGoogleId() == null) {
+                            user.setGoogleId(googleId);
                         }
                     }
                 } else {
@@ -515,8 +549,40 @@ public class AuthServiceImpl implements AuthService{
                 throw new AuthenticationException("Tài khoản chưa được kích hoạt");
             }
             
-            // Lưu user
-            user = userRepository.save(user);
+            // Lưu user với error handling cho duplicate key
+            try {
+                user = userRepository.save(user);
+                // Flush để đảm bảo user được lưu ngay và có thể detect duplicate key violation sớm
+                userRepository.flush();
+            } catch (DataIntegrityViolationException e) {
+                log.warn("Data integrity violation when saving user (likely duplicate). Retrying by finding existing user: {}", e.getMessage());
+                // Kiểm tra lại user có thể đã được tạo bởi concurrent request
+                User existingUser = userRepository.findByGoogleId(googleId).orElse(null);
+                if (existingUser != null) {
+                    user = existingUser;
+                    log.info("Found existing user by Google ID: {}", googleId);
+                } else {
+                    existingUser = userRepository.findByEmail(email).orElse(null);
+                    if (existingUser != null) {
+                        user = existingUser;
+                        // Link Google ID nếu chưa có
+                        if (user.getGoogleId() == null) {
+                            user.setGoogleId(googleId);
+                            try {
+                                user = userRepository.save(user);
+                            } catch (DataIntegrityViolationException e2) {
+                                // Nếu vẫn lỗi, có thể Google ID đã được sử dụng bởi user khác
+                                log.error("Cannot link Google ID to user. Google ID: {}, Email: {}", googleId, email);
+                                throw new AuthenticationException("Không thể liên kết tài khoản Google. Vui lòng thử lại.");
+                            }
+                        }
+                        log.info("Found existing user by email: {}", email);
+                    } else {
+                        log.error("Cannot find user after DataIntegrityViolationException. Google ID: {}, Email: {}", googleId, email);
+                        throw new AuthenticationException("Không thể tạo hoặc cập nhật tài khoản. Vui lòng thử lại.");
+                    }
+                }
+            }
             
             // Generate JWT tokens
             String token = jwtTokenProvider.generateToken(user.getEmail());
@@ -544,7 +610,12 @@ public class AuthServiceImpl implements AuthService{
             );
             
         } catch (AuthenticationException | RegistrationException e) {
+            // Re-throw authentication/registration exceptions without rollback
+            log.warn("Google Sign-In failed: {}", e.getMessage());
             throw e;
+        } catch (DataIntegrityViolationException e) {
+            log.error("Data integrity violation during Google Sign-In: {}", e.getMessage(), e);
+            throw new AuthenticationException("Tài khoản đã tồn tại hoặc có lỗi dữ liệu. Vui lòng thử lại.");
         } catch (Exception e) {
             log.error("Error during Google Sign-In: {}", e.getMessage(), e);
             throw new AuthenticationException("Không thể xác thực với Google. Vui lòng thử lại.");

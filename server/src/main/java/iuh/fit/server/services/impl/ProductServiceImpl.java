@@ -374,11 +374,11 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     @Transactional(readOnly = true)
-    public Page<ProductResponse> filterProducts(Integer brandId, Integer categoryId, String searchTerm, Pageable pageable) {
-        log.info("Filtering products with brandId: {}, categoryId: {}, searchTerm: '{}', pageable: {}", 
-                brandId, categoryId, searchTerm, pageable);
+    public Page<ProductResponse> filterProducts(Integer brandId, Integer categoryId, String status, String searchTerm, Pageable pageable) {
+        log.info("Filtering products with brandId: {}, categoryId: {}, status: '{}', searchTerm: '{}', pageable: {}", 
+                brandId, categoryId, status, searchTerm, pageable);
         
-        Page<Product> products = productRepository.filterProducts(brandId, categoryId, searchTerm, pageable);
+        Page<Product> products = productRepository.filterProducts(brandId, categoryId, status, searchTerm, pageable);
         return products.map(productMapper::toResponse);
     }
 

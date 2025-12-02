@@ -52,12 +52,13 @@ public interface ProductRepository extends JpaRepository<Product, Integer> {
     Page<Product> searchProducts(@Param("searchTerm") String searchTerm, Pageable pageable);
 
     /**
-     * Lọc sản phẩm theo brand, category và search term
-     * Hỗ trợ filter kết hợp: có thể filter theo brand, category hoặc cả hai
+     * Lọc sản phẩm theo brand, category, status và search term
+     * Hỗ trợ filter kết hợp: có thể filter theo brand, category, status hoặc tất cả
      */
     @Query("SELECT p FROM Product p WHERE " +
            "(:brandId IS NULL OR p.brand.brandId = :brandId) AND " +
            "(:categoryId IS NULL OR p.category.categoryId = :categoryId) AND " +
+           "(:status IS NULL OR :status = '' OR CAST(p.status AS string) = :status) AND " +
            "(:searchTerm IS NULL OR :searchTerm = '' OR " +
            "LOWER(p.name) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
            "LOWER(p.brand.name) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
@@ -65,6 +66,7 @@ public interface ProductRepository extends JpaRepository<Product, Integer> {
     Page<Product> filterProducts(
         @Param("brandId") Integer brandId,
         @Param("categoryId") Integer categoryId,
+        @Param("status") String status,
         @Param("searchTerm") String searchTerm,
         Pageable pageable
     );
