@@ -213,11 +213,21 @@ public class GlobalExceptionHandler {
     ) {
         log.error("AccessDeniedException: {} for request: {}", ex.getMessage(), request.getDescription(false));
 
+        // Determine appropriate error message based on the request path
+        String requestPath = request.getDescription(false).replace("uri=", "");
+        String errorMessage;
+        
+        if (requestPath != null && (requestPath.contains("/admin/") || requestPath.contains("/dashboard/"))) {
+            errorMessage = "Access Denied: You do not have permission to access this resource. Please login as ADMIN.";
+        } else {
+            errorMessage = "Access Denied: You do not have permission to access this resource. Please login first.";
+        }
+
         ErrorResponse errorResponse = new ErrorResponse(
                 HttpStatus.FORBIDDEN.value(),
-                "Access Denied: You do not have permission to access this resource. Please login as ADMIN.",
+                errorMessage,
                 LocalDateTime.now(),
-                request.getDescription(false).replace("uri=", "")
+                requestPath
         );
 
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(errorResponse);
