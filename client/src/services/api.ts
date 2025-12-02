@@ -1,7 +1,7 @@
 import { refreshTokenManager } from "./refreshTokenManager";
 
-const API_BASE_URL = "http://13.251.125.90:8080/api";
-// const API_BASE_URL = "http://localhost:8080/api";
+// const API_BASE_URL = "http://13.251.125.90:8080/api";
+const API_BASE_URL = "http://localhost:8080/api";
 
 interface ApiError {
   message: string;
@@ -276,7 +276,7 @@ export const apiService = {
   async post<T>(
     endpoint: string,
     data: unknown,
-    options?: { headers?: Record<string, string> }
+    options?: { headers?: Record<string, string>; timeout?: number }
   ): Promise<T> {
     // Ensure token is valid before making request (proactive refresh)
     // Skip for public endpoints
@@ -293,37 +293,76 @@ export const apiService = {
         ...options?.headers,
       };
 
-      const response = await fetch(fullUrl, {
-        method: "POST",
-        headers,
-        body: isFormData ? data : JSON.stringify(data),
-      });
+      // Set timeout (default 60 seconds, 300 seconds for order creation to allow time for lock waiting)
+      // Backend transaction timeout is 60s, but when locked, multiple requests may need to wait
+      // We set 300s (5 minutes) to ensure enough time for all queued requests to complete
+      // This prevents premature timeout when requests are waiting for lock release
+      const timeout = options?.timeout || (endpoint.includes("/orders/create") ? 300000 : 60000);
+      
+      // Create AbortController for timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeout);
 
-      if (!response.ok) {
-        const errorData = await parseErrorResponse(response);
+      try {
+        const response = await fetch(fullUrl, {
+          method: "POST",
+          headers,
+          body: isFormData ? data : JSON.stringify(data),
+          signal: controller.signal,
+        });
+        
+        clearTimeout(timeoutId);
 
-        // Handle 401 Unauthorized - try refresh token first
-        // Exclude /auth/refresh to prevent infinite loop
-        if (response.status === 401 && !endpoint.includes("/auth/")) {
-          return handle401Error(endpoint, makeRequest, 0);
+        if (!response.ok) {
+          const errorData = await parseErrorResponse(response);
+
+          // Handle 401 Unauthorized - try refresh token first
+          // Exclude /auth/refresh to prevent infinite loop
+          if (response.status === 401 && !endpoint.includes("/auth/")) {
+            return handle401Error(endpoint, makeRequest, 0);
+          }
+
+          throw createApiError(errorData, response.status);
         }
 
-        throw createApiError(errorData, response.status);
-      }
+        // Handle empty response (no content)
+        const text = await response.text();
 
-      // Handle empty response (no content)
-      const text = await response.text();
+        if (!text || text.trim() === "") {
+          return {} as T; // Return empty object for void responses
+        }
 
-      if (!text || text.trim() === "") {
-        return {} as T; // Return empty object for void responses
-      }
-
-      // Try to parse as JSON
-      try {
-        return JSON.parse(text) as T;
-      } catch {
-        // If not JSON, return as text (shouldn't happen with our API)
-        return text as unknown as T;
+        // Try to parse as JSON
+        try {
+          return JSON.parse(text) as T;
+        } catch {
+          return {} as T; // Return empty object if not valid JSON
+        }
+      } catch (error: any) {
+        clearTimeout(timeoutId);
+        
+        // Handle timeout/abort error
+        // Frontend timeout (no response from backend) - mark with special flag
+        if (error.name === 'AbortError' || error.name === 'TimeoutError') {
+          const timeoutError = createApiError(
+            { message: 'Request timeout. Vui lòng thử lại.', isFrontendTimeout: true },
+            408
+          );
+          // Remove response.data to indicate this is a frontend timeout
+          delete timeoutError.response;
+          throw timeoutError;
+        }
+        
+        // Re-throw if it's already an ApiError
+        if ((error as ApiError).status) {
+          throw error;
+        }
+        
+        // Handle network errors
+        throw createApiError(
+          { message: error.message || 'Network error. Please check your connection.' },
+          0
+        );
       }
     };
 
