@@ -61,8 +61,10 @@ export const Products = () => {
         direction,
         search
       );
-      const transformedData: ProductData[] = pageResponse.content.map(
-        (item: Product) => ({
+      // Filter only ACTIVE products
+      const transformedData: ProductData[] = pageResponse.content
+        .filter((item: Product) => item.status === "ACTIVE")
+        .map((item: Product) => ({
           id: item.productId,
           name: item.name,
           brand: item.brand.name,
@@ -72,8 +74,7 @@ export const Products = () => {
           status: item.status,
           lastUpdated: new Date(item.lastUpdated).toLocaleDateString(),
           updatedBy: item.lastUpdatedBy || "System",
-        })
-      );
+        }));
 
       setProducts(transformedData);
       setTotalElements(pageResponse.totalElements);
