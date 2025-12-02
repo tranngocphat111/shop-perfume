@@ -30,6 +30,6 @@ public class ContactRequest {
     private String subject;
 
     @NotBlank(message = "Nội dung không được để trống")
-    @Size(min = 10, max = 2000, message = "Nội dung phải từ 10-2000 ký tự")
+    @Size(max = 2000, message = "Nội dung không được vượt quá 2000 ký tự")
     private String message;
 }

@@ -17,6 +17,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.Context;
@@ -261,6 +262,7 @@ public class EmailServiceImpl implements EmailService {
     }
 
     @Override
+    @Async("emailTaskExecutor")
     public void sendContactEmail(ContactRequest contactRequest) {
         try {
             log.info("📧 [sendContactEmail] Sending contact email from: {} - Subject: {}",

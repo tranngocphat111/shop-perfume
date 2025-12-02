@@ -26,12 +26,14 @@ public class ContactController {
         try {
             log.info("Received contact request from: {} - Subject: {}", request.getEmail(), request.getSubject());
 
+            // Send email asynchronously (method annotated with @Async)
             emailService.sendContactEmail(request);
 
+            // Return success immediately without waiting for email to be sent
             return ResponseEntity.ok(ContactResponse
                     .success("Email đã được gửi thành công. Chúng tôi sẽ liên hệ lại với bạn sớm nhất!"));
         } catch (Exception e) {
-            log.error("Error sending contact email: {}", e.getMessage(), e);
+            log.error("Error processing contact request: {}", e.getMessage(), e);
             return ResponseEntity.status(500)
                     .body(ContactResponse.error("Có lỗi xảy ra khi gửi email. Vui lòng thử lại sau."));
         }

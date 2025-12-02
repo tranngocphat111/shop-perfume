@@ -56,8 +56,6 @@ export const ContactForm = ({ onSubmit }: ContactFormProps) => {
 
     if (!formData.message.trim()) {
       newErrors.message = "Vui lòng nhập nội dung tin nhắn";
-    } else if (formData.message.trim().length < 10) {
-      newErrors.message = "Nội dung tin nhắn phải có ít nhất 10 ký tự";
     }
 
     setErrors(newErrors);
@@ -81,6 +79,10 @@ export const ContactForm = ({ onSubmit }: ContactFormProps) => {
       onSubmit?.(formData);
 
       setSubmitStatus("success");
+      
+      // Show success alert
+      alert("✓ Cảm ơn bạn! Tin nhắn của bạn đã được gửi thành công. Chúng tôi sẽ phản hồi sớm nhất có thể.");
+      
       setFormData({
         name: "",
         email: "",
