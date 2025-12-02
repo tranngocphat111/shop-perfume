@@ -124,7 +124,7 @@
             <version>2.1.0</version>
         </dependency>
         
-        <!-- AWS SDK for SES (legacy - keep for backward compatibility) -->
+        <!-- Spring OAuth2 Client -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-oauth2-client</artifactId>
@@ -136,12 +136,7 @@
             <version>2.2.0</version>
         </dependency>
 
-        
-        <!-- Spring OAuth2 Client -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-oauth2-client</artifactId>
-        </dependency>
+        <!-- Spring Boot Actuator -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
