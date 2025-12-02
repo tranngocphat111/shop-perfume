@@ -1,0 +1,85 @@
+package iuh.fit.server.services.impl;
+
+import iuh.fit.server.dto.response.UserDetailResponse;
+import iuh.fit.server.model.entity.Role;
+import iuh.fit.server.model.entity.User;
+import iuh.fit.server.model.enums.PaymentStatus;
+import iuh.fit.server.repository.OrderRepository;
+import iuh.fit.server.repository.UserRepository;
+import iuh.fit.server.services.AdminUserService;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.stream.Collectors;
+
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class AdminUserServiceImpl implements AdminUserService {
+    
+    private final UserRepository userRepository;
+    private final OrderRepository orderRepository;
+    
+    @Override
+    @Transactional(readOnly = true)
+    public Page<UserDetailResponse> getUsersPage(Pageable pageable, String searchTerm) {
+        log.info("Getting users page - page: {}, size: {}, search: {}", 
+                pageable.getPageNumber(), pageable.getPageSize(), searchTerm);
+        
+        Page<User> users;
+        
+        if (searchTerm != null && !searchTerm.trim().isEmpty()) {
+            users = userRepository.searchUsers(searchTerm, pageable);
+        } else {
+            users = userRepository.findAll(pageable);
+        }
+        
+        return users.map(this::mapToDetailResponse);
+    }
+    
+    @Override
+    @Transactional(readOnly = true)
+    public UserDetailResponse getUserById(Integer userId) {
+        log.info("Getting user by id: {}", userId);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found with id: " + userId));
+        
+        return mapToDetailResponse(user);
+    }
+    
+    private UserDetailResponse mapToDetailResponse(User user) {
+        // Get total orders count
+        Integer totalOrders = user.getOrders() != null ? user.getOrders().size() : 0;
+        
+        // Get total spent (only completed payments)
+        Double totalSpent = orderRepository.getTotalSpentByUser(user.getUserId(), PaymentStatus.PAID);
+        if (totalSpent == null) {
+            totalSpent = 0.0;
+        }
+        
+        // Get roles
+        List<String> roles = user.getRoles().stream()
+                .map(Role::getName)
+                .collect(Collectors.toList());
+        
+        return UserDetailResponse.builder()
+                .userId(user.getUserId())
+                .name(user.getName())
+                .email(user.getEmail())
+                .provider(user.getProvider())
+                .status(user.getStatus() != null ? user.getStatus().name() : "ACTIVE")
+                .avatar(user.getAvatar())
+                .loyaltyPoints(user.getLoyaltyPoints())
+                .createdAt(user.getCreatedAt())
+                .lastUpdated(user.getLastUpdated())
+                .roles(roles)
+                .totalOrders(totalOrders)
+                .totalSpent(totalSpent)
+                .build();
+    }
+}

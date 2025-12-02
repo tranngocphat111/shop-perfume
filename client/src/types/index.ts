@@ -280,6 +280,21 @@ export interface UserResponse {
   // roles?: Role[];
 }
 
+export interface UserDetailResponse {
+  userId: number;
+  name: string;
+  email: string;
+  provider: string;
+  status: string;
+  avatar?: string;
+  loyaltyPoints: number;
+  createdAt: string;
+  lastUpdated: string;
+  roles: string[];
+  totalOrders: number;
+  totalSpent: number;
+}
+
 
 // QR Payment types
 export interface QRPaymentInfo {
