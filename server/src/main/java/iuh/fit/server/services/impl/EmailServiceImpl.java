@@ -84,9 +84,26 @@ public class EmailServiceImpl implements EmailService {
                 
                 // Get email ID from response
                 emailId = (String) response.getClass().getMethod("getId").invoke(response);
-            } catch (ClassNotFoundException | NoSuchMethodException | IllegalAccessException | java.lang.reflect.InvocationTargetException reflectionEx) {
-                log.error("❌ Reflection error when calling Resend API: {}", reflectionEx.getMessage(), reflectionEx);
-                throw new RuntimeException("Lỗi khi gọi Resend API. Vui lòng kiểm tra cấu hình và dependencies.", reflectionEx);
+            } catch (ClassNotFoundException e) {
+                log.error("❌ ClassNotFoundException: Cannot find Resend API classes. Check if resend-java dependency is correct version (2.1.0). Error: {}", e.getMessage(), e);
+                log.error("   Attempted class: com.resend.services.emails.model.CreateEmailOptions");
+                throw new RuntimeException("Lỗi: Không tìm thấy class Resend API. Vui lòng kiểm tra dependency resend-java version 2.1.0 đã được cài đặt chưa.", e);
+            } catch (NoSuchMethodException e) {
+                log.error("❌ NoSuchMethodException: Method not found in Resend API. Error: {}", e.getMessage(), e);
+                throw new RuntimeException("Lỗi: Method không tồn tại trong Resend API. Có thể version không tương thích. Chi tiết: " + e.getMessage(), e);
+            } catch (IllegalAccessException e) {
+                log.error("❌ IllegalAccessException: Cannot access Resend API method. Error: {}", e.getMessage(), e);
+                throw new RuntimeException("Lỗi: Không thể truy cập method Resend API. Chi tiết: " + e.getMessage(), e);
+            } catch (java.lang.reflect.InvocationTargetException e) {
+                Throwable cause = e.getCause();
+                log.error("❌ InvocationTargetException when calling Resend API. Error: {}", e.getMessage(), e);
+                if (cause != null) {
+                    log.error("   Caused by: {} - {}", cause.getClass().getName(), cause.getMessage());
+                    if (cause instanceof ResendException) {
+                        throw (ResendException) cause;
+                    }
+                }
+                throw new RuntimeException("Lỗi khi gọi Resend API method. Chi tiết: " + e.getMessage(), e);
             }
             
             log.info("✅ Password reset email sent successfully!");
