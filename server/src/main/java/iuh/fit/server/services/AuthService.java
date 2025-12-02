@@ -26,7 +26,7 @@ public interface AuthService {
     
     UserInfoResponse updateProfile(String email, UpdateUserRequest request);
     
-    void changePassword(String email, ChangePasswordRequest request);
+    void changePassword(String email, String currentPassword, String newPassword);
 
     UserInfoResponse getUserInfo(String email);
 
