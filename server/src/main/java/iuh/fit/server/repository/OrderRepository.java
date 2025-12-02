@@ -2,6 +2,8 @@ package iuh.fit.server.repository;
 
 import iuh.fit.server.model.entity.Order;
 import iuh.fit.server.model.enums.PaymentStatus;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -157,4 +159,12 @@ public interface OrderRepository extends JpaRepository<Order, Integer> {
                                 @Param("startDate") java.sql.Timestamp startDate,
                                 @Param("endDate") java.sql.Timestamp endDate,
                                 org.springframework.data.domain.Pageable pageable);
+    
+    // Search orders by guest name, email, phone, or orderId
+    @Query("SELECT o FROM Order o LEFT JOIN o.payment p WHERE " +
+            "LOWER(o.guestName) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
+            "LOWER(o.guestEmail) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
+            "LOWER(o.guestPhone) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
+            "CAST(o.orderId AS string) LIKE CONCAT('%', :searchTerm, '%')")
+    Page<Order> searchOrders(@Param("searchTerm") String searchTerm, Pageable pageable);
 }

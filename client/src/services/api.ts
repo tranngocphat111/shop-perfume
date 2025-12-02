@@ -238,8 +238,8 @@ const createApiError = (
 export const apiService = {
   async get<T>(endpoint: string): Promise<T> {
     // Ensure token is valid before making request (proactive refresh)
-    // Skip for public endpoints
-    if (!endpoint.includes("/auth/")) {
+    // Skip for public endpoints AND /auth/refresh to prevent infinite loop
+    if (!isPublicEndpoint(endpoint) && !endpoint.includes("/auth/refresh")) {
       await ensureValidToken();
     }
 
@@ -279,8 +279,8 @@ export const apiService = {
     options?: { headers?: Record<string, string>; timeout?: number }
   ): Promise<T> {
     // Ensure token is valid before making request (proactive refresh)
-    // Skip for public endpoints
-    if (!endpoint.includes("/auth/")) {
+    // Skip for public endpoints AND /auth/refresh to prevent infinite loop
+    if (!isPublicEndpoint(endpoint) && !endpoint.includes("/auth/refresh")) {
       await ensureValidToken();
     }
 
@@ -297,8 +297,10 @@ export const apiService = {
       // Backend transaction timeout is 60s, but when locked, multiple requests may need to wait
       // We set 300s (5 minutes) to ensure enough time for all queued requests to complete
       // This prevents premature timeout when requests are waiting for lock release
-      const timeout = options?.timeout || (endpoint.includes("/orders/create") ? 300000 : 60000);
-      
+      const timeout =
+        options?.timeout ||
+        (endpoint.includes("/orders/create") ? 300000 : 60000);
+
       // Create AbortController for timeout
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), timeout);
@@ -310,7 +312,7 @@ export const apiService = {
           body: isFormData ? data : JSON.stringify(data),
           signal: controller.signal,
         });
-        
+
         clearTimeout(timeoutId);
 
         if (!response.ok) {
@@ -340,27 +342,33 @@ export const apiService = {
         }
       } catch (error: any) {
         clearTimeout(timeoutId);
-        
+
         // Handle timeout/abort error
         // Frontend timeout (no response from backend) - mark with special flag
-        if (error.name === 'AbortError' || error.name === 'TimeoutError') {
+        if (error.name === "AbortError" || error.name === "TimeoutError") {
           const timeoutError = createApiError(
-            { message: 'Request timeout. Vui lòng thử lại.', isFrontendTimeout: true },
+            {
+              message: "Request timeout. Vui lòng thử lại.",
+              isFrontendTimeout: true,
+            },
             408
           );
           // Remove response.data to indicate this is a frontend timeout
           delete timeoutError.response;
           throw timeoutError;
         }
-        
+
         // Re-throw if it's already an ApiError
         if ((error as ApiError).status) {
           throw error;
         }
-        
+
         // Handle network errors
         throw createApiError(
-          { message: error.message || 'Network error. Please check your connection.' },
+          {
+            message:
+              error.message || "Network error. Please check your connection.",
+          },
           0
         );
       }
@@ -382,8 +390,8 @@ export const apiService = {
     options?: { headers?: Record<string, string> }
   ): Promise<T> {
     // Ensure token is valid before making request (proactive refresh)
-    // Skip for public endpoints
-    if (!endpoint.includes("/auth/")) {
+    // Skip for public endpoints AND /auth/refresh to prevent infinite loop
+    if (!isPublicEndpoint(endpoint) && !endpoint.includes("/auth/refresh")) {
       await ensureValidToken();
     }
 
@@ -429,8 +437,8 @@ export const apiService = {
 
   async delete<T>(endpoint: string): Promise<T> {
     // Ensure token is valid before making request (proactive refresh)
-    // Skip for public endpoints
-    if (!endpoint.includes("/auth/")) {
+    // Skip for public endpoints AND /auth/refresh to prevent infinite loop
+    if (!isPublicEndpoint(endpoint) && !endpoint.includes("/auth/refresh")) {
       await ensureValidToken();
     }
 

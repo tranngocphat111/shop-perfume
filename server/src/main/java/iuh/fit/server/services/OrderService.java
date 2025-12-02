@@ -45,5 +45,13 @@ public interface OrderService {
      * @return Order ID if found, null otherwise
      */
     Integer extractOrderIdFromWebhook(SepayWebhookRequest webhookRequest);
+    
+    /**
+     * Get orders with pagination and search
+     * @param pageable Pagination information
+     * @param searchTerm Search term for filtering orders
+     * @return Page of OrderResponse
+     */
+    org.springframework.data.domain.Page<OrderResponse> getOrdersPage(org.springframework.data.domain.Pageable pageable, String searchTerm);
 }
 

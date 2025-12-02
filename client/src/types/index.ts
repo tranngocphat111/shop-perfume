@@ -247,6 +247,14 @@ export interface OrderResponse {
     status: string;
     paymentDate?: string;
   };
+  shipment?: {
+    shipmentId: number;
+    trackingNumber: string;
+    carrier: string;
+    status: string;
+    shippedDate?: string;
+    deliveredDate?: string;
+  };
   orderItems: Array<{
     orderItemId: number;
     productId: number;
