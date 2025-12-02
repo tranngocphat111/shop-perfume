@@ -109,36 +109,100 @@ public class EmailServiceImpl implements EmailService {
     }
     
     /**
-     * Fallback method: Send email using reflection (for compatibility when SDK classes not available)
+     * Send email using reflection (for compatibility across SDK versions)
+     * Tries multiple class names to support different SDK versions
      */
     private String sendEmailViaReflection(Resend resend, String fromEmail, String toEmail, 
                                           String subject, String htmlBody, String textBody) {
-        try {
-            Object emailService = resend.emails();
-            Class<?> emailServiceClass = emailService.getClass();
-            
-            // Try SendEmailRequest first (version 2.1.0)
-            Class<?> requestClass = Class.forName("com.resend.services.emails.model.SendEmailRequest");
-            Class<?> requestBuilderClass = Class.forName("com.resend.services.emails.model.SendEmailRequest$SendEmailRequestBuilder");
-            
-            Object builder = requestClass.getMethod("builder").invoke(null);
-            builder = requestBuilderClass.getMethod("from", String.class).invoke(builder, fromEmail);
-            builder = requestBuilderClass.getMethod("to", String.class).invoke(builder, toEmail);
-            builder = requestBuilderClass.getMethod("subject", String.class).invoke(builder, subject);
-            builder = requestBuilderClass.getMethod("html", String.class).invoke(builder, htmlBody);
-            builder = requestBuilderClass.getMethod("text", String.class).invoke(builder, textBody);
-            Object emailRequest = requestBuilderClass.getMethod("build").invoke(builder);
-            
-            Object response = emailServiceClass.getMethod("send", requestClass).invoke(emailService, emailRequest);
-            return (String) response.getClass().getMethod("getId").invoke(response);
-            
-        } catch (ClassNotFoundException e) {
-            log.error("❌ Cannot find Resend API classes even with reflection. Error: {}", e.getMessage());
-            throw new RuntimeException("Lỗi: Không tìm thấy class Resend API. Vui lòng kiểm tra dependency resend-java version 2.1.0 đã được cài đặt và rebuild project.", e);
-        } catch (Exception e) {
-            log.error("❌ Reflection error: {}", e.getMessage(), e);
-            throw new RuntimeException("Lỗi khi gọi Resend API. Chi tiết: " + e.getMessage(), e);
+        Object emailService = resend.emails();
+        Class<?> emailServiceClass = emailService.getClass();
+        
+        // Try different class names for different SDK versions
+        String[] possibleRequestClasses = {
+            "com.resend.services.emails.model.SendEmailRequest",  // Version 2.0.0, 2.1.0
+            "com.resend.services.emails.model.CreateEmailOptions" // Alternative name (if exists)
+        };
+        
+        for (String requestClassName : possibleRequestClasses) {
+            try {
+                log.debug("Trying Resend API class: {}", requestClassName);
+                
+                Class<?> requestClass = Class.forName(requestClassName);
+                // Try different builder class name patterns
+                String[] possibleBuilderClasses = {
+                    requestClassName + "$" + requestClass.getSimpleName() + "Builder",
+                    requestClassName + "$Builder"
+                };
+                
+                Class<?> requestBuilderClass = null;
+                for (String builderClassName : possibleBuilderClasses) {
+                    try {
+                        requestBuilderClass = Class.forName(builderClassName);
+                        log.debug("Found builder class: {}", builderClassName);
+                        break;
+                    } catch (ClassNotFoundException e) {
+                        // Try next pattern
+                        continue;
+                    }
+                }
+                
+                if (requestBuilderClass == null) {
+                    log.debug("Builder class not found for: {}, trying next request class...", requestClassName);
+                    continue;
+                }
+                
+                // Create builder
+                Object builder = requestClass.getMethod("builder").invoke(null);
+                
+                // Set email properties
+                builder = requestBuilderClass.getMethod("from", String.class).invoke(builder, fromEmail);
+                builder = requestBuilderClass.getMethod("to", String.class).invoke(builder, toEmail);
+                builder = requestBuilderClass.getMethod("subject", String.class).invoke(builder, subject);
+                builder = requestBuilderClass.getMethod("html", String.class).invoke(builder, htmlBody);
+                builder = requestBuilderClass.getMethod("text", String.class).invoke(builder, textBody);
+                Object emailRequest = requestBuilderClass.getMethod("build").invoke(builder);
+                
+                // Send email
+                Object response = emailServiceClass.getMethod("send", requestClass).invoke(emailService, emailRequest);
+                
+                // Get email ID
+                String emailId = (String) response.getClass().getMethod("getId").invoke(response);
+                
+                log.info("✅ Successfully used Resend API class: {}", requestClassName);
+                return emailId;
+                
+            } catch (ClassNotFoundException e) {
+                log.debug("Class not found: {}, trying next...", requestClassName);
+                continue; // Try next class name
+            } catch (NoSuchMethodException e) {
+                log.debug("Method not found for class: {} - {}, trying next...", requestClassName, e.getMessage());
+                continue; // Try next class name
+            } catch (IllegalAccessException e) {
+                log.debug("Illegal access for class: {} - {}, trying next...", requestClassName, e.getMessage());
+                continue; // Try next class name
+            } catch (java.lang.reflect.InvocationTargetException e) {
+                Throwable cause = e.getCause();
+                if (cause instanceof ResendException) {
+                    // Re-throw ResendException directly
+                    throw (ResendException) cause;
+                }
+                log.error("❌ Error using Resend API class {}: {}", requestClassName, e.getMessage(), e);
+                if (cause != null) {
+                    log.error("   Caused by: {} - {}", cause.getClass().getName(), cause.getMessage());
+                }
+                throw new RuntimeException("Lỗi khi gọi Resend API với class " + requestClassName + ". Chi tiết: " + e.getMessage(), e);
+            } catch (Exception e) {
+                // If we got here, class was found but something else failed
+                log.error("❌ Error using Resend API class {}: {}", requestClassName, e.getMessage(), e);
+                throw new RuntimeException("Lỗi khi gọi Resend API với class " + requestClassName + ". Chi tiết: " + e.getMessage(), e);
+            }
         }
+        
+        // If we get here, none of the class names worked
+        log.error("❌ Cannot find any Resend API classes. Tried: {}", String.join(", ", possibleRequestClasses));
+        throw new RuntimeException("Lỗi: Không tìm thấy class Resend API. Đã thử các class: " + 
+            String.join(", ", possibleRequestClasses) + 
+            ". Vui lòng kiểm tra dependency resend-java version 2.0.0 hoặc 2.1.0 đã được cài đặt và rebuild project.");
     }
 }
 
