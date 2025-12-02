@@ -34,11 +34,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
-import java.util.Base64;
-import java.util.Collections;
-import java.util.Date;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.*;
 
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
@@ -322,9 +318,9 @@ public class AuthServiceImpl implements AuthService{
         resetToken.setUsed(false);
         passwordResetTokenRepository.save(resetToken);
         
-        // Tạo reset URL
-        String resetUrl = frontendUrl + "/reset-password/" + token;
-        
+        // Tạo reset URL - sử dụng getFrontendUrl() để lấy URL đầu tiên từ danh sách
+        String resetUrl = getFrontendUrl() + "/reset-password/" + token;
+
         // Gửi email
         try {
             emailService.sendPasswordResetEmail(user.getEmail(), token, resetUrl);
@@ -400,25 +396,8 @@ public class AuthServiceImpl implements AuthService{
         
         log.info("Profile updated successfully for user: {}", email);
         
-        // Build response
-        UserInfoResponse response = new UserInfoResponse();
-        response.setUserId(user.getUserId());
-        response.setName(user.getName());
-        response.setEmail(user.getEmail());
-        response.setLoyaltyPoints(user.getLoyaltyPoints() != null ? user.getLoyaltyPoints() : 0);
-        
-        // Safely get role
-        String role = "CUSTOMER";
-        if (user.getRoles() != null && !user.getRoles().isEmpty()) {
-            role = user.getRoles().stream()
-                    .map(r -> r != null ? r.getName() : "CUSTOMER")
-                    .filter(name -> name != null)
-                    .findFirst()
-                    .orElse("CUSTOMER");
-        }
-        response.setRole(role);
-        
-        return response;
+        // Build and return response using helper method
+        return buildUserInfoResponse(user);
     }
     
     @Override
@@ -446,6 +425,17 @@ public class AuthServiceImpl implements AuthService{
         log.info("Password changed successfully for user: {}", email);
     }
     
+    @Override
+    @Transactional(readOnly = true)
+    public UserInfoResponse getUserInfo(String email) {
+        log.info("Getting user info for: {}", email);
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        return buildUserInfoResponse(user);
+    }
+
     /**
      * Tạo secure random token
      */
@@ -455,6 +445,31 @@ public class AuthServiceImpl implements AuthService{
         return Base64.getUrlEncoder().withoutPadding().encodeToString(randomBytes);
     }
     
+    /**
+     * Convert User entity to UserInfoResponse DTO
+     * Helper method to avoid code duplication
+     */
+    private UserInfoResponse buildUserInfoResponse(User user) {
+        UserInfoResponse response = new UserInfoResponse();
+        response.setUserId(user.getUserId());
+        response.setName(user.getName());
+        response.setEmail(user.getEmail());
+        response.setLoyaltyPoints(user.getLoyaltyPoints() != null ? user.getLoyaltyPoints() : 0);
+
+        // Safely get role
+        String role = "CUSTOMER";
+        if (user.getRoles() != null && !user.getRoles().isEmpty()) {
+            role = user.getRoles().stream()
+                    .map(r -> r != null ? r.getName() : "CUSTOMER")
+                    .filter(Objects::nonNull)
+                    .findFirst()
+                    .orElse("CUSTOMER");
+        }
+        response.setRole(role);
+
+        return response;
+    }
+
     @Override
     @Transactional(rollbackFor = {Exception.class}, noRollbackFor = {AuthenticationException.class, RegistrationException.class, DataIntegrityViolationException.class})
     public AuthResponse signInWithGoogle(String googleIdToken) {
