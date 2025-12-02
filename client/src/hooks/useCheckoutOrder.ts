@@ -194,19 +194,36 @@ export const useCheckoutOrder = (): UseCheckoutOrderReturn => {
       const isOutOfStockError = errorMessage.includes('không đủ hàng') || 
                                 errorMessage.includes('hết hàng') ||
                                 errorMessage.includes('Số lượng trong kho') ||
-                                errorMessage.includes('Lock wait timeout exceeded');
+                                errorMessage.includes('Số lượng còn lại trong kho') ||
+                                errorMessage.includes('đang được xử lý bởi đơn hàng khác') ||
+                                errorMessage.includes('Lock wait timeout exceeded') ||
+                                errorMessage.includes('Lock timeout');
 
       if (isOutOfStockError) {
-        // Refresh cart stock (không block UI)
+        // Refresh cart stock (không block UI) để cập nhật số lượng mới nhất
         refreshCartStock().catch(console.error);
         
         // Show out of stock modal (blocks interaction)
         setIsErrorNotification(true);
+        
+        // Xác định thông báo phù hợp dựa trên loại lỗi
+        let displayMessage = 'Sản phẩm đã hết hàng';
+        let displaySubMessage = errorMessage || 'Sản phẩm bạn chọn đã được người khác đặt trước. Vui lòng kiểm tra lại giỏ hàng.';
+        
+        if (errorMessage.includes('đang được xử lý bởi đơn hàng khác')) {
+          displayMessage = 'Sản phẩm đang được xử lý';
+          displaySubMessage = 'Sản phẩm bạn chọn đang được người khác đặt hàng. Vui lòng kiểm tra lại số lượng hàng có sẵn.';
+        } else if (errorMessage.includes('không đủ hàng') || errorMessage.includes('Số lượng còn lại')) {
+          displayMessage = 'Sản phẩm không đủ hàng';
+          displaySubMessage = errorMessage;
+        } else if (errorMessage.includes('hết hàng')) {
+          displayMessage = 'Sản phẩm đã hết hàng';
+          displaySubMessage = errorMessage;
+        }
+        
         setSuccessMessage({
-          message: 'Sản phẩm đã hết hàng',
-          subMessage: errorMessage.includes('Lock wait timeout') 
-            ? 'Hệ thống đang quá tải. Sản phẩm bạn chọn đã được người khác đặt trước. Vui lòng kiểm tra lại giỏ hàng.'
-            : (errorMessage || 'Sản phẩm bạn chọn đã được người khác đặt trước. Vui lòng kiểm tra lại giỏ hàng.'),
+          message: displayMessage,
+          subMessage: displaySubMessage,
         });
         setShowSuccessNotification(true);
         // Scroll chỉ khi có response từ backend (có lỗi thực sự)

@@ -194,73 +194,114 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
     public OrderResponse createOrder(OrderCreateRequest request) {
 
         // Validate stock và trừ inventory cho TẤT CẢ đơn hàng (không phân biệt loại thanh toán)
-        // Sử dụng PESSIMISTIC_WRITE lock để đảm bảo chỉ 1 transaction có thể update tại 1 thời điểm
-        // Người đến sau sẽ phải chờ người đến trước hoàn thành
-        // Lock được giữ trong suốt transaction để đảm bảo tính nhất quán
+        // Sử dụng PESSIMISTIC_WRITE lock kết hợp với native SQL UPDATE để đảm bảo atomicity
+        // Cơ chế này đảm bảo:
+        // 1. Chỉ 1 transaction có thể update inventory tại 1 thời điểm (PESSIMISTIC_WRITE lock)
+        // 2. Update chỉ thành công khi quantity >= requested quantity (WHERE clause trong UPDATE)
+        // 3. Người đến sau sẽ chờ tối đa 5 giây, sau đó nhận thông báo không đủ hàng ngay lập tức
         for (iuh.fit.server.dto.request.OrderItemRequest cartItem : request.getCartItems()) {
             Product product = productRepository.findById(cartItem.getProductId())
                     .orElseThrow(() -> new RuntimeException("Product not found: " + cartItem.getProductId()));
             
-            // Dùng pessimistic lock - lock row khi đọc, đảm bảo không có transaction khác có thể update
-            // Transaction này sẽ chờ nếu có transaction khác đang lock cùng row
-            // Lock được giữ cho đến khi transaction commit
-            log.info("🔒 [createOrder] Acquiring PESSIMISTIC_WRITE lock for productId: {}", cartItem.getProductId());
+            log.info("🔒 [createOrder] Processing order item: productId={}, requestedQuantity={}", 
+                    cartItem.getProductId(), cartItem.getQuantity());
             
-            // Sử dụng JPQL với lock mode PESSIMISTIC_WRITE
-            // Hibernate sẽ generate SQL: SELECT ... FROM inventory i WHERE i.product.productId = ? FOR UPDATE
-            // Lock được áp dụng ngay khi query, không có race condition
+            // Bước 1: Acquire PESSIMISTIC_WRITE lock để đảm bảo chỉ 1 transaction có thể update
+            // Lock timeout = 5000ms (5 giây) - cho phép transaction chờ một chút để transaction khác hoàn thành
+            // Nếu sau 5 giây vẫn không acquire được lock, nghĩa là có transaction khác đang xử lý
+            // Trong trường hợp đó, transaction này sẽ fail và user sẽ nhận thông báo ngay lập tức
             jakarta.persistence.TypedQuery<iuh.fit.server.model.entity.Inventory> query = entityManager.createQuery(
                 "SELECT i FROM Inventory i WHERE i.product.productId = :productId",
                 iuh.fit.server.model.entity.Inventory.class
             );
             query.setParameter("productId", cartItem.getProductId());
             query.setLockMode(LockModeType.PESSIMISTIC_WRITE);
-            // Set lock timeout to 0 = NOWAIT (fail immediately if lock cannot be acquired)
-            // This ensures that if another transaction is holding the lock, this transaction will fail immediately
-            // Instead of waiting, we want to fail fast and let the user know the product is out of stock
-            query.setHint("jakarta.persistence.lock.timeout", 0); // 0 = NOWAIT (fail immediately)
+            // Lock timeout = 5000ms (5 giây) - đủ để transaction khác hoàn thành
+            // Nếu không acquire được lock trong 5 giây, throw exception ngay
+            query.setHint("jakarta.persistence.lock.timeout", 5000);
             
             iuh.fit.server.model.entity.Inventory inventory;
             try {
                 inventory = query.getSingleResult();
                 // Flush ngay sau khi lock để đảm bảo lock được acquire và giữ
-                // Điều này đảm bảo rằng lock được apply ngay lập tức, không có transaction khác có thể đọc/update
                 entityManager.flush();
+                log.info("✅ [createOrder] Lock acquired for productId: {}, current quantity: {}", 
+                        cartItem.getProductId(), inventory.getQuantity());
             } catch (jakarta.persistence.NoResultException e) {
                 throw new RuntimeException("Inventory not found for product: " + cartItem.getProductId());
             } catch (jakarta.persistence.PessimisticLockException e) {
-                // Lock cannot be acquired - another transaction is holding the lock
+                // Lock timeout - có transaction khác đang xử lý sản phẩm này
+                // Có thể sản phẩm đã được người khác đặt trước
                 String errorMsg = String.format(
-                    "Sản phẩm '%s' đang được xử lý bởi đơn hàng khác. Vui lòng thử lại sau.", 
+                    "Sản phẩm '%s' đang được xử lý bởi đơn hàng khác. Vui lòng kiểm tra lại số lượng hàng có sẵn.", 
                     product.getName()
                 );
-                log.error("❌ [createOrder] Lock acquisition failed for productId: {}", cartItem.getProductId());
+                log.warn("⚠️ [createOrder] Lock timeout for productId: {} - another transaction is processing", 
+                        cartItem.getProductId());
                 throw new BadRequestException(errorMsg);
-            }
-            
-            log.info("✅ [createOrder] Lock acquired and flushed for productId: {}, inventoryId: {}, current quantity: {}", 
-                    cartItem.getProductId(), inventory.getInventoryId(), inventory.getQuantity());
-            
-            // Validate stock - check quantity trong inventory (sau khi đã lock)
-            if (inventory.getQuantity() < cartItem.getQuantity()) {
+            } catch (org.hibernate.exception.LockTimeoutException e) {
+                // Hibernate lock timeout exception
                 String errorMsg = String.format(
-                    "Sản phẩm '%s' không đủ hàng. Số lượng trong kho: %d, yêu cầu: %d", 
-                    product.getName(), inventory.getQuantity(), cartItem.getQuantity()
+                    "Sản phẩm '%s' đang được xử lý bởi đơn hàng khác. Vui lòng kiểm tra lại số lượng hàng có sẵn.", 
+                    product.getName()
                 );
-                log.error("❌ [createOrder] Stock validation failed: {}", errorMsg);
+                log.warn("⚠️ [createOrder] Hibernate lock timeout for productId: {}", cartItem.getProductId());
                 throw new BadRequestException(errorMsg);
             }
             
-            // Trừ số lượng từ inventory ngay lập tức (cho tất cả loại thanh toán)
-            // Entity đã được lock và quản lý bởi EntityManager (từ find với lock)
-            // Chỉ cần set quantity, EntityManager sẽ tự động track thay đổi
-            int newQuantity = inventory.getQuantity() - cartItem.getQuantity();
-            inventory.setQuantity(newQuantity);
+            // Bước 2: Sử dụng native SQL UPDATE với WHERE clause để đảm bảo atomicity
+            // UPDATE chỉ thành công khi quantity >= requested quantity
+            // Điều này đảm bảo không có race condition - database sẽ đảm bảo atomicity
+            // Nếu quantity < requested quantity, UPDATE sẽ không update bất kỳ row nào (rows affected = 0)
+            // Sử dụng inventory_id trực tiếp để tránh subquery không cần thiết
+            String updateSql = "UPDATE inventory SET quantity = quantity - :requestedQuantity, last_updated = CURRENT_TIMESTAMP " +
+                              "WHERE inventory_id = :inventoryId " +
+                              "AND quantity >= :requestedQuantity";
             
-            // Flush lại sau khi update để đảm bảo thay đổi được ghi vào DB và lock được giữ
-            entityManager.flush();
+            jakarta.persistence.Query updateQuery = entityManager.createNativeQuery(updateSql);
+            updateQuery.setParameter("requestedQuantity", cartItem.getQuantity());
+            updateQuery.setParameter("inventoryId", inventory.getInventoryId());
             
-            log.info("✅ [createOrder] Deducted {} units of product {} (new quantity: {}), lock held until transaction commit", 
+            int rowsAffected;
+            try {
+                rowsAffected = updateQuery.executeUpdate();
+                // Flush để đảm bảo UPDATE được thực thi ngay
+                entityManager.flush();
+            } catch (Exception e) {
+                log.error("❌ [createOrder] Error executing inventory update for productId: {}", 
+                        cartItem.getProductId(), e);
+                throw new BadRequestException("Lỗi khi cập nhật tồn kho. Vui lòng thử lại.");
+            }
+            
+            // Bước 3: Kiểm tra kết quả UPDATE
+            // Nếu rowsAffected = 0, nghĩa là quantity < requested quantity (không đủ hàng)
+            if (rowsAffected == 0) {
+                // Refresh inventory để lấy quantity mới nhất (sau khi transaction khác đã update)
+                entityManager.refresh(inventory);
+                int currentQuantity = inventory.getQuantity();
+                
+                String errorMsg;
+                if (currentQuantity == 0) {
+                    errorMsg = String.format(
+                        "Sản phẩm '%s' đã hết hàng.", 
+                        product.getName()
+                    );
+                } else {
+                    errorMsg = String.format(
+                        "Sản phẩm '%s' không đủ hàng. Số lượng còn lại trong kho: %d, yêu cầu: %d", 
+                        product.getName(), currentQuantity, cartItem.getQuantity()
+                    );
+                }
+                log.error("❌ [createOrder] Insufficient stock for productId: {}, current: {}, requested: {}", 
+                        cartItem.getProductId(), currentQuantity, cartItem.getQuantity());
+                throw new BadRequestException(errorMsg);
+            }
+            
+            // Refresh inventory để lấy quantity mới sau khi update
+            entityManager.refresh(inventory);
+            int newQuantity = inventory.getQuantity();
+            
+            log.info("✅ [createOrder] Successfully deducted {} units of product {} (new quantity: {})", 
                     cartItem.getQuantity(), cartItem.getProductId(), newQuantity);
         }
 
