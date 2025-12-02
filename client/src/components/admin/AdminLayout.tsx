@@ -17,7 +17,7 @@ export const AdminLayout = ({ children }: AdminLayoutProps) => {
   return (
     <div className="min-h-screen bg-gray-100">
       <AdminHeader onToggleSidebar={toggleSidebar} />
-      <div className="flex">
+      <div className="flex mt-9">
         <AdminSidebar isOpen={isSidebarOpen} />
         <main
           className={`flex-1 p-6 mt-6 transition-all duration-300 ${

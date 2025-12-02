@@ -8,6 +8,7 @@ import iuh.fit.server.model.entity.Brand;
 import iuh.fit.server.model.entity.Category;
 import iuh.fit.server.model.entity.Image;
 import iuh.fit.server.model.entity.Product;
+import iuh.fit.server.model.enums.ProductStatus;
 import iuh.fit.server.repository.BrandRepository;
 import iuh.fit.server.repository.CategoryRepository;
 import iuh.fit.server.repository.ImageRepository;
@@ -317,16 +318,19 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     public void delete(int productId) {
-        log.info("Deleting product: {}", productId);
+        log.info("Soft deleting product (setting status to INACTIVE): {}", productId);
         
-        // Check if product exists
-        if (!productRepository.existsById(productId)) {
-            throw new ResourceNotFoundException("Product not found with id: " + productId);
-        }
+        // Find product
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new ResourceNotFoundException("Product not found with id: " + productId));
         
-        // Delete
-        productRepository.deleteById(productId);
-        log.info("Product deleted successfully: {}", productId);
+        // Set status to INACTIVE instead of deleting
+        product.setStatus(ProductStatus.INACTIVE);
+        product.setLastUpdated(new java.util.Date());
+        
+        // Save
+        productRepository.save(product);
+        log.info("Product status set to INACTIVE successfully: {}", productId);
     }
 
     @Override

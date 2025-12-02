@@ -2,6 +2,8 @@ package iuh.fit.server.repository;
 
 import iuh.fit.server.model.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
@@ -13,4 +15,10 @@ public interface UserRepository extends JpaRepository<User, Integer> {
     boolean existsByEmail(String email);
     
     Optional<User> findByGoogleId(String googleId);
+    
+    @Query("SELECT COUNT(DISTINCT u) FROM User u JOIN u.roles r WHERE r.name = :roleName")
+    Long countByRoleName(@Param("roleName") String roleName);
+    
+    @Query("SELECT COUNT(DISTINCT u) FROM User u JOIN u.roles r WHERE r.name = :roleName AND u.createdAt >= :createdAfter")
+    Long countByRoleNameAndCreatedAtAfter(@Param("roleName") String roleName, @Param("createdAfter") java.util.Date createdAfter);
 }

@@ -30,11 +30,20 @@ export const inventoryService = {
         page: number,
         size: number,
         sortBy?: string,
-        direction?: string
+        direction?: string,
+        search?: string
     ): Promise<PageResponse<InventoryItem>> {
-        return apiService.get<PageResponse<InventoryItem>>(
-            `/inventories/page?page=${page}&size=${size}&sortBy=${sortBy}&direction=${direction}`
-        );
+        let url = `/inventories/page?page=${page}&size=${size}`;
+
+        if (sortBy && direction) {
+            url += `&sortBy=${sortBy}&direction=${direction}`;
+        }
+
+        if (search && search.trim() !== "") {
+            url += `&search=${encodeURIComponent(search.trim())}`;
+        }
+
+        return apiService.get<PageResponse<InventoryItem>>(url);
     },
 
     async getInventoryById(id: number): Promise<InventoryItem> {

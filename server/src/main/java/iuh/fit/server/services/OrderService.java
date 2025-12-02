@@ -4,6 +4,7 @@ import iuh.fit.server.dto.request.OrderCreateRequest;
 import iuh.fit.server.dto.request.SepayWebhookRequest;
 import iuh.fit.server.dto.response.OrderResponse;
 import iuh.fit.server.dto.response.PaymentCheckResponse;
+import iuh.fit.server.dto.response.RevenueStatsResponse;
 
 import java.util.List;
 
@@ -13,6 +14,8 @@ public interface OrderService {
     Long getTotalSize();
 
     double getTotalRevenue();
+    
+    RevenueStatsResponse getRevenueStatsByPeriod(String period, Integer year);
 
     OrderResponse createOrder(OrderCreateRequest request);
     

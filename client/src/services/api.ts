@@ -1,5 +1,7 @@
-const API_BASE_URL = "http://13.251.125.90:8080/api";
-// const API_BASE_URL = "http://localhost:8080/api";
+import { refreshTokenManager } from "./refreshTokenManager";
+
+// const API_BASE_URL = "http://13.251.125.90:8080/api";
+const API_BASE_URL = "http://localhost:8080/api";
 
 interface ApiError {
   message: string;

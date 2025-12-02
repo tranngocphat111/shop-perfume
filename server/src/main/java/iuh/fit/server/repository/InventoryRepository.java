@@ -33,5 +33,9 @@ public interface InventoryRepository extends JpaRepository<Inventory, Integer> {
 
     @Query("SELECT COUNT(i.inventoryId) FROM Inventory i WHERE i.quantity < 20")
     Long getLowStockItem();
+    
+    Long countByQuantityLessThan(Integer quantity);
+    
+    List<Inventory> findByQuantityLessThanOrderByQuantityAsc(Integer quantity);
 }
 

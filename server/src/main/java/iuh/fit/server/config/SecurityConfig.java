@@ -121,7 +121,8 @@ public class SecurityConfig {
                     // ========== ADMIN ENDPOINTS (Require ADMIN role) ==========
                     // Note: Method-level @PreAuthorize provides additional granular control
                     .requestMatchers("/admin/**").hasRole("ADMIN") // All admin endpoints
-                    .requestMatchers("/orders/size", "/orders/totalRevenue").hasRole("ADMIN") // Admin statistics
+                    .requestMatchers("/orders/size", "/orders/totalRevenue", "/orders/stats/**").hasRole("ADMIN") // Admin statistics
+                    .requestMatchers("/dashboard/**").hasRole("ADMIN") // Dashboard statistics
 
                     // ========== DEFAULT: Require authentication ==========
                     .anyRequest().authenticated()
