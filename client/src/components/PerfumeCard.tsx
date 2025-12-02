@@ -125,7 +125,7 @@ export const PerfumeCard = ({ inventory, brands = [] }: ProductCardProps) => {
         {/* --- PHẦN THÊM MỚI: HẾT HÀNG (Giống ảnh mẫu) --- */}
         {isOutOfStock && (
           <div className="absolute inset-0 z-30 flex items-center justify-center bg-white/60 backdrop-blur-[2px]">
-            <div className="bg-[#444] text-white px-6 py-2 uppercase tracking-[0.2em] text-xs font-semibold shadow-md">
+            <div className="bg-red-600 text-white px-6 py-2 uppercase tracking-[0.2em] text-xs font-semibold shadow-md">
               Hết hàng
             </div>
           </div>
