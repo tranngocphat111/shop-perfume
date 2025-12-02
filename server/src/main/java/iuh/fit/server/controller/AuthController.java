@@ -1,5 +1,6 @@
 package iuh.fit.server.controller;
 
+import iuh.fit.server.dto.request.ChangePasswordRequest;
 import iuh.fit.server.dto.request.ForgotPasswordRequest;
 import iuh.fit.server.dto.request.GoogleSignInRequest;
 import iuh.fit.server.dto.request.LoginRequest;
@@ -7,7 +8,6 @@ import iuh.fit.server.dto.request.RefreshTokenRequest;
 import iuh.fit.server.dto.request.RegisterRequest;
 import iuh.fit.server.dto.request.ResetPasswordRequest;
 import iuh.fit.server.dto.request.UpdateUserRequest;
-import iuh.fit.server.dto.request.ChangePasswordRequest;
 import iuh.fit.server.dto.response.AuthResponse;
 import iuh.fit.server.dto.response.TokenRefreshResponse;
 import iuh.fit.server.dto.response.UserInfoResponse;
@@ -17,6 +17,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -138,39 +139,6 @@ public class AuthController {
         }
     }
 
-    /**
-     * PUT /api/auth/change-password - Đổi mật khẩu
-     */
-    @PutMapping("/change-password")
-    @PreAuthorize("isAuthenticated()")
-    @Operation(summary = "Change password", description = "Change password for authenticated user")
-    public ResponseEntity<Void> changePassword(
-            @Valid @RequestBody ChangePasswordRequest request,
-            Authentication authentication) {
-        try {
-            if (authentication == null || !authentication.isAuthenticated() ||
-                    authentication.getPrincipal().equals("anonymousUser")) {
-                log.warn("Unauthenticated request to PUT /auth/change-password");
-                return ResponseEntity.status(401).build();
-            }
-
-            UserDetails userDetails = (UserDetails) authentication.getPrincipal();
-            String email = userDetails.getUsername();
-            log.info("Changing password for email: {}", email);
-
-            authService.changePassword(email, request);
-            log.info("Password changed successfully for email: {}", email);
-            return ResponseEntity.ok().build();
-        } catch (RuntimeException e) {
-            log.error("Error changing password: {}", e.getMessage());
-            // Return error message in response body
-            return ResponseEntity.badRequest().body(null);
-        } catch (Exception e) {
-            log.error("Error changing password", e);
-            return ResponseEntity.status(500).build();
-        }
-    }
-
     @PostMapping("/forgot-password")
     @Operation(summary = "Quên mật khẩu", description = "Gửi email chứa link đặt lại mật khẩu")
     public ResponseEntity<Map<String, String>> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
@@ -187,5 +155,25 @@ public class AuthController {
     public ResponseEntity<Map<String, String>> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
         authService.resetPassword(request);
         return ResponseEntity.ok(Map.of("message", "Mật khẩu đã được đặt lại thành công."));
+    }
+    
+    /**
+     * Đổi mật khẩu (yêu cầu đăng nhập)
+     * Protected endpoint
+     */
+    @PostMapping("/change-password")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Đổi mật khẩu", description = "Đổi mật khẩu cho người dùng đã đăng nhập")
+    public ResponseEntity<Map<String, String>> changePassword(
+            @Valid @RequestBody ChangePasswordRequest request,
+            Authentication authentication) {
+        if (authentication != null && authentication.isAuthenticated()) {
+            UserDetails userDetails = (UserDetails) authentication.getPrincipal();
+            String email = userDetails.getUsername();
+            authService.changePassword(email, request.getCurrentPassword(), request.getNewPassword());
+            return ResponseEntity.ok(Map.of("message", "Đổi mật khẩu thành công."));
+        }
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(Map.of("message", "Bạn cần đăng nhập để đổi mật khẩu."));
     }
 }
