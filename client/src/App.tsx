@@ -185,9 +185,9 @@ function AppContent() {
           <Route
             path="/my-orders"
             element={
-              <CustomerRoute>
+              <GuestRoute>
                 <MyOrders />
-              </CustomerRoute>
+              </GuestRoute>
             }
           />
           <Route
