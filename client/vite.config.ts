@@ -20,8 +20,7 @@ export default defineConfig({
   server: {
     port: 3000,
     headers: {
-      // Set COOP header để hỗ trợ Google Sign In popup
-      "Cross-Origin-Opener-Policy": "same-origin-allow-popups",
+      "Cross-Origin-Opener-Policy": "unsafe-none",
     },
     proxy: {
       "/api": {
