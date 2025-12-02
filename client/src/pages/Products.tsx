@@ -2,7 +2,10 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { productService } from "../services/perfume.service";
-import { inventoryService, type InventoryItem } from "../services/inventory.service";
+import {
+  inventoryService,
+  type InventoryItem,
+} from "../services/inventory.service";
 import { useProductsFilter } from "../contexts/ProductsFilterContext";
 import type { Brand, Category, Product, PageResponse } from "../types";
 import {
@@ -15,15 +18,15 @@ import {
 
 // Cache keys for sessionStorage
 const CACHE_KEYS = {
-  BRANDS: 'products_cache_brands',
-  CATEGORIES: 'products_cache_categories',
-  PRODUCTS: 'products_cache_products',
-  ALL_PRODUCTS: 'products_cache_all_products',
-  PAGE_INFO: 'products_cache_page_info',
-  PRICE_BOUNDS: 'products_cache_price_bounds',
-  FILTERS: 'products_cache_filters',
-  CURRENT_PAGE: 'products_cache_current_page',
-  INVENTORY_MAP: 'products_cache_inventory_map',
+  BRANDS: "products_cache_brands",
+  CATEGORIES: "products_cache_categories",
+  PRODUCTS: "products_cache_products",
+  ALL_PRODUCTS: "products_cache_all_products",
+  PAGE_INFO: "products_cache_page_info",
+  PRICE_BOUNDS: "products_cache_price_bounds",
+  FILTERS: "products_cache_filters",
+  CURRENT_PAGE: "products_cache_current_page",
+  INVENTORY_MAP: "products_cache_inventory_map",
 };
 
 // Helper functions for cache
@@ -50,7 +53,7 @@ const setCachedData = <T,>(key: string, data: T): void => {
 export const Products = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  
+
   // Use filter context
   const {
     appliedBrands,
@@ -85,23 +88,23 @@ export const Products = () => {
   } = useProductsFilter();
 
   // Initialize state from cache if available
-  const [products, setProducts] = useState<Product[]>(() =>
-    getCachedData<Product[]>(CACHE_KEYS.PRODUCTS) || []
+  const [products, setProducts] = useState<Product[]>(
+    () => getCachedData<Product[]>(CACHE_KEYS.PRODUCTS) || []
   );
-  const [allProducts, setAllProducts] = useState<Product[]>(() =>
-    getCachedData<Product[]>(CACHE_KEYS.ALL_PRODUCTS) || []
+  const [allProducts, setAllProducts] = useState<Product[]>(
+    () => getCachedData<Product[]>(CACHE_KEYS.ALL_PRODUCTS) || []
   );
-  const [pageInfo, setPageInfo] = useState<PageResponse<Product> | null>(() =>
-    getCachedData<PageResponse<Product>>(CACHE_KEYS.PAGE_INFO) || null
+  const [pageInfo, setPageInfo] = useState<PageResponse<Product> | null>(
+    () => getCachedData<PageResponse<Product>>(CACHE_KEYS.PAGE_INFO) || null
   );
-  const [priceBoundsCache, setPriceBoundsCache] = useState<[number, number] | null>(() =>
-    getCachedData<[number, number]>(CACHE_KEYS.PRICE_BOUNDS) || null
+  const [priceBoundsCache, setPriceBoundsCache] = useState<
+    [number, number] | null
+  >(() => getCachedData<[number, number]>(CACHE_KEYS.PRICE_BOUNDS) || null);
+  const [brands, setBrands] = useState<Brand[]>(
+    () => getCachedData<Brand[]>(CACHE_KEYS.BRANDS) || []
   );
-  const [brands, setBrands] = useState<Brand[]>(() =>
-    getCachedData<Brand[]>(CACHE_KEYS.BRANDS) || []
-  );
-  const [categories, setCategories] = useState<Category[]>(() =>
-    getCachedData<Category[]>(CACHE_KEYS.CATEGORIES) || []
+  const [categories, setCategories] = useState<Category[]>(
+    () => getCachedData<Category[]>(CACHE_KEYS.CATEGORIES) || []
   );
 
   // Loading states for each data source
@@ -116,10 +119,14 @@ export const Products = () => {
   const [isInitialLoading, setIsInitialLoading] = useState(true);
 
   const [error, setError] = useState<string | null>(null);
-  const [inventoryMap, setInventoryMap] = useState<Map<number, InventoryItem>>(() => {
-    const cached = getCachedData<Array<[number, InventoryItem]>>(CACHE_KEYS.INVENTORY_MAP);
-    return cached ? new Map(cached) : new Map();
-  });
+  const [inventoryMap, setInventoryMap] = useState<Map<number, InventoryItem>>(
+    () => {
+      const cached = getCachedData<Array<[number, InventoryItem]>>(
+        CACHE_KEYS.INVENTORY_MAP
+      );
+      return cached ? new Map(cached) : new Map();
+    }
+  );
 
   // Use cached price bounds - don't recalculate from allProducts to avoid changing bounds when filtering
   // This ensures the slider bounds remain stable
@@ -128,11 +135,23 @@ export const Products = () => {
   // Track if we're restoring from URL to prevent sync loop
   const isRestoringFromUrlRef = useRef(false);
 
+  // Track if filters have been restored from storage (to prevent price range reset)
+  const hasRestoredFiltersRef = useRef(false);
+
   // Restore filters from URL params on mount
   useEffect(() => {
     const brandIdParam = searchParams.get("brandId");
     const categoryIdParam = searchParams.get("categoryId");
     const searchParam = searchParams.get("q");
+
+    console.log(
+      "🌐 URL params check - brandId:",
+      brandIdParam,
+      "categoryId:",
+      categoryIdParam,
+      "search:",
+      searchParam
+    );
 
     // Set flag to prevent sync URL from running
     isRestoringFromUrlRef.current = true;
@@ -208,14 +227,80 @@ export const Products = () => {
       setSortBy("newest");
       setCurrentPage(0);
     }
-    // If no URL params → restore from sessionStorage (handled by context)
-    // Context will automatically restore from sessionStorage
+    // If no URL params → restore from sessionStorage
+    else {
+      const FILTER_STORAGE_KEY = "products_filter_state";
+      try {
+        const saved = sessionStorage.getItem(FILTER_STORAGE_KEY);
+        console.log("🔄 Restoring filters from storage:", saved);
+        if (saved) {
+          const filters = JSON.parse(saved);
+          console.log("📦 Parsed filters:", filters);
+          // Restore all filter states from storage (check !== undefined to allow empty arrays)
+          if (filters.appliedBrands !== undefined) {
+            console.log("✅ Restoring appliedBrands:", filters.appliedBrands);
+            setAppliedBrands(filters.appliedBrands);
+          }
+          if (filters.appliedCategories !== undefined) {
+            console.log(
+              "✅ Restoring appliedCategories:",
+              filters.appliedCategories
+            );
+            setAppliedCategories(filters.appliedCategories);
+          }
+          if (filters.appliedSearchQuery !== undefined)
+            setAppliedSearchQuery(filters.appliedSearchQuery);
+          if (filters.appliedPriceRange !== undefined) {
+            console.log(
+              "💰 Restoring appliedPriceRange:",
+              filters.appliedPriceRange
+            );
+            setAppliedPriceRange(filters.appliedPriceRange);
+          }
+          if (filters.sortBy !== undefined) setSortBy(filters.sortBy);
+          if (filters.currentPage !== undefined)
+            setCurrentPage(filters.currentPage);
+
+          // Also restore temporary/selected filters (check !== undefined to allow empty arrays)
+          if (filters.selectedBrands !== undefined)
+            setSelectedBrands(filters.selectedBrands);
+          if (filters.selectedCategories !== undefined)
+            setSelectedCategories(filters.selectedCategories);
+          if (filters.searchQuery !== undefined)
+            setSearchQuery(filters.searchQuery);
+          if (filters.priceRange !== undefined) {
+            console.log("💰 Restoring priceRange:", filters.priceRange);
+            setPriceRange(filters.priceRange);
+          }
+          if (filters.brandSearchQuery !== undefined)
+            setBrandSearchQuery(filters.brandSearchQuery);
+          if (
+            filters.selectedBrand !== undefined &&
+            filters.selectedBrand !== null
+          )
+            setSelectedBrand(filters.selectedBrand);
+          if (
+            filters.selectedCategory !== undefined &&
+            filters.selectedCategory !== null
+          )
+            setSelectedCategory(filters.selectedCategory);
+
+          // Mark that filters have been restored
+          hasRestoredFiltersRef.current = true;
+        } else {
+          console.log("⚠️ No saved filters found in storage");
+        }
+      } catch (err) {
+        console.error("Failed to restore filters from storage:", err);
+      }
+    }
 
     // Reset flag after a short delay to allow state updates
     setTimeout(() => {
       isRestoringFromUrlRef.current = false;
     }, 100);
-  }, [searchParams, setSelectedBrand, setSelectedBrands, setAppliedBrands, setSelectedCategory, setSelectedCategories, setAppliedCategories, setSearchQuery, setAppliedSearchQuery, setBrandSearchQuery, setPriceRange, setAppliedPriceRange, setSortBy, setCurrentPage, priceBounds]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   // Fetch price bounds once on mount (small sample to get min/max)
   const fetchPriceBounds = useCallback(async () => {
@@ -233,8 +318,8 @@ export const Products = () => {
 
       if (sampleResponse.content.length > 0) {
         const prices = sampleResponse.content
-          .filter(p => p.unitPrice > 0)
-          .map(p => p.unitPrice);
+          .filter((p) => p.unitPrice > 0)
+          .map((p) => p.unitPrice);
         if (prices.length > 0) {
           const minPrice = Math.floor(Math.min(...prices));
           // Get max price from a larger sample or use a reasonable default
@@ -248,8 +333,8 @@ export const Products = () => {
             undefined
           );
           const maxPrices = maxSample.content
-            .filter(p => p.unitPrice > 0)
-            .map(p => p.unitPrice);
+            .filter((p) => p.unitPrice > 0)
+            .map((p) => p.unitPrice);
           if (maxPrices.length > 0) {
             const maxPrice = Math.ceil(Math.max(...maxPrices));
             const bounds: [number, number] = [minPrice, maxPrice];
@@ -276,7 +361,7 @@ export const Products = () => {
 
       // Preload all brand images (non-blocking)
       const imagePromises = brandsList
-        .map(brand => {
+        .map((brand) => {
           const logoUrl = getBrandLogoUrl(brand.url);
           if (!logoUrl) return null;
 
@@ -290,7 +375,7 @@ export const Products = () => {
         .filter(Boolean) as Promise<void>[];
 
       // Don't await - let it run in background
-      Promise.all(imagePromises).catch(err => {
+      Promise.all(imagePromises).catch((err) => {
         console.error("Failed to preload brand images:", err);
       });
     } catch (err) {
@@ -306,8 +391,11 @@ export const Products = () => {
       try {
         // Check if we have cached data
         const cachedBrands = getCachedData<Brand[]>(CACHE_KEYS.BRANDS);
-        const cachedCategories = getCachedData<Category[]>(CACHE_KEYS.CATEGORIES);
-        const hasCachedPriceBounds = getCachedData(CACHE_KEYS.PRICE_BOUNDS) !== null;
+        const cachedCategories = getCachedData<Category[]>(
+          CACHE_KEYS.CATEGORIES
+        );
+        const hasCachedPriceBounds =
+          getCachedData(CACHE_KEYS.PRICE_BOUNDS) !== null;
 
         // Set loading states - always set to track loading, even with cache
         if (!cachedBrands) setLoadingBrands(true);
@@ -316,52 +404,56 @@ export const Products = () => {
 
         // Load in parallel for speed
         const [brandsRes] = await Promise.all([
-          cachedBrands ? (async () => {
-            // Use cached data, but ensure state is set
-            if (isMounted && brands.length === 0) {
-              setBrands(cachedBrands);
-            }
-            // Mark as loaded immediately if we have cache
-            if (isMounted) setLoadingBrands(false);
-            return cachedBrands;
-          })() : (async () => {
-            try {
-              const result = await productService.getAllBrands();
-              if (isMounted) {
-                setBrands(result);
-                setCachedData(CACHE_KEYS.BRANDS, result);
-              }
-              return result;
-            } catch (err) {
-              console.error("Failed to load brands:", err);
-              return [];
-            } finally {
-              if (isMounted) setLoadingBrands(false);
-            }
-          })(),
-          cachedCategories ? (async () => {
-            // Use cached data, but ensure state is set
-            if (isMounted && categories.length === 0) {
-              setCategories(cachedCategories);
-            }
-            // Mark as loaded immediately if we have cache
-            if (isMounted) setLoadingCategories(false);
-            return cachedCategories;
-          })() : (async () => {
-            try {
-              const result = await productService.getAllCategories();
-              if (isMounted) {
-                setCategories(result);
-                setCachedData(CACHE_KEYS.CATEGORIES, result);
-              }
-              return result;
-            } catch (err) {
-              console.error("Failed to load categories:", err);
-              return [];
-            } finally {
-              if (isMounted) setLoadingCategories(false);
-            }
-          })(),
+          cachedBrands
+            ? (async () => {
+                // Use cached data, but ensure state is set
+                if (isMounted && brands.length === 0) {
+                  setBrands(cachedBrands);
+                }
+                // Mark as loaded immediately if we have cache
+                if (isMounted) setLoadingBrands(false);
+                return cachedBrands;
+              })()
+            : (async () => {
+                try {
+                  const result = await productService.getAllBrands();
+                  if (isMounted) {
+                    setBrands(result);
+                    setCachedData(CACHE_KEYS.BRANDS, result);
+                  }
+                  return result;
+                } catch (err) {
+                  console.error("Failed to load brands:", err);
+                  return [];
+                } finally {
+                  if (isMounted) setLoadingBrands(false);
+                }
+              })(),
+          cachedCategories
+            ? (async () => {
+                // Use cached data, but ensure state is set
+                if (isMounted && categories.length === 0) {
+                  setCategories(cachedCategories);
+                }
+                // Mark as loaded immediately if we have cache
+                if (isMounted) setLoadingCategories(false);
+                return cachedCategories;
+              })()
+            : (async () => {
+                try {
+                  const result = await productService.getAllCategories();
+                  if (isMounted) {
+                    setCategories(result);
+                    setCachedData(CACHE_KEYS.CATEGORIES, result);
+                  }
+                  return result;
+                } catch (err) {
+                  console.error("Failed to load categories:", err);
+                  return [];
+                } finally {
+                  if (isMounted) setLoadingCategories(false);
+                }
+              })(),
         ]);
 
         // Fetch price bounds if not cached
@@ -405,7 +497,9 @@ export const Products = () => {
     const loadInventories = async () => {
       try {
         // Check if we have cached inventory map
-        const cachedInventory = getCachedData<Array<[number, InventoryItem]>>(CACHE_KEYS.INVENTORY_MAP);
+        const cachedInventory = getCachedData<Array<[number, InventoryItem]>>(
+          CACHE_KEYS.INVENTORY_MAP
+        );
 
         if (cachedInventory && cachedInventory.length > 0) {
           // Use cached data, but ensure state is set
@@ -416,17 +510,23 @@ export const Products = () => {
           if (isMounted) setLoadingInventories(false);
 
           // Fetch fresh data in background (non-blocking)
-          inventoryService.getInventoryPage(0, 1000).then((pageResponse) => {
-            if (!isMounted) return;
-            const map = new Map<number, InventoryItem>();
-            pageResponse.content.forEach((item) => {
-              map.set(item.product.productId, item);
+          inventoryService
+            .getInventoryPage(0, 1000)
+            .then((pageResponse) => {
+              if (!isMounted) return;
+              const map = new Map<number, InventoryItem>();
+              pageResponse.content.forEach((item) => {
+                map.set(item.product.productId, item);
+              });
+              setInventoryMap(map);
+              setCachedData(
+                CACHE_KEYS.INVENTORY_MAP,
+                Array.from(map.entries())
+              );
+            })
+            .catch((err) => {
+              console.error("Failed to refresh inventories:", err);
             });
-            setInventoryMap(map);
-            setCachedData(CACHE_KEYS.INVENTORY_MAP, Array.from(map.entries()));
-          }).catch((err) => {
-            console.error("Failed to refresh inventories:", err);
-          });
           return;
         }
 
@@ -465,123 +565,151 @@ export const Products = () => {
   const pageInfoUpdatedByHandlerRef = useRef(false);
 
   // Fetch products from backend - optimized for speed
-  const fetchProducts = useCallback(async (force = false, page: number = 0) => {
-    // Use provided page (always required)
-    const pageToFetch = page;
-    
-    // Create a key for current fetch params (without currentPage for filter changes)
-    const fetchKey = JSON.stringify({
+  const fetchProducts = useCallback(
+    async (force = false, page: number = 0) => {
+      // Use provided page (always required)
+      const pageToFetch = page;
+
+      // Create a key for current fetch params (without currentPage for filter changes)
+      const fetchKey = JSON.stringify({
+        appliedBrands,
+        appliedCategories,
+        appliedSearchQuery,
+        sortBy,
+        appliedPriceRange,
+        page: pageToFetch,
+      });
+
+      // Skip if we're fetching with the same params (unless forced or initial fetch)
+      if (
+        !force &&
+        !isInitialFetchRef.current &&
+        lastFetchParamsRef.current === fetchKey
+      ) {
+        return;
+      }
+
+      lastFetchParamsRef.current = fetchKey;
+      isInitialFetchRef.current = false;
+
+      try {
+        setError(null);
+        setLoadingProducts(true);
+
+        // Note: Popularity sort will be handled client-side after fetching products normally
+        // We fetch products normally and then sort by sales quantity
+
+        // Determine sort field and direction
+        // Note: For popularity sort, we'll sort client-side after filtering
+        let sortField = "productId";
+        let sortDirection = "DESC";
+
+        if (sortBy === "newest") {
+          sortField = "productId";
+          sortDirection = "DESC";
+        } else if (sortBy === "oldest") {
+          sortField = "productId";
+          sortDirection = "ASC";
+        } else if (sortBy === "price-asc") {
+          sortField = "unitPrice";
+          sortDirection = "ASC";
+        } else if (sortBy === "price-desc") {
+          sortField = "unitPrice";
+          sortDirection = "DESC";
+        }
+        // For popularity, we don't pass sort to backend - will sort client-side
+
+        // Check if we need to fetch more for client-side filtering/sorting
+        const needsPriceFilter =
+          appliedPriceRange !== null &&
+          priceBoundsCache !== null &&
+          (appliedPriceRange[0] !== priceBoundsCache[0] ||
+            appliedPriceRange[1] !== priceBoundsCache[1]);
+        const hasMultipleBrands = appliedBrands.length > 1;
+        const hasMultipleCategories = appliedCategories.length > 1;
+        const hasMultipleFilters = hasMultipleBrands || hasMultipleCategories;
+        const isPopularitySort = sortBy === "popularity";
+        // Need client-side processing if: price filter, multiple filters, or popularity sort
+        const needsClientSideFilter =
+          needsPriceFilter || hasMultipleFilters || isPopularitySort;
+
+        // If we need client-side filtering/sorting, fetch more items to ensure we have all matching products
+        // For popularity sort, we need all filtered products to sort them properly
+        const pageSize = needsClientSideFilter ? 1000 : 9;
+
+        // IMPORTANT: When filtering (multiple filters or price filter), we MUST filter from the FULL product list
+        // NOT from search results. So we never pass search query to backend when we need client-side filtering.
+        // This ensures filters work on the complete dataset, not on pre-filtered search results.
+
+        // For single selection, use backend filter; for multiple, fetch all and filter client-side
+        // When multiple filters, don't pass brandId/categoryId to backend, fetch all and filter client-side
+        const backendBrandId =
+          hasMultipleBrands || hasMultipleCategories
+            ? undefined
+            : appliedBrands.length === 1
+            ? appliedBrands[0]
+            : undefined;
+        const backendCategoryId =
+          hasMultipleBrands || hasMultipleCategories
+            ? undefined
+            : appliedCategories.length === 1
+            ? appliedCategories[0]
+            : undefined;
+
+        // For popularity sort, don't pass sort to backend - we'll sort client-side after filtering
+        const backendSortField = isPopularitySort ? undefined : sortField;
+        const backendSortDirection = isPopularitySort
+          ? undefined
+          : sortDirection;
+
+        // CRITICAL: When we need client-side filtering, NEVER pass search query to backend
+        // We must fetch the FULL product list and filter client-side from the complete dataset
+        // Only use search query at backend when we DON'T need client-side filtering (single filter, no price filter)
+        const backendSearchQuery = needsClientSideFilter
+          ? undefined
+          : appliedSearchQuery || undefined;
+
+        const response = await productService.getProductPage(
+          needsClientSideFilter ? 0 : pageToFetch,
+          pageSize,
+          backendSortField,
+          backendSortDirection,
+          backendSearchQuery,
+          backendBrandId,
+          backendCategoryId
+        );
+
+        // Store products
+        setAllProducts(response.content);
+        setCachedData(CACHE_KEYS.ALL_PRODUCTS, response.content);
+
+        // Only use server-side pagination if we don't need client-side processing
+        if (!needsClientSideFilter) {
+          // Use server-side pagination - much faster!
+          setPageInfo(response);
+          setCachedData(CACHE_KEYS.PAGE_INFO, response);
+          setProducts(response.content);
+          setCachedData(CACHE_KEYS.PRODUCTS, response.content);
+        }
+        // If needsClientSideFilter, products will be set in the useEffect that watches filteredAndSortedProducts
+      } catch (err) {
+        console.error("Failed to fetch products:", err);
+        setError("Không thể tải sản phẩm. Vui lòng thử lại sau.");
+        setAllProducts([]);
+        setProducts([]);
+      } finally {
+        setLoadingProducts(false);
+      }
+    },
+    [
       appliedBrands,
       appliedCategories,
       appliedSearchQuery,
       sortBy,
       appliedPriceRange,
-      page: pageToFetch,
-    });
-
-    // Skip if we're fetching with the same params (unless forced or initial fetch)
-    if (!force && !isInitialFetchRef.current && lastFetchParamsRef.current === fetchKey) {
-      return;
-    }
-
-    lastFetchParamsRef.current = fetchKey;
-    isInitialFetchRef.current = false;
-
-    try {
-      setError(null);
-      setLoadingProducts(true);
-
-      // Note: Popularity sort will be handled client-side after fetching products normally
-      // We fetch products normally and then sort by sales quantity
-
-      // Determine sort field and direction
-      // Note: For popularity sort, we'll sort client-side after filtering
-      let sortField = "productId";
-      let sortDirection = "DESC";
-
-      if (sortBy === "newest") {
-        sortField = "productId";
-        sortDirection = "DESC";
-      } else if (sortBy === "oldest") {
-        sortField = "productId";
-        sortDirection = "ASC";
-      } else if (sortBy === "price-asc") {
-        sortField = "unitPrice";
-        sortDirection = "ASC";
-      } else if (sortBy === "price-desc") {
-        sortField = "unitPrice";
-        sortDirection = "DESC";
-      }
-      // For popularity, we don't pass sort to backend - will sort client-side
-
-      // Check if we need to fetch more for client-side filtering/sorting
-      const needsPriceFilter = appliedPriceRange !== null &&
-        priceBoundsCache !== null &&
-        (appliedPriceRange[0] !== priceBoundsCache[0] ||
-          appliedPriceRange[1] !== priceBoundsCache[1]);
-      const hasMultipleBrands = appliedBrands.length > 1;
-      const hasMultipleCategories = appliedCategories.length > 1;
-      const hasMultipleFilters = hasMultipleBrands || hasMultipleCategories;
-      const isPopularitySort = sortBy === "popularity";
-      // Need client-side processing if: price filter, multiple filters, or popularity sort
-      const needsClientSideFilter = needsPriceFilter || hasMultipleFilters || isPopularitySort;
-
-      // If we need client-side filtering/sorting, fetch more items to ensure we have all matching products
-      // For popularity sort, we need all filtered products to sort them properly
-      const pageSize = needsClientSideFilter ? 1000 : 9;
-
-      // IMPORTANT: When filtering (multiple filters or price filter), we MUST filter from the FULL product list
-      // NOT from search results. So we never pass search query to backend when we need client-side filtering.
-      // This ensures filters work on the complete dataset, not on pre-filtered search results.
-      
-      // For single selection, use backend filter; for multiple, fetch all and filter client-side
-      // When multiple filters, don't pass brandId/categoryId to backend, fetch all and filter client-side
-      const backendBrandId = (hasMultipleBrands || hasMultipleCategories) ? undefined :
-        (appliedBrands.length === 1 ? appliedBrands[0] : undefined);
-      const backendCategoryId = (hasMultipleBrands || hasMultipleCategories) ? undefined :
-        (appliedCategories.length === 1 ? appliedCategories[0] : undefined);
-
-      // For popularity sort, don't pass sort to backend - we'll sort client-side after filtering
-      const backendSortField = isPopularitySort ? undefined : sortField;
-      const backendSortDirection = isPopularitySort ? undefined : sortDirection;
-      
-      // CRITICAL: When we need client-side filtering, NEVER pass search query to backend
-      // We must fetch the FULL product list and filter client-side from the complete dataset
-      // Only use search query at backend when we DON'T need client-side filtering (single filter, no price filter)
-      const backendSearchQuery = needsClientSideFilter ? undefined : (appliedSearchQuery || undefined);
-      
-      const response = await productService.getProductPage(
-        needsClientSideFilter ? 0 : pageToFetch,
-        pageSize,
-        backendSortField,
-        backendSortDirection,
-        backendSearchQuery,
-        backendBrandId,
-        backendCategoryId
-      );
-
-      // Store products
-      setAllProducts(response.content);
-      setCachedData(CACHE_KEYS.ALL_PRODUCTS, response.content);
-
-      // Only use server-side pagination if we don't need client-side processing
-      if (!needsClientSideFilter) {
-        // Use server-side pagination - much faster!
-        setPageInfo(response);
-        setCachedData(CACHE_KEYS.PAGE_INFO, response);
-        setProducts(response.content);
-        setCachedData(CACHE_KEYS.PRODUCTS, response.content);
-      }
-      // If needsClientSideFilter, products will be set in the useEffect that watches filteredAndSortedProducts
-    } catch (err) {
-      console.error("Failed to fetch products:", err);
-      setError("Không thể tải sản phẩm. Vui lòng thử lại sau.");
-      setAllProducts([]);
-      setProducts([]);
-    } finally {
-      setLoadingProducts(false);
-    }
-  }, [appliedBrands, appliedCategories, appliedSearchQuery, sortBy, appliedPriceRange, priceBoundsCache]); // Removed currentPage to avoid infinite loop
+      priceBoundsCache,
+    ]
+  ); // Removed currentPage to avoid infinite loop
 
   // Listen for reset filters event (must be after fetchProducts is defined)
   useEffect(() => {
@@ -598,13 +726,15 @@ export const Products = () => {
         isRestoringFromUrlRef.current = false;
       }, 100);
     };
-    window.addEventListener('resetFilters', handleResetFilters);
-    return () => window.removeEventListener('resetFilters', handleResetFilters);
+    window.addEventListener("resetFilters", handleResetFilters);
+    return () => window.removeEventListener("resetFilters", handleResetFilters);
   }, [resetFilters, priceBounds, navigate, fetchProducts]);
 
   // Fetch sales data (productId -> sales rank) for popularity sort
-  const [salesRankMap, setSalesRankMap] = useState<Map<number, number>>(new Map());
-  
+  const [salesRankMap, setSalesRankMap] = useState<Map<number, number>>(
+    new Map()
+  );
+
   useEffect(() => {
     const fetchSalesRank = async () => {
       try {
@@ -623,7 +753,7 @@ export const Products = () => {
         setSalesRankMap(new Map());
       }
     };
-    
+
     if (sortBy === "popularity") {
       fetchSalesRank();
     } else {
@@ -634,7 +764,8 @@ export const Products = () => {
 
   // Filter products first, then sort (filteredAndSortedProducts)
   const filteredAndSortedProducts = useMemo(() => {
-    const needsPriceFilter = appliedPriceRange !== null &&
+    const needsPriceFilter =
+      appliedPriceRange !== null &&
       priceBoundsCache !== null &&
       (appliedPriceRange[0] !== priceBoundsCache[0] ||
         appliedPriceRange[1] !== priceBoundsCache[1]);
@@ -642,7 +773,8 @@ export const Products = () => {
     const hasMultipleCategories = appliedCategories.length > 1;
     const hasMultipleFilters = hasMultipleBrands || hasMultipleCategories;
     const isPopularitySort = sortBy === "popularity";
-    const needsClientSideFilter = needsPriceFilter || hasMultipleFilters || isPopularitySort;
+    const needsClientSideFilter =
+      needsPriceFilter || hasMultipleFilters || isPopularitySort;
 
     // If no client-side filtering/sorting needed, return products as-is (server-side pagination)
     if (!needsClientSideFilter) {
@@ -656,12 +788,21 @@ export const Products = () => {
     if (appliedBrands.length > 0) {
       if (appliedBrands.length === 1) {
         // Single brand: filter if we need client-side processing
-        if (isPopularitySort || needsPriceFilter || hasMultipleCategories || hasMultipleBrands) {
-          filtered = filtered.filter(p => appliedBrands.includes(p.brand.brandId));
+        if (
+          isPopularitySort ||
+          needsPriceFilter ||
+          hasMultipleCategories ||
+          hasMultipleBrands
+        ) {
+          filtered = filtered.filter((p) =>
+            appliedBrands.includes(p.brand.brandId)
+          );
         }
       } else {
         // Multiple brands: always filter client-side
-        filtered = filtered.filter(p => appliedBrands.includes(p.brand.brandId));
+        filtered = filtered.filter((p) =>
+          appliedBrands.includes(p.brand.brandId)
+        );
       }
     }
 
@@ -669,19 +810,30 @@ export const Products = () => {
     if (appliedCategories.length > 0) {
       if (appliedCategories.length === 1) {
         // Single category: filter if we need client-side processing
-        if (isPopularitySort || needsPriceFilter || hasMultipleBrands || hasMultipleCategories) {
-          filtered = filtered.filter(p => appliedCategories.includes(p.category.categoryId));
+        if (
+          isPopularitySort ||
+          needsPriceFilter ||
+          hasMultipleBrands ||
+          hasMultipleCategories
+        ) {
+          filtered = filtered.filter((p) =>
+            appliedCategories.includes(p.category.categoryId)
+          );
         }
       } else {
         // Multiple categories: always filter client-side
-        filtered = filtered.filter(p => appliedCategories.includes(p.category.categoryId));
+        filtered = filtered.filter((p) =>
+          appliedCategories.includes(p.category.categoryId)
+        );
       }
     }
 
     // Apply price filter
     if (needsPriceFilter && appliedPriceRange) {
       filtered = filtered.filter(
-        (p) => p.unitPrice >= appliedPriceRange[0] && p.unitPrice <= appliedPriceRange[1]
+        (p) =>
+          p.unitPrice >= appliedPriceRange[0] &&
+          p.unitPrice <= appliedPriceRange[1]
       );
     }
 
@@ -694,10 +846,11 @@ export const Products = () => {
         // Filter client-side from the complete dataset (all products)
         // This ensures filters work correctly on the full product list, not on pre-filtered search results
         const query = appliedSearchQuery.toLowerCase();
-        filtered = filtered.filter(p =>
-          p.name.toLowerCase().includes(query) ||
-          p.brand.name.toLowerCase().includes(query) ||
-          p.category.name.toLowerCase().includes(query)
+        filtered = filtered.filter(
+          (p) =>
+            p.name.toLowerCase().includes(query) ||
+            p.brand.name.toLowerCase().includes(query) ||
+            p.category.name.toLowerCase().includes(query)
         );
       }
       // If not needsClientSideFilter, search was already done by backend, no need to filter again
@@ -710,22 +863,22 @@ export const Products = () => {
       filtered.sort((a, b) => {
         const aRank = salesRankMap.get(a.productId);
         const bRank = salesRankMap.get(b.productId);
-        
+
         // Both have sales data - sort by rank (lower rank = higher sales)
         if (aRank !== undefined && bRank !== undefined) {
           return aRank - bRank;
         }
-        
+
         // Only a has sales data - a comes first
         if (aRank !== undefined && bRank === undefined) {
           return -1;
         }
-        
+
         // Only b has sales data - b comes first
         if (aRank === undefined && bRank !== undefined) {
           return 1;
         }
-        
+
         // Neither has sales data - keep original order
         return 0;
       });
@@ -745,7 +898,16 @@ export const Products = () => {
     // Default (newest) is handled above
 
     return filtered;
-  }, [allProducts, appliedPriceRange, sortBy, priceBoundsCache, appliedBrands, appliedCategories, appliedSearchQuery, salesRankMap]);
+  }, [
+    allProducts,
+    appliedPriceRange,
+    sortBy,
+    priceBoundsCache,
+    appliedBrands,
+    appliedCategories,
+    appliedSearchQuery,
+    salesRankMap,
+  ]);
 
   // Note: paginatedProducts is now calculated directly in handlePageChange and useEffect
   // to avoid race conditions and ensure consistency
@@ -766,7 +928,7 @@ export const Products = () => {
 
   // Track if component has mounted
   const hasMountedRef = useRef(false);
-  
+
   // Fetch products when filters change (but not on initial mount)
   useEffect(() => {
     // Skip on initial mount - initial products are loaded separately
@@ -780,7 +942,14 @@ export const Products = () => {
       fetchProducts(false, 0); // Reset to page 0 when filters change
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [appliedBrands, appliedCategories, appliedSearchQuery, sortBy, appliedPriceRange, isInitialLoading]);
+  }, [
+    appliedBrands,
+    appliedCategories,
+    appliedSearchQuery,
+    sortBy,
+    appliedPriceRange,
+    isInitialLoading,
+  ]);
 
   // Initial products fetch - must complete before showing page
   useEffect(() => {
@@ -789,8 +958,12 @@ export const Products = () => {
     const loadInitialProducts = async () => {
       // Check if we have cached products
       const cachedProducts = getCachedData<Product[]>(CACHE_KEYS.PRODUCTS);
-      const cachedAllProducts = getCachedData<Product[]>(CACHE_KEYS.ALL_PRODUCTS);
-      const cachedPageInfo = getCachedData<PageResponse<Product>>(CACHE_KEYS.PAGE_INFO);
+      const cachedAllProducts = getCachedData<Product[]>(
+        CACHE_KEYS.ALL_PRODUCTS
+      );
+      const cachedPageInfo = getCachedData<PageResponse<Product>>(
+        CACHE_KEYS.PAGE_INFO
+      );
 
       if (cachedProducts && cachedProducts.length > 0) {
         // Use cached data, but ensure state is set
@@ -833,32 +1006,41 @@ export const Products = () => {
       pageInfoUpdatedByHandlerRef.current = false;
       return;
     }
-    
-    const needsPriceFilter = appliedPriceRange !== null &&
+
+    const needsPriceFilter =
+      appliedPriceRange !== null &&
       priceBoundsCache !== null &&
       (appliedPriceRange[0] !== priceBoundsCache[0] ||
         appliedPriceRange[1] !== priceBoundsCache[1]);
-    const hasMultipleFilters = appliedBrands.length > 1 || appliedCategories.length > 1;
+    const hasMultipleFilters =
+      appliedBrands.length > 1 || appliedCategories.length > 1;
     const isPopularitySort = sortBy === "popularity";
-    const needsClientSideFilter = needsPriceFilter || hasMultipleFilters || isPopularitySort;
+    const needsClientSideFilter =
+      needsPriceFilter || hasMultipleFilters || isPopularitySort;
 
     // Update products and page info for client-side pagination
     // Only run when filters/sort change, not when currentPage changes (that's handled in handlePageChange)
     if (needsClientSideFilter) {
       // Use currentPage from closure - it will be the latest value when filters change
       // Ensure currentPage is within valid range
-      const validCurrentPage = Math.max(0, Math.min(currentPage, totalPages - 1));
+      const validCurrentPage = Math.max(
+        0,
+        Math.min(currentPage, totalPages - 1)
+      );
       if (validCurrentPage !== currentPage) {
         setCurrentPage(validCurrentPage);
         return; // Will re-run after currentPage is updated
       }
-      
+
       // Calculate paginated products for current page
       const itemsPerPage = 9;
       const startIndex = validCurrentPage * itemsPerPage;
       const endIndex = startIndex + itemsPerPage;
-      const currentPaginatedProducts = filteredAndSortedProducts.slice(startIndex, endIndex);
-      
+      const currentPaginatedProducts = filteredAndSortedProducts.slice(
+        startIndex,
+        endIndex
+      );
+
       // Update products and pageInfo
       setProducts(currentPaginatedProducts);
       const newPageInfo = {
@@ -876,7 +1058,15 @@ export const Products = () => {
       setCachedData(CACHE_KEYS.PAGE_INFO, newPageInfo);
       setCachedData(CACHE_KEYS.PRODUCTS, currentPaginatedProducts);
     }
-  }, [filteredAndSortedProducts, totalPages, appliedPriceRange, priceBoundsCache, appliedBrands, appliedCategories, sortBy]); // Removed currentPage - page changes are handled in handlePageChange, this only runs when filters/sort change
+  }, [
+    filteredAndSortedProducts,
+    totalPages,
+    appliedPriceRange,
+    priceBoundsCache,
+    appliedBrands,
+    appliedCategories,
+    sortBy,
+  ]); // Removed currentPage - page changes are handled in handlePageChange, this only runs when filters/sort change
 
   // Reset to first page and scroll to top when applied filters change
   useEffect(() => {
@@ -888,8 +1078,16 @@ export const Products = () => {
     if (!loadingProducts) {
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
-  }, [appliedBrands, appliedCategories, appliedSearchQuery, sortBy, appliedPriceRange, loadingProducts, currentPage]);
-  
+  }, [
+    appliedBrands,
+    appliedCategories,
+    appliedSearchQuery,
+    sortBy,
+    appliedPriceRange,
+    loadingProducts,
+    currentPage,
+  ]);
+
   // Scroll to top after loading completes
   useEffect(() => {
     if (!loadingProducts && !isInitialLoading) {
@@ -907,9 +1105,9 @@ export const Products = () => {
 
   // Toggle brand selection
   const toggleBrand = (brandId: number) => {
-    setSelectedBrands(prev => {
+    setSelectedBrands((prev) => {
       if (prev.includes(brandId)) {
-        return prev.filter(id => id !== brandId);
+        return prev.filter((id) => id !== brandId);
       } else {
         return [...prev, brandId];
       }
@@ -919,9 +1117,9 @@ export const Products = () => {
 
   // Toggle category selection
   const toggleCategory = (categoryId: number) => {
-    setSelectedCategories(prev => {
+    setSelectedCategories((prev) => {
       if (prev.includes(categoryId)) {
-        return prev.filter(id => id !== categoryId);
+        return prev.filter((id) => id !== categoryId);
       } else {
         return [...prev, categoryId];
       }
@@ -940,19 +1138,23 @@ export const Products = () => {
     const brandIdParam = searchParams.get("brandId");
     const categoryIdParam = searchParams.get("categoryId");
     const searchQueryParam = searchParams.get("q");
-    
+
     // Determine what URL should be based on context
     let targetUrl = "/products";
-    
+
     // Check if filters are applied (categories or brands)
     const hasCategoryFilters = appliedCategories.length > 0;
     const hasBrandFilters = appliedBrands.length > 0;
     const hasMultipleCategories = appliedCategories.length > 1;
     const hasMultipleBrands = appliedBrands.length > 1;
-    
+
     // If multiple filters are applied (1+ categories AND 1+ brands, or multiple of either),
     // or if there's a search query (q) and filters are applied, redirect to /products
-    if ((hasCategoryFilters && hasBrandFilters) || hasMultipleCategories || hasMultipleBrands) {
+    if (
+      (hasCategoryFilters && hasBrandFilters) ||
+      hasMultipleCategories ||
+      hasMultipleBrands
+    ) {
       // Multiple filters → /products (remove q if present)
       targetUrl = "/products";
     } else if (appliedCategories.length === 1 && appliedBrands.length === 0) {
@@ -966,18 +1168,21 @@ export const Products = () => {
       targetUrl = "/products";
     }
     // Otherwise → /products (no params)
-    
+
     // Check if we need to update URL (if target is different from current, or if q param exists and should be removed)
-    const currentUrl = brandIdParam 
+    const currentUrl = brandIdParam
       ? `/products?brandId=${brandIdParam}`
-      : categoryIdParam 
+      : categoryIdParam
       ? `/products?categoryId=${categoryIdParam}`
       : searchQueryParam
       ? `/products?q=${searchQueryParam}`
       : "/products";
-    
+
     // Update URL if it's different, or if there's a q param that should be removed
-    if (currentUrl !== targetUrl || (searchQueryParam && (hasCategoryFilters || hasBrandFilters))) {
+    if (
+      currentUrl !== targetUrl ||
+      (searchQueryParam && (hasCategoryFilters || hasBrandFilters))
+    ) {
       navigate(targetUrl, { replace: true });
     }
   }, [appliedCategories, appliedBrands, navigate, searchParams]);
@@ -987,7 +1192,7 @@ export const Products = () => {
     // Clear search context when applying filters (if brands/categories are selected)
     if (selectedBrands.length > 0 || selectedCategories.length > 0) {
       // Dispatch event to clear search in HeaderSearch component
-      window.dispatchEvent(new CustomEvent('clearSearch'));
+      window.dispatchEvent(new CustomEvent("clearSearch"));
     }
     applyFilters();
     // Scroll to top immediately when filters are applied (before loading starts)
@@ -1002,11 +1207,32 @@ export const Products = () => {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  // Initialize price range when products are loaded
+  // Initialize price range when products are loaded (only if not restored from storage)
   useEffect(() => {
-    if (priceBounds !== null && priceRange === null) {
+    console.log(
+      "🔍 Price range check - priceBounds:",
+      priceBounds,
+      "priceRange:",
+      priceRange,
+      "hasRestored:",
+      hasRestoredFiltersRef.current
+    );
+    if (
+      priceBounds !== null &&
+      priceRange === null &&
+      !hasRestoredFiltersRef.current
+    ) {
+      console.log("🎚️ Initializing price range to bounds:", priceBounds);
       setPriceRange([priceBounds[0], priceBounds[1]]);
       setAppliedPriceRange([priceBounds[0], priceBounds[1]]);
+    } else if (
+      priceBounds !== null &&
+      priceRange === null &&
+      hasRestoredFiltersRef.current
+    ) {
+      console.log(
+        "⚠️ Price range is null but filters were restored - something went wrong!"
+      );
     }
   }, [priceBounds, priceRange]);
 
@@ -1047,73 +1273,94 @@ export const Products = () => {
   }, [priceBoundsCache]); // Chỉ chạy khi priceBoundsCache thay đổi (khi mount), không chạy khi priceRange thay đổi
 
   // Pagination handler
-  const handlePageChange = useCallback((newPage: number) => {
-    // Validate page number
-    const needsPriceFilter = appliedPriceRange !== null &&
-      priceBoundsCache !== null &&
-      (appliedPriceRange[0] !== priceBoundsCache[0] ||
-        appliedPriceRange[1] !== priceBoundsCache[1]);
-    const hasMultipleFilters = appliedBrands.length > 1 || appliedCategories.length > 1;
-    const isPopularitySort = sortBy === "popularity";
-    const needsClientSideFilter = needsPriceFilter || hasMultipleFilters || isPopularitySort;
-    
-    if (needsClientSideFilter) {
-      // Client-side pagination: validate against totalPages
-      // Ensure we have the latest totalPages value
-      const itemsPerPage = 9;
-      const calculatedTotalPages = filteredAndSortedProducts.length === 0 
-        ? 1 
-        : Math.ceil(filteredAndSortedProducts.length / itemsPerPage);
-      const maxPage = Math.max(0, calculatedTotalPages - 1);
-      const validPage = Math.max(0, Math.min(newPage, maxPage));
-      
-      // Calculate paginated products for the new page immediately
-      const startIndex = validPage * itemsPerPage;
-      const endIndex = startIndex + itemsPerPage;
-      const newPaginatedProducts = filteredAndSortedProducts.slice(startIndex, endIndex);
-      
-      // Mark that we're updating pageInfo so useEffect doesn't update it again
-      pageInfoUpdatedByHandlerRef.current = true;
-      
-      // Update state immediately
-      setCurrentPage(validPage);
-      setProducts(newPaginatedProducts);
-      
-      // Update pageInfo immediately so ProductsPagination component gets the correct page number
-      const newPageInfo = {
-        content: newPaginatedProducts,
-        totalPages: calculatedTotalPages,
-        totalElements: filteredAndSortedProducts.length,
-        size: itemsPerPage,
-        number: validPage,
-        numberOfElements: newPaginatedProducts.length,
-        first: validPage === 0,
-        last: validPage >= maxPage,
-        empty: newPaginatedProducts.length === 0,
-      };
-      setPageInfo(newPageInfo);
-      setCachedData(CACHE_KEYS.PAGE_INFO, newPageInfo);
-      setCachedData(CACHE_KEYS.PRODUCTS, newPaginatedProducts);
-      
-      // Flag will be reset in useEffect when it checks and skips
-    } else {
-      // Server-side pagination: validate against pageInfo
-      let validPage = Math.max(0, newPage);
-      if (pageInfo) {
-        const maxPage = Math.max(0, pageInfo.totalPages - 1);
-        validPage = Math.max(0, Math.min(newPage, maxPage));
+  const handlePageChange = useCallback(
+    (newPage: number) => {
+      // Validate page number
+      const needsPriceFilter =
+        appliedPriceRange !== null &&
+        priceBoundsCache !== null &&
+        (appliedPriceRange[0] !== priceBoundsCache[0] ||
+          appliedPriceRange[1] !== priceBoundsCache[1]);
+      const hasMultipleFilters =
+        appliedBrands.length > 1 || appliedCategories.length > 1;
+      const isPopularitySort = sortBy === "popularity";
+      const needsClientSideFilter =
+        needsPriceFilter || hasMultipleFilters || isPopularitySort;
+
+      if (needsClientSideFilter) {
+        // Client-side pagination: validate against totalPages
+        // Ensure we have the latest totalPages value
+        const itemsPerPage = 9;
+        const calculatedTotalPages =
+          filteredAndSortedProducts.length === 0
+            ? 1
+            : Math.ceil(filteredAndSortedProducts.length / itemsPerPage);
+        const maxPage = Math.max(0, calculatedTotalPages - 1);
+        const validPage = Math.max(0, Math.min(newPage, maxPage));
+
+        // Calculate paginated products for the new page immediately
+        const startIndex = validPage * itemsPerPage;
+        const endIndex = startIndex + itemsPerPage;
+        const newPaginatedProducts = filteredAndSortedProducts.slice(
+          startIndex,
+          endIndex
+        );
+
+        // Mark that we're updating pageInfo so useEffect doesn't update it again
+        pageInfoUpdatedByHandlerRef.current = true;
+
+        // Update state immediately
+        setCurrentPage(validPage);
+        setProducts(newPaginatedProducts);
+
+        // Update pageInfo immediately so ProductsPagination component gets the correct page number
+        const newPageInfo = {
+          content: newPaginatedProducts,
+          totalPages: calculatedTotalPages,
+          totalElements: filteredAndSortedProducts.length,
+          size: itemsPerPage,
+          number: validPage,
+          numberOfElements: newPaginatedProducts.length,
+          first: validPage === 0,
+          last: validPage >= maxPage,
+          empty: newPaginatedProducts.length === 0,
+        };
+        setPageInfo(newPageInfo);
+        setCachedData(CACHE_KEYS.PAGE_INFO, newPageInfo);
+        setCachedData(CACHE_KEYS.PRODUCTS, newPaginatedProducts);
+
+        // Flag will be reset in useEffect when it checks and skips
+      } else {
+        // Server-side pagination: validate against pageInfo
+        let validPage = Math.max(0, newPage);
+        if (pageInfo) {
+          const maxPage = Math.max(0, pageInfo.totalPages - 1);
+          validPage = Math.max(0, Math.min(newPage, maxPage));
+        }
+        setCurrentPage(validPage);
+        // Fetch immediately for server-side pagination (always fetch, don't check conditions)
+        fetchProducts(false, validPage);
       }
-      setCurrentPage(validPage);
-      // Fetch immediately for server-side pagination (always fetch, don't check conditions)
-      fetchProducts(false, validPage);
-    }
-    // Scroll to top immediately when page changes
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  }, [appliedPriceRange, priceBoundsCache, appliedBrands, appliedCategories, sortBy, filteredAndSortedProducts, totalPages, pageInfo, fetchProducts]);
-  
+      // Scroll to top immediately when page changes
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    },
+    [
+      appliedPriceRange,
+      priceBoundsCache,
+      appliedBrands,
+      appliedCategories,
+      sortBy,
+      filteredAndSortedProducts,
+      totalPages,
+      pageInfo,
+      fetchProducts,
+    ]
+  );
+
   // Calculate hasActiveFilters with price range check (needs priceBoundsCache)
   const hasActiveFiltersWithPrice = useMemo(() => {
-    const hasPriceFilter = appliedPriceRange !== null &&
+    const hasPriceFilter =
+      appliedPriceRange !== null &&
       priceBoundsCache !== null &&
       (appliedPriceRange[0] !== priceBoundsCache[0] ||
         appliedPriceRange[1] !== priceBoundsCache[1]);
@@ -1125,19 +1372,19 @@ export const Products = () => {
     // Check URL params first (highest priority)
     const brandIdParam = searchParams.get("brandId");
     const categoryIdParam = searchParams.get("categoryId");
-    
+
     // Nếu có categoryId trong URL
     if (categoryIdParam) {
       const categoryId = Number(categoryIdParam);
-      const category = categories.find(c => c.categoryId === categoryId);
+      const category = categories.find((c) => c.categoryId === categoryId);
       if (category) return category.name;
       return "Danh mục"; // Fallback
     }
-    
+
     // Nếu có brandId trong URL
     if (brandIdParam) {
       const brandId = Number(brandIdParam);
-      const brand = brands.find(b => b.brandId === brandId);
+      const brand = brands.find((b) => b.brandId === brandId);
       if (brand) return brand.name;
       return "Thương hiệu"; // Fallback
     }
@@ -1154,14 +1401,16 @@ export const Products = () => {
 
     // Nếu chọn 1 danh mục
     if (appliedCategories.length === 1 && appliedBrands.length === 0) {
-      const category = categories.find(c => c.categoryId === appliedCategories[0]);
+      const category = categories.find(
+        (c) => c.categoryId === appliedCategories[0]
+      );
       if (category) return category.name;
       return "Danh mục"; // Fallback
     }
 
     // Nếu chọn 1 thương hiệu
     if (appliedBrands.length === 1 && appliedCategories.length === 0) {
-      const brand = brands.find(b => b.brandId === appliedBrands[0]);
+      const brand = brands.find((b) => b.brandId === appliedBrands[0]);
       if (brand) return brand.name;
       return "Thương hiệu"; // Fallback
     }
@@ -1183,37 +1432,25 @@ export const Products = () => {
     // Check URL params first (highest priority)
     const brandIdParam = searchParams.get("brandId");
     const categoryIdParam = searchParams.get("categoryId");
-    
+
     // Nếu có categoryId trong URL
     if (categoryIdParam) {
       const categoryId = Number(categoryIdParam);
-      const category = categories.find(c => c.categoryId === categoryId);
+      const category = categories.find((c) => c.categoryId === categoryId);
       if (category) {
-        return [
-          { label: "Trang chủ", path: "/" },
-          { label: category.name },
-        ];
+        return [{ label: "Trang chủ", path: "/" }, { label: category.name }];
       }
-      return [
-        { label: "Trang chủ", path: "/" },
-        { label: "Danh mục" },
-      ];
+      return [{ label: "Trang chủ", path: "/" }, { label: "Danh mục" }];
     }
-    
+
     // Nếu có brandId trong URL
     if (brandIdParam) {
       const brandId = Number(brandIdParam);
-      const brand = brands.find(b => b.brandId === brandId);
+      const brand = brands.find((b) => b.brandId === brandId);
       if (brand) {
-        return [
-          { label: "Trang chủ", path: "/" },
-          { label: brand.name },
-        ];
+        return [{ label: "Trang chủ", path: "/" }, { label: brand.name }];
       }
-      return [
-        { label: "Trang chủ", path: "/" },
-        { label: "Thương hiệu" },
-      ];
+      return [{ label: "Trang chủ", path: "/" }, { label: "Thương hiệu" }];
     }
 
     // Nếu không có filter nào (tất cả danh mục và tất cả thương hiệu)
@@ -1234,56 +1471,37 @@ export const Products = () => {
 
     // Nếu chọn 1 danh mục: "Trang chủ > {danh mục}"
     if (appliedCategories.length === 1 && appliedBrands.length === 0) {
-      const category = categories.find(c => c.categoryId === appliedCategories[0]);
+      const category = categories.find(
+        (c) => c.categoryId === appliedCategories[0]
+      );
       if (category) {
-        return [
-          { label: "Trang chủ", path: "/" },
-          { label: category.name },
-        ];
+        return [{ label: "Trang chủ", path: "/" }, { label: category.name }];
       }
-      return [
-        { label: "Trang chủ", path: "/" },
-        { label: "Danh mục" },
-      ];
+      return [{ label: "Trang chủ", path: "/" }, { label: "Danh mục" }];
     }
 
     // Nếu chọn 1 thương hiệu: "Trang chủ > {thương hiệu}"
     if (appliedBrands.length === 1 && appliedCategories.length === 0) {
-      const brand = brands.find(b => b.brandId === appliedBrands[0]);
+      const brand = brands.find((b) => b.brandId === appliedBrands[0]);
       if (brand) {
-        return [
-          { label: "Trang chủ", path: "/" },
-          { label: brand.name },
-        ];
+        return [{ label: "Trang chủ", path: "/" }, { label: brand.name }];
       }
       // Fallback nếu chưa load xong brands
-      return [
-        { label: "Trang chủ", path: "/" },
-        { label: "Thương hiệu" },
-      ];
+      return [{ label: "Trang chủ", path: "/" }, { label: "Thương hiệu" }];
     }
 
     // Nếu chọn nhiều danh mục (không có thương hiệu): "Trang chủ > Danh mục"
     if (appliedCategories.length > 1 && appliedBrands.length === 0) {
-      return [
-        { label: "Trang chủ", path: "/" },
-        { label: "Danh mục" },
-      ];
+      return [{ label: "Trang chủ", path: "/" }, { label: "Danh mục" }];
     }
 
     // Nếu chọn nhiều thương hiệu (không có danh mục): "Trang chủ > Thương hiệu"
     if (appliedBrands.length > 1 && appliedCategories.length === 0) {
-      return [
-        { label: "Trang chủ", path: "/" },
-        { label: "Thương hiệu" },
-      ];
+      return [{ label: "Trang chủ", path: "/" }, { label: "Thương hiệu" }];
     }
 
     // Mặc định: "Trang chủ > Danh mục"
-    return [
-      { label: "Trang chủ", path: "/" },
-      { label: "Danh mục" },
-    ];
+    return [{ label: "Trang chủ", path: "/" }, { label: "Danh mục" }];
   };
 
   // Check if all data is loaded - this ensures we wait for ALL data before showing page
@@ -1307,7 +1525,19 @@ export const Products = () => {
     if (allDataLoaded) {
       setIsInitialLoading(false);
     }
-  }, [isInitialLoading, loadingBrands, loadingCategories, loadingPriceBounds, loadingInventories, loadingProducts, brands.length, categories.length, products.length, allProducts.length, priceBoundsCache]);
+  }, [
+    isInitialLoading,
+    loadingBrands,
+    loadingCategories,
+    loadingPriceBounds,
+    loadingInventories,
+    loadingProducts,
+    brands.length,
+    categories.length,
+    products.length,
+    allProducts.length,
+    priceBoundsCache,
+  ]);
 
   // // Show loading screen only on initial load
   // if (isInitialLoading && !loadingProducts) {
@@ -1339,7 +1569,9 @@ export const Products = () => {
           <div className="bg-white p-8 flex flex-col items-center">
             <div className="w-16 h-16 border-4 border-gray-200 border-t-black rounded-full animate-spin mb-4"></div>
             <p className="text-gray-600 text-lg">Đang tải dữ liệu...</p>
-            <p className="text-gray-400 text-sm mt-2">Vui lòng đợi trong giây lát</p>
+            <p className="text-gray-400 text-sm mt-2">
+              Vui lòng đợi trong giây lát
+            </p>
           </div>
         </div>
       )}
@@ -1347,7 +1579,9 @@ export const Products = () => {
       <ProductsHeader
         title={getPageTitle()}
         breadcrumbs={getBreadcrumbs()}
-        filterKey={`${appliedBrands.join(',')}-${appliedCategories.join(',')}-${appliedSearchQuery}-${sortBy}`}
+        filterKey={`${appliedBrands.join(",")}-${appliedCategories.join(
+          ","
+        )}-${appliedSearchQuery}-${sortBy}`}
         isLoading={loadingProducts && !isInitialLoading}
       />
 
@@ -1357,39 +1591,41 @@ export const Products = () => {
         <div className="flex flex-col lg:flex-row gap-6">
           {/* Sidebar */}
           <motion.aside
-            key={`sidebar-${appliedBrands.join(',')}-${appliedCategories.join(',')}-${appliedSearchQuery}`}
+            key={`sidebar-${appliedBrands.join(",")}-${appliedCategories.join(
+              ","
+            )}-${appliedSearchQuery}`}
             initial={{ opacity: 0, x: -30 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.5, ease: "easeOut" }}
           >
             <ProductsSidebar
-            categories={categories}
-            brands={brands}
-            priceBounds={priceBounds}
-            priceRange={priceRange}
-            selectedBrands={selectedBrands}
-            selectedCategories={selectedCategories}
-            selectedBrand={selectedBrand}
-            selectedCategory={selectedCategory}
-            brandSearchQuery={brandSearchQuery}
-            onToggleBrand={toggleBrand}
-            onToggleCategory={toggleCategory}
-            onClearBrands={() => {
-              setSelectedBrands([]);
-              setSelectedBrand(null);
-            }}
-            onClearCategories={() => {
-              setSelectedCategories([]);
-              setSelectedCategory(null);
-            }}
-            onBrandSearchChange={setBrandSearchQuery}
-            onPriceRangeChange={setPriceRange}
-            onApplyFilters={handleApplyFilters}
-            onResetFilters={handleResetFilters}
-            hasPendingFilters={hasPendingFilters}
-            hasActiveFilters={hasActiveFiltersWithPrice}
-            isLoading={loadingProducts && !isInitialLoading}
-          />
+              categories={categories}
+              brands={brands}
+              priceBounds={priceBounds}
+              priceRange={priceRange}
+              selectedBrands={selectedBrands}
+              selectedCategories={selectedCategories}
+              selectedBrand={selectedBrand}
+              selectedCategory={selectedCategory}
+              brandSearchQuery={brandSearchQuery}
+              onToggleBrand={toggleBrand}
+              onToggleCategory={toggleCategory}
+              onClearBrands={() => {
+                setSelectedBrands([]);
+                setSelectedBrand(null);
+              }}
+              onClearCategories={() => {
+                setSelectedCategories([]);
+                setSelectedCategory(null);
+              }}
+              onBrandSearchChange={setBrandSearchQuery}
+              onPriceRangeChange={setPriceRange}
+              onApplyFilters={handleApplyFilters}
+              onResetFilters={handleResetFilters}
+              hasPendingFilters={hasPendingFilters}
+              hasActiveFilters={hasActiveFiltersWithPrice}
+              isLoading={loadingProducts && !isInitialLoading}
+            />
           </motion.aside>
 
           {/* Main Content */}
