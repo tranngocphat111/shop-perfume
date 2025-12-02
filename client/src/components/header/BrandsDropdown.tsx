@@ -1,6 +1,7 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
+import { useProductsFilter } from "../../contexts/ProductsFilterContext";
 
 interface Brand {
   brandId: number;
@@ -31,9 +32,14 @@ export const BrandsDropdown = ({
   isCompact,
 }: BrandsDropdownProps) => {
   const [selectedLetter, setSelectedLetter] = useState<string | null>(null);
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { resetFilters } = useProductsFilter();
 
   const textColor = isScrolled ? "text-gray-700" : "text-white";
-  const hoverTextColor = isScrolled ? "hover:text-black" : "hover:text-gray-200";
+  const hoverTextColor = isScrolled
+    ? "hover:text-black"
+    : "hover:text-gray-200";
 
   return (
     <div
@@ -41,14 +47,43 @@ export const BrandsDropdown = ({
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
     >
-      <button
-        className={`transition-all font-normal duration-300 text-sm md:text-base ${textColor} ${hoverTextColor} flex items-center gap-1`}>
+      <Link
+        to="/products"
+        onClick={(e) => {
+          // Reset filters directly from context when clicking on "Thương hiệu"
+          // Try to get priceBounds from sessionStorage if available
+          let priceBounds: [number, number] | null = null;
+          try {
+            const cached = sessionStorage.getItem(
+              "products_cache_price_bounds"
+            );
+            if (cached) {
+              priceBounds = JSON.parse(cached);
+            }
+          } catch (err) {
+            // Ignore error, use null
+          }
+
+          // Reset filters in context
+          resetFilters(priceBounds);
+
+          // Always navigate to /products without params
+          if (location.pathname === "/products") {
+            e.preventDefault();
+            // Force navigation to /products without params
+            navigate("/products", { replace: true });
+          }
+          // Otherwise, let Link handle navigation normally
+        }}
+        className={`transition-all font-normal duration-300 text-sm md:text-base ${textColor} ${hoverTextColor} flex items-center gap-1`}
+      >
         Thương hiệu
         <svg
           className="w-4 h-4"
           fill="none"
           stroke="currentColor"
-          viewBox="0 0 24 24">
+          viewBox="0 0 24 24"
+        >
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -56,7 +91,7 @@ export const BrandsDropdown = ({
             d="M19 9l-7 7-7-7"
           />
         </svg>
-      </button>
+      </Link>
 
       {/* Bridge element to connect parent and dropdown */}
       <AnimatePresence>
@@ -72,7 +107,7 @@ export const BrandsDropdown = ({
                 type: "spring",
                 stiffness: 280,
                 damping: 30,
-                mass: 0.9
+                mass: 0.9,
               }}
               className="fixed font-normal left-0 right-0 mt-4 mx-auto w-[90vw] max-w-5xl bg-white backdrop-blur-md shadow-md rounded-sm py-8 px-10 border border-gray-200/50 z-50"
             >
@@ -94,13 +129,37 @@ export const BrandsDropdown = ({
                         selectedLetter === null
                           ? "bg-black text-white"
                           : "border border-gray-300 hover:bg-gray-100 hover:border-gray-400 text-gray-700"
-                      }`}>
+                      }`}
+                    >
                       All
                     </button>
                     {[
-                      "A", "B", "C", "D", "E", "F", "G", "H", "I", "J",
-                      "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T",
-                      "U", "V", "W", "X", "Y", "Z",
+                      "A",
+                      "B",
+                      "C",
+                      "D",
+                      "E",
+                      "F",
+                      "G",
+                      "H",
+                      "I",
+                      "J",
+                      "K",
+                      "L",
+                      "M",
+                      "N",
+                      "O",
+                      "P",
+                      "Q",
+                      "R",
+                      "S",
+                      "T",
+                      "U",
+                      "V",
+                      "W",
+                      "X",
+                      "Y",
+                      "Z",
                     ].map((letter) => {
                       const hasBrands = availableLetters.includes(letter);
                       return (
@@ -120,7 +179,8 @@ export const BrandsDropdown = ({
                               : hasBrands
                               ? "border border-gray-300 hover:bg-gray-100 hover:border-gray-400 text-gray-700"
                               : "border border-gray-200 text-gray-300 cursor-not-allowed"
-                          }`}>
+                          }`}
+                        >
                           {letter}
                         </button>
                       );
@@ -149,7 +209,8 @@ export const BrandsDropdown = ({
                                     key={brand.brandId}
                                     to={`/products?brandId=${brand.brandId}`}
                                     onClick={() => onMouseLeave()}
-                                    className="text-sm font-normal text-gray-800 hover:text-black hover:underline py-1.5 px-2 rounded hover:bg-gray-50 transition-colors">
+                                    className="text-sm font-normal text-gray-800 hover:text-black hover:underline py-1.5 px-2 rounded hover:bg-gray-50 transition-colors"
+                                  >
                                     {brand.name}
                                   </Link>
                                 ))}
@@ -161,15 +222,18 @@ export const BrandsDropdown = ({
                     ) : (
                       // Show filtered brands by selected letter
                       <div className="grid grid-cols-5 gap-x-8 gap-y-3">
-                        {(groupedBrands[selectedLetter] || []).map((brand: Brand) => (
-                          <Link
-                            key={brand.brandId}
-                            to={`/products?brandId=${brand.brandId}`}
-                            onClick={() => onMouseLeave()}
-                            className="text-sm font-normal text-gray-800 hover:text-black hover:underline py-2 px-3 rounded hover:bg-gray-50 transition-colors">
-                            {brand.name}
-                          </Link>
-                        ))}
+                        {(groupedBrands[selectedLetter] || []).map(
+                          (brand: Brand) => (
+                            <Link
+                              key={brand.brandId}
+                              to={`/products?brandId=${brand.brandId}`}
+                              onClick={() => onMouseLeave()}
+                              className="text-sm font-normal text-gray-800 hover:text-black hover:underline py-2 px-3 rounded hover:bg-gray-50 transition-colors"
+                            >
+                              {brand.name}
+                            </Link>
+                          )
+                        )}
                       </div>
                     )}
 
@@ -190,4 +254,3 @@ export const BrandsDropdown = ({
     </div>
   );
 };
-

@@ -28,9 +28,43 @@ export const HeaderSearch = ({
   isVisible,
 }: HeaderSearchProps) => {
   const navigate = useNavigate();
-  const { searchProducts, searchResults, isLoading: isSearchLoading, totalResults, clearSearch } = useSearch();
+  const {
+    searchProducts,
+    searchResults,
+    inventories,
+    isLoading: isSearchLoading,
+    totalResults,
+    clearSearch,
+  } = useSearch();
+  useSearch();
   const searchContainerRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Helper function to get stock status badge
+  const getStockBadge = (productId: number) => {
+    const inventory = inventories.get(productId);
+    if (!inventory) return null;
+
+    const quantity = inventory.quantity;
+
+    if (quantity === 0) {
+      return (
+        <span className="inline-flex items-center gap-1 text-[10px] font-medium text-red-600">
+          <span className="w-1 h-1 bg-red-500 rounded-full"></span>
+          Hết hàng
+        </span>
+      );
+    } else if (quantity <= 10) {
+      return (
+        <span className="inline-flex items-center gap-1 text-[10px] font-medium text-orange-600">
+          <span className="w-1 h-1 bg-orange-500 rounded-full animate-pulse"></span>
+          Sắp hết
+        </span>
+      );
+    }
+
+    return null;
+  };
 
   // Listen for clearSearch event (when filters are applied)
   useEffect(() => {
@@ -40,8 +74,8 @@ export const HeaderSearch = ({
       setShowSearch(false);
       setIsSearchInputFocused(false);
     };
-    window.addEventListener('clearSearch', handleClearSearch);
-    return () => window.removeEventListener('clearSearch', handleClearSearch);
+    window.addEventListener("clearSearch", handleClearSearch);
+    return () => window.removeEventListener("clearSearch", handleClearSearch);
   }, [setSearchQuery, clearSearch, setShowSearch, setIsSearchInputFocused]);
 
   // Debounced search
@@ -61,7 +95,10 @@ export const HeaderSearch = ({
   useEffect(() => {
     if (!isVisible && showSearch) {
       // Blur input if it's focused
-      if (searchInputRef.current && document.activeElement === searchInputRef.current) {
+      if (
+        searchInputRef.current &&
+        document.activeElement === searchInputRef.current
+      ) {
         searchInputRef.current.blur();
       }
     }
@@ -72,33 +109,42 @@ export const HeaderSearch = ({
       initial={{ opacity: 0, x: 20, scale: 0.95 }}
       animate={{ opacity: 1, x: 0, scale: 1 }}
       exit={{ opacity: 0, x: 20, scale: 0.95 }}
-      transition={{ 
+      transition={{
         type: "spring",
         stiffness: 300,
         damping: 30,
-        mass: 0.8
+        mass: 0.8,
       }}
       className="hidden lg:flex flex-1 justify-center items-center mx-6 relative z-50"
     >
       {/* Đã giảm max-w để thanh tìm kiếm gọn hơn theo chiều ngang */}
-      <div ref={searchContainerRef} className={`w-full transition-all duration-300 ${isCompact ? 'max-w-lg' : 'max-w-xl'} relative group`}>
-        
+      <div
+        ref={searchContainerRef}
+        className={`w-full transition-all duration-300 ${
+          isCompact ? "max-w-lg" : "max-w-xl"
+        } relative group`}
+      >
         {/* Search Input Container */}
         <div className="relative rounded-full transition-all duration-300 group">
           {/* Search Icon Left - Chỉnh size w-4 h-4 */}
           <svg
             className={`absolute left-4 top-1/2 -translate-y-1/2 transition-all duration-300 w-4 h-4 ${
-              !isScrolled 
-                ? "text-white/70 group-focus-within:text-gray-500" 
+              !isScrolled
+                ? "text-white/70 group-focus-within:text-gray-500"
                 : "text-gray-400 group-focus-within:text-gray-500"
             }`}
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
           >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+            />
           </svg>
-          
+
           <input
             ref={searchInputRef}
             name="search"
@@ -135,8 +181,8 @@ export const HeaderSearch = ({
             className={`w-full rounded-full border px-10 transition-all duration-300 focus:outline-none 
               ${isCompact ? "py-1.5 text-sm" : "py-2 text-sm"}
               ${
-                !isScrolled 
-                  ? "bg-white/10 border-white/30 text-white placeholder-white/70 focus:bg-white focus:text-gray-900 focus:placeholder-gray-400 focus:border-transparent" 
+                !isScrolled
+                  ? "bg-white/10 border-white/30 text-white placeholder-white/70 focus:bg-white focus:text-gray-900 focus:placeholder-gray-400 focus:border-transparent"
                   : "bg-gray-50  border-gray-200 text-gray-800 placeholder-gray-400 focus:bg-white"
               }
                focus:shadow-md 
@@ -153,12 +199,24 @@ export const HeaderSearch = ({
               clearSearch();
             }}
             className={`absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full transition-all duration-200 group-focus-within:text-gray-500   ${
-              !isScrolled ? "text-white/70 hover:text-white hover:bg-white/20 group-focus-within:hover:bg-gray-200" : "text-gray-500 hover:text-gray-500 hover:bg-gray-100 hover:focus:bg-gray-200"
+              !isScrolled
+                ? "text-white/70 hover:text-white hover:bg-white/20 group-focus-within:hover:bg-gray-200"
+                : "text-gray-500 hover:text-gray-500 hover:bg-gray-100 hover:focus:bg-gray-200"
             }`}
           >
             {/* Chỉnh icon close nhỏ gọn w-4 h-4 */}
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
             </svg>
           </button>
         </div>
@@ -176,12 +234,16 @@ export const HeaderSearch = ({
               {isSearchLoading ? (
                 <div className="p-8 text-center text-gray-400">
                   <div className="inline-block animate-spin rounded-full h-4 w-4 border-2 border-gray-300 border-t-black mb-2"></div>
-                  <p className="text-sm font-medium tracking-wide uppercase">Đang tìm kiếm</p>
+                  <p className="text-sm font-medium tracking-wide uppercase">
+                    Đang tìm kiếm
+                  </p>
                 </div>
               ) : searchResults.length > 0 ? (
                 <div className="flex flex-col">
                   <div className="px-5 py-2.5 border-b border-gray-50 bg-gray-50/50">
-                    <span className="text-sm font-bold text-gray-400 uppercase tracking-wider">Sản phẩm gợi ý</span>
+                    <span className="text-sm font-bold text-gray-400 uppercase tracking-wider">
+                      Sản phẩm gợi ý
+                    </span>
                   </div>
 
                   <div className="max-h-[350px] overflow-y-auto custom-scrollbar py-1 px-4">
@@ -208,9 +270,12 @@ export const HeaderSearch = ({
                           <h4 className="text-sm font-medium text-gray-900 truncate group-hover:text-black transition-colors">
                             {product.name}
                           </h4>
-                          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mt-0.5 truncate">
-                            {product.brand.name}
-                          </p>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            {getStockBadge(product.productId)}
+                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider truncate">
+                              {product.brand.name}
+                            </p>
+                          </div>
                         </div>
                         <div className="text-right flex-shrink-0 pl-2">
                           {product.unitPrice > 0 ? (
@@ -229,7 +294,9 @@ export const HeaderSearch = ({
 
                   {totalResults > 4 && (
                     <Link
-                      to={`/products?q=${encodeURIComponent(searchQuery.trim())}`}
+                      to={`/products?q=${encodeURIComponent(
+                        searchQuery.trim()
+                      )}`}
                       onClick={() => {
                         setShowSearch(false);
                         setSearchQuery("");
@@ -238,13 +305,16 @@ export const HeaderSearch = ({
                       }}
                       className="block py-3 text-center text-sm font-semibold text-gray-600 hover:text-black hover:bg-gray-50 border-t border-gray-100 transition-colors"
                     >
-                      Xem tất cả <span className="font-bold">{totalResults}</span> kết quả
+                      Xem tất cả{" "}
+                      <span className="font-bold">{totalResults}</span> kết quả
                     </Link>
                   )}
                 </div>
               ) : (
                 <div className="p-6 text-center">
-                  <p className="text-sm text-gray-900 font-medium">Không tìm thấy kết quả</p>
+                  <p className="text-sm text-gray-900 font-medium">
+                    Không tìm thấy kết quả
+                  </p>
                 </div>
               )}
             </motion.div>
