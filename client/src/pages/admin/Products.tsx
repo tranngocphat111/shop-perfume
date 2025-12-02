@@ -59,12 +59,12 @@ export const Products = () => {
         size,
         sortBy,
         direction,
-        search
+        search,
+        "ACTIVE" // Only fetch ACTIVE products from backend
       );
-      // Filter only ACTIVE products
-      const transformedData: ProductData[] = pageResponse.content
-        .filter((item: Product) => item.status === "ACTIVE")
-        .map((item: Product) => ({
+
+      const transformedData: ProductData[] = pageResponse.content.map(
+        (item: Product) => ({
           id: item.productId,
           name: item.name,
           brand: item.brand.name,
@@ -74,7 +74,8 @@ export const Products = () => {
           status: item.status,
           lastUpdated: new Date(item.lastUpdated).toLocaleDateString(),
           updatedBy: item.lastUpdatedBy || "System",
-        }));
+        })
+      );
 
       setProducts(transformedData);
       setTotalElements(pageResponse.totalElements);
@@ -295,8 +296,8 @@ export const Products = () => {
       alert(
         `✅ Đã xóa sản phẩm thành công!\n\nSản phẩm "${item.name}" đã được chuyển sang trạng thái INACTIVE.`
       );
-      // Refresh the product list
-      fetchProducts(
+      // Refresh the product list to get only ACTIVE products
+      await fetchProducts(
         currentPage,
         pageSize,
         sortField,
@@ -535,7 +536,7 @@ export const Products = () => {
           onView={handleView}
           onEdit={handleEdit}
           onDelete={handleDelete}
-          searchPlaceholder="Search by ID, name, brand, category, status, price, volume..."
+          searchPlaceholder="Search by ID, name, brand, category, price, volume..."
           onSearch={handleSearch}
           serverSide={true}
           totalElements={totalElements}

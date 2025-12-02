@@ -72,7 +72,7 @@ export const ProductDetailModal = ({
                 </p>
               </div>
 
-              {/* Status */}
+              {/* Status
               <div>
                 <label className="block text-sm font-medium text-gray-500 mb-1">
                   Status
@@ -85,7 +85,7 @@ export const ProductDetailModal = ({
                   }`}>
                   {product.status}
                 </span>
-              </div>
+              </div> */}
 
               {/* Price */}
               <div>
