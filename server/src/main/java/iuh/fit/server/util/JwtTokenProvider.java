@@ -31,6 +31,25 @@ public class JwtTokenProvider {
      */
     public String generateToken(String email) {
         try {
+            // Validate JWT secret
+            if (jwtSecret == null || jwtSecret.isEmpty()) {
+                throw new IllegalStateException("JWT secret key is not configured. Please set JWT_SECRET environment variable.");
+            }
+            
+            // HS512 requires at least 64 bytes (512 bits)
+            byte[] secretBytes = jwtSecret.getBytes();
+            if (secretBytes.length < 64) {
+                log.warn("JWT secret key is too short ({} bytes). HS512 requires at least 64 bytes. Consider using a longer secret key.", secretBytes.length);
+                // Pad the secret to 64 bytes if it's too short
+                byte[] paddedSecret = new byte[64];
+                System.arraycopy(secretBytes, 0, paddedSecret, 0, Math.min(secretBytes.length, 64));
+                // If secret is shorter, repeat it to fill the array
+                for (int i = secretBytes.length; i < 64; i++) {
+                    paddedSecret[i] = secretBytes[i % secretBytes.length];
+                }
+                secretBytes = paddedSecret;
+            }
+            
             Date now = new Date();
             Date expiryDate = new Date(now.getTime() + jwtExpiration);
 
@@ -46,13 +65,16 @@ public class JwtTokenProvider {
                     claimsSet
             );
 
-            JWSSigner signer = new MACSigner(jwtSecret.getBytes());
+            JWSSigner signer = new MACSigner(secretBytes);
             signedJWT.sign(signer);
 
             return signedJWT.serialize();
         } catch (JOSEException e) {
-            log.error("Error generating token", e);
-            throw new RuntimeException("Không thể tạo JWT token", e);
+            log.error("Error generating JWT token for email: {}. Error: {}", email, e.getMessage(), e);
+            throw new RuntimeException("Không thể tạo JWT token: " + e.getMessage(), e);
+        } catch (IllegalStateException e) {
+            log.error("JWT configuration error: {}", e.getMessage());
+            throw e;
         }
     }
 
@@ -81,8 +103,25 @@ public class JwtTokenProvider {
      */
     public boolean validateToken(String token) {
         try {
+            if (jwtSecret == null || jwtSecret.isEmpty()) {
+                log.error("JWT secret key is not configured");
+                return false;
+            }
+            
+            // HS512 requires at least 64 bytes (512 bits)
+            byte[] secretBytes = jwtSecret.getBytes();
+            if (secretBytes.length < 64) {
+                // Pad the secret to 64 bytes if it's too short
+                byte[] paddedSecret = new byte[64];
+                System.arraycopy(secretBytes, 0, paddedSecret, 0, Math.min(secretBytes.length, 64));
+                for (int i = secretBytes.length; i < 64; i++) {
+                    paddedSecret[i] = secretBytes[i % secretBytes.length];
+                }
+                secretBytes = paddedSecret;
+            }
+            
             SignedJWT signedJWT = SignedJWT.parse(token);
-            JWSVerifier verifier = new MACVerifier(jwtSecret.getBytes());
+            JWSVerifier verifier = new MACVerifier(secretBytes);
 
             if (!signedJWT.verify(verifier)) {
                 log.warn("JWT signature verification failed");
@@ -125,6 +164,111 @@ public class JwtTokenProvider {
         } catch (ParseException e) {
             log.error("Error getting expiration date from token", e);
             throw new RuntimeException("Không thể lấy expiration date từ token", e);
+        }
+    }
+
+    /**
+     * Tạo refresh token từ email
+     * Refresh token có thời gian sống lâu hơn access token (7 ngày)
+     */
+    public String generateRefreshToken(String email) {
+        try {
+            // Validate JWT secret
+            if (jwtSecret == null || jwtSecret.isEmpty()) {
+                throw new IllegalStateException("JWT secret key is not configured. Please set JWT_SECRET environment variable.");
+            }
+            
+            // HS512 requires at least 64 bytes (512 bits)
+            byte[] secretBytes = jwtSecret.getBytes();
+            if (secretBytes.length < 64) {
+                log.warn("JWT secret key is too short ({} bytes). HS512 requires at least 64 bytes. Consider using a longer secret key.", secretBytes.length);
+                // Pad the secret to 64 bytes if it's too short
+                byte[] paddedSecret = new byte[64];
+                System.arraycopy(secretBytes, 0, paddedSecret, 0, Math.min(secretBytes.length, 64));
+                // If secret is shorter, repeat it to fill the array
+                for (int i = secretBytes.length; i < 64; i++) {
+                    paddedSecret[i] = secretBytes[i % secretBytes.length];
+                }
+                secretBytes = paddedSecret;
+            }
+            
+            Date now = new Date();
+            Date expiryDate = new Date(now.getTime() + jwtRefreshExpiration);
+
+            JWTClaimsSet claimsSet = new JWTClaimsSet.Builder()
+                    .subject(email)
+                    .issueTime(now)
+                    .expirationTime(expiryDate)
+                    .issuer("shop-perfume")
+                    .claim("type", "refresh") // Đánh dấu đây là refresh token
+                    .build();
+
+            SignedJWT signedJWT = new SignedJWT(
+                    new JWSHeader(JWSAlgorithm.HS512),
+                    claimsSet
+            );
+
+            JWSSigner signer = new MACSigner(secretBytes);
+            signedJWT.sign(signer);
+
+            return signedJWT.serialize();
+        } catch (JOSEException e) {
+            log.error("Error generating refresh token for email: {}. Error: {}", email, e.getMessage(), e);
+            throw new RuntimeException("Không thể tạo refresh token: " + e.getMessage(), e);
+        } catch (IllegalStateException e) {
+            log.error("JWT configuration error: {}", e.getMessage());
+            throw e;
+        }
+    }
+
+    /**
+     * Validate refresh token
+     */
+    public boolean validateRefreshToken(String token) {
+        try {
+            if (jwtSecret == null || jwtSecret.isEmpty()) {
+                log.error("JWT secret key is not configured");
+                return false;
+            }
+            
+            // HS512 requires at least 64 bytes (512 bits)
+            byte[] secretBytes = jwtSecret.getBytes();
+            if (secretBytes.length < 64) {
+                // Pad the secret to 64 bytes if it's too short
+                byte[] paddedSecret = new byte[64];
+                System.arraycopy(secretBytes, 0, paddedSecret, 0, Math.min(secretBytes.length, 64));
+                for (int i = secretBytes.length; i < 64; i++) {
+                    paddedSecret[i] = secretBytes[i % secretBytes.length];
+                }
+                secretBytes = paddedSecret;
+            }
+            
+            SignedJWT signedJWT = SignedJWT.parse(token);
+            JWSVerifier verifier = new MACVerifier(secretBytes);
+
+            if (!signedJWT.verify(verifier)) {
+                log.warn("Refresh token signature verification failed");
+                return false;
+            }
+
+            // Kiểm tra đây có phải refresh token không
+            String tokenType = signedJWT.getJWTClaimsSet().getStringClaim("type");
+            if (!"refresh".equals(tokenType)) {
+                log.warn("Token is not a refresh token");
+                return false;
+            }
+
+            // Kiểm tra expiration
+            Date expirationTime = signedJWT.getJWTClaimsSet().getExpirationTime();
+            if (expirationTime.before(new Date())) {
+                log.warn("Refresh token has expired");
+                return false;
+            }
+
+            return true;
+        } catch (Exception e) {
+            log.error("Refresh token validation failed", e);
+            return false;
         }
     }
 }
