@@ -65,7 +65,12 @@ public class EmailServiceImpl implements EmailService {
                     .text(textBody)
                     .build();
 
-            SendEmailResponse response = resend.emails().send(emailRequest);
+            SendEmailResponse response;
+            try {
+                response = resend.emails().send(emailRequest);
+            } catch (ResendException resendEx) {
+                throw resendEx; // Re-throw to be caught by outer catch block
+            }
             String emailId = response.getId();
 
             log.info("✅ Password reset email sent successfully!");
