@@ -38,7 +38,6 @@ import java.util.Base64;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashSet;
-import java.util.Optional;
 import java.util.Set;
 
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
@@ -61,6 +60,18 @@ public class AuthServiceImpl implements AuthService{
     
     @Value("${app.frontend.url:http://localhost:3000}")
     private String frontendUrl;
+    
+    /**
+     * Lấy URL frontend đầu tiên nếu có nhiều URL được nối với nhau (ví dụ: "url1,url2")
+     */
+    private String getFrontendUrl() {
+        if (frontendUrl == null || frontendUrl.isEmpty()) {
+            return "http://localhost:3000";
+        }
+        // Lấy URL đầu tiên nếu có nhiều URL được nối với nhau
+        String url = frontendUrl.split(",")[0].trim();
+        return url;
+    }
     
     @Value("${spring.security.oauth2.client.registration.google.client-id:}")
     private String googleClientId;
