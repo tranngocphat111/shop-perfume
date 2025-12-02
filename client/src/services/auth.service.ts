@@ -299,6 +299,15 @@ class AuthService {
 
     return response;
   }
+  async changePassword(
+    currentPassword: string,
+    newPassword: string
+  ): Promise<void> {
+    await apiService.post("/auth/change-password", {
+      currentPassword,
+      newPassword,
+    });
+  }
 }
 
 export const authService = new AuthService();

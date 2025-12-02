@@ -6,7 +6,6 @@ import iuh.fit.server.dto.request.RefreshTokenRequest;
 import iuh.fit.server.dto.request.RegisterRequest;
 import iuh.fit.server.dto.request.ResetPasswordRequest;
 import iuh.fit.server.dto.request.UpdateUserRequest;
-import iuh.fit.server.dto.request.ChangePasswordRequest;
 import iuh.fit.server.dto.response.AuthResponse;
 import iuh.fit.server.dto.response.TokenRefreshResponse;
 import iuh.fit.server.dto.response.UserInfoResponse;
@@ -423,24 +422,23 @@ public class AuthServiceImpl implements AuthService{
     
     @Override
     @Transactional
-    public void changePassword(String email, ChangePasswordRequest request) {
-        log.info("Changing password for user: {}", email);
-        
+    public void changePassword(String email, String currentPassword, String newPassword) {
+        // Tìm user
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new AuthenticationException("User không tồn tại"));
         
-        // Verify current password
-        if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPasswordHash())) {
-            throw new RuntimeException("Mật khẩu hiện tại không đúng");
+        // Kiểm tra trạng thái tài khoản
+        if (user.getStatus() != UserStatus.ACTIVE) {
+            throw new AuthenticationException("Tài khoản chưa được kích hoạt");
         }
         
-        // Check if new password is same as current
-        if (passwordEncoder.matches(request.getNewPassword(), user.getPasswordHash())) {
-            throw new RuntimeException("Mật khẩu mới phải khác mật khẩu hiện tại");
+        // Verify mật khẩu hiện tại
+        if (!passwordEncoder.matches(currentPassword, user.getPasswordHash())) {
+            throw new AuthenticationException("Mật khẩu hiện tại không đúng");
         }
         
-        // Update password
-        user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
+        // Cập nhật mật khẩu mới
+        user.setPasswordHash(passwordEncoder.encode(newPassword));
         userRepository.save(user);
         
         log.info("Password changed successfully for user: {}", email);

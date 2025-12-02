@@ -6,7 +6,6 @@ import iuh.fit.server.dto.request.RegisterRequest;
 import iuh.fit.server.dto.request.RefreshTokenRequest;
 import iuh.fit.server.dto.request.ResetPasswordRequest;
 import iuh.fit.server.dto.request.UpdateUserRequest;
-import iuh.fit.server.dto.request.ChangePasswordRequest;
 import iuh.fit.server.dto.response.AuthResponse;
 import iuh.fit.server.dto.response.TokenRefreshResponse;
 import iuh.fit.server.dto.response.UserInfoResponse;
@@ -28,6 +27,7 @@ public interface AuthService {
     
     UserInfoResponse updateProfile(String email, UpdateUserRequest request);
     
-    void changePassword(String email, ChangePasswordRequest request);
+    void changePassword(String email, String currentPassword, String newPassword);
+    
     AuthResponse signInWithGoogle(String googleIdToken);
 }
