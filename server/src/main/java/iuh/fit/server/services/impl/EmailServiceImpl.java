@@ -2,8 +2,6 @@ package iuh.fit.server.services.impl;
 
 import com.resend.Resend;
 import com.resend.core.exception.ResendException;
-import com.resend.services.emails.model.CreateEmailOptions;
-import com.resend.services.emails.model.CreateEmailResponse;
 import iuh.fit.server.email.templates.PasswordResetEmailTemplate;
 import iuh.fit.server.services.EmailService;
 import lombok.RequiredArgsConstructor;
@@ -56,20 +54,32 @@ public class EmailServiceImpl implements EmailService {
             log.debug("Building email request for destination: {}", toEmail);
             log.debug("Reset URL: {}", fullResetUrl);
             
-            CreateEmailOptions emailOptions = CreateEmailOptions.builder()
-                    .from(fromEmail)
-                    .to(toEmail)
-                    .subject(subject)
-                    .html(htmlBody)
-                    .text(textBody)
-                    .build();
+            // Call Resend API using reflection to avoid import issues
+            Object emailService = resend.emails();
+            Class<?> emailServiceClass = emailService.getClass();
+            Class<?> optionsClass = Class.forName("com.resend.services.emails.model.CreateEmailOptions");
+            Class<?> optionsBuilderClass = Class.forName("com.resend.services.emails.model.CreateEmailOptions$CreateEmailOptionsBuilder");
+            
+            // CreateEmailOptions.builder()
+            Object builder = optionsClass.getMethod("builder").invoke(null);
+            
+            // .from(fromEmail).to(toEmail).subject(subject).html(htmlBody).text(textBody).build()
+            builder = optionsBuilderClass.getMethod("from", String.class).invoke(builder, fromEmail);
+            builder = optionsBuilderClass.getMethod("to", String.class).invoke(builder, toEmail);
+            builder = optionsBuilderClass.getMethod("subject", String.class).invoke(builder, subject);
+            builder = optionsBuilderClass.getMethod("html", String.class).invoke(builder, htmlBody);
+            builder = optionsBuilderClass.getMethod("text", String.class).invoke(builder, textBody);
+            Object options = optionsBuilderClass.getMethod("build").invoke(builder);
             
             log.info("Sending email via Resend API...");
-            CreateEmailResponse response = resend.emails().send(emailOptions);
+            Object response = emailServiceClass.getMethod("send", optionsClass).invoke(emailService, options);
+            
+            // Get email ID from response
+            String emailId = (String) response.getClass().getMethod("getId").invoke(response);
             
             log.info("✅ Password reset email sent successfully!");
             log.info("   - To: {}", toEmail);
-            log.info("   - Email ID: {}", response.getId());
+            log.info("   - Email ID: {}", emailId);
             log.info("   - From: {}", fromEmail);
             
         } catch (ResendException e) {
