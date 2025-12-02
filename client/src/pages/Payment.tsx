@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { FaSpinner } from 'react-icons/fa';
 import { apiService } from '../services/api';
+import { useCart } from '../contexts/CartContext';
 import type { OrderResponse } from '../types';
 import { generateOrderQRCode } from '../services/sepay';
 import {
@@ -26,6 +27,7 @@ export const Payment: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const state = location.state as PaymentLocationState;
+  const { removeFromCart } = useCart();
 
   const [order, setOrder] = useState<OrderResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -188,6 +190,24 @@ export const Payment: React.FC = () => {
         console.log('[Payment] Payment Date:', data.paymentDate);
         console.log('[Payment] Webhook đã xử lý thành công!');
         setIsPaid(true);
+        
+        // Chỉ remove các items đã thanh toán thành công khỏi cart
+        const pendingOrderKey = `pending_order_${order.orderId}`;
+        const orderItemsToRemove = localStorage.getItem(pendingOrderKey);
+        if (orderItemsToRemove) {
+          try {
+            const productIds: number[] = JSON.parse(orderItemsToRemove);
+            productIds.forEach(productId => {
+              removeFromCart(productId);
+            });
+            // Xóa key sau khi đã remove
+            localStorage.removeItem(pendingOrderKey);
+            console.log('[Payment] ✅ Removed paid items from cart:', productIds);
+          } catch (error) {
+            console.error('[Payment] ❌ Error removing items from cart:', error);
+          }
+        }
+        
         // Redirect to home after 3 seconds
         setTimeout(() => {
           navigate('/', { state: { orderSuccess: true } });

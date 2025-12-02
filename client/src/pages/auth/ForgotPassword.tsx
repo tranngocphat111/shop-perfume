@@ -74,19 +74,19 @@ const ForgotPassword: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 via-white to-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="flex items-center justify-center min-h-screen px-4 py-12 bg-gradient-to-br from-gray-50 via-white to-gray-50 sm:px-6 lg:px-8">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: "easeOut" }}
-        className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden border border-gray-200"
+        className="w-full max-w-md overflow-hidden bg-white border border-gray-200 shadow-2xl rounded-xl"
       >
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.1 }}
-          className="bg-white border-b border-gray-100 p-8 text-center"
+          className="p-8 text-center bg-white border-b border-gray-100"
         >
           <Link to="/" className="inline-block mb-4">
             <motion.img
@@ -101,7 +101,7 @@ const ForgotPassword: React.FC = () => {
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             transition={{ delay: 0.3, type: "spring", stiffness: 200 }}
-            className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mb-4"
+            className="inline-flex items-center justify-center w-16 h-16 mb-4 bg-blue-100 rounded-full"
           >
             <svg
               className="w-8 h-8 text-blue-600"
@@ -117,10 +117,10 @@ const ForgotPassword: React.FC = () => {
               />
             </svg>
           </motion.div>
-          <h2 className="text-2xl font-semibold text-gray-900 tracking-tight">
+          <h2 className="text-2xl font-semibold tracking-tight text-gray-900">
             Quên mật khẩu
           </h2>
-          <p className="text-gray-600 mt-2 text-sm">
+          <p className="mt-2 text-sm text-gray-600">
             Nhập email để nhận link đặt lại mật khẩu
           </p>
         </motion.div>
@@ -145,7 +145,7 @@ const ForgotPassword: React.FC = () => {
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
                   transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
-                  className="inline-flex items-center justify-center w-20 h-20 bg-green-100 rounded-full mb-4"
+                  className="inline-flex items-center justify-center w-20 h-20 mb-4 bg-green-100 rounded-full"
                 >
                   <svg
                     className="w-10 h-10 text-green-600"
@@ -161,16 +161,17 @@ const ForgotPassword: React.FC = () => {
                     />
                   </svg>
                 </motion.div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                <h3 className="mb-2 text-xl font-semibold text-gray-900">
                   Email đã được gửi!
                 </h3>
-                <p className="text-sm text-gray-600 mb-6">
-                  Nếu email của bạn tồn tại trong hệ thống, một liên kết đặt lại mật khẩu đã được
-                  gửi đến bạn. Vui lòng kiểm tra hộp thư đến (và cả thư mục spam).
+                <p className="mb-6 text-sm text-gray-600">
+                  Nếu email của bạn tồn tại trong hệ thống, một liên kết đặt lại
+                  mật khẩu đã được gửi đến bạn. Vui lòng kiểm tra hộp thư đến
+                  (và cả thư mục spam).
                 </p>
                 <Link
                   to="/login"
-                  className="inline-flex items-center text-sm text-gray-900 font-medium hover:underline transition"
+                  className="inline-flex items-center text-sm font-medium text-gray-900 transition hover:underline"
                 >
                   Quay về đăng nhập
                 </Link>
@@ -189,7 +190,7 @@ const ForgotPassword: React.FC = () => {
                       animate={{ opacity: 1, y: 0, height: "auto" }}
                       exit={{ opacity: 0, y: -10, height: 0 }}
                       transition={{ duration: 0.2 }}
-                      className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 rounded-r-lg"
+                      className="p-4 mb-6 border-l-4 border-red-500 rounded-r-lg bg-red-50"
                     >
                       <div className="flex items-start">
                         <svg
@@ -203,7 +204,9 @@ const ForgotPassword: React.FC = () => {
                             clipRule="evenodd"
                           />
                         </svg>
-                        <span className="text-sm text-red-800 flex-1">{error}</span>
+                        <span className="flex-1 text-sm text-red-800">
+                          {error}
+                        </span>
                       </div>
                     </motion.div>
                   )}
@@ -211,11 +214,11 @@ const ForgotPassword: React.FC = () => {
 
                 <form onSubmit={handleSubmit} className="space-y-5">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block mb-2 text-sm font-medium text-gray-700">
                       Email <span className="text-red-500">*</span>
                     </label>
                     <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
                         <svg
                           className={`h-5 w-5 transition-colors ${
                             emailError ? "text-red-400" : "text-gray-400"
@@ -277,7 +280,7 @@ const ForgotPassword: React.FC = () => {
                     {loading ? (
                       <span className="flex items-center justify-center">
                         <svg
-                          className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+                          className="w-5 h-5 mr-3 -ml-1 text-white animate-spin"
                           xmlns="http://www.w3.org/2000/svg"
                           fill="none"
                           viewBox="0 0 24 24"
@@ -322,21 +325,21 @@ const ForgotPassword: React.FC = () => {
             )}
           </AnimatePresence>
 
-          <div className="mt-6 text-center space-y-3">
+          <div className="mt-6 space-y-3 text-center">
             {!success && (
               <>
                 <p className="text-sm text-gray-600">
                   Nhớ mật khẩu?{" "}
                   <Link
                     to="/login"
-                    className="text-gray-900 font-medium hover:underline transition"
+                    className="font-medium text-gray-900 transition hover:underline"
                   >
                     Đăng nhập
                   </Link>
                 </p>
                 <Link
                   to="/"
-                  className="inline-flex items-center text-sm text-gray-500 hover:text-gray-900 transition"
+                  className="inline-flex items-center text-sm text-gray-500 transition hover:text-gray-900"
                 >
                   <svg
                     className="w-4 h-4 mr-2"

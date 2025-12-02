@@ -15,10 +15,30 @@ export const CartDropdown = ({ isVisible, onClose }: CartDropdownProps) => {
 
   if (cart.items.length === 0) return null;
 
-  const totalQuantity = cart.items.reduce((sum, item) => sum + item.quantity, 0);
+  // Filter items còn hàng để tính tổng
+  const availableItems = cart.items.filter(item => 
+    item.stockQuantity === undefined || item.stockQuantity > 0
+  );
+  
+  // Kiểm tra có sản phẩm hết hàng không
+  const hasOutOfStockItems = cart.items.some(item => 
+    item.stockQuantity !== undefined && item.stockQuantity === 0
+  );
+
+  // Tính tổng và số lượng chỉ từ items còn hàng
+  const availableTotal = availableItems.reduce(
+    (sum, item) => sum + item.product.unitPrice * item.quantity,
+    0
+  );
+  const availableQuantity = availableItems.reduce((sum, item) => sum + item.quantity, 0);
+
   const displayedItems = cart.items.slice(0, 3);
   const remainingCount = cart.items.length - 3;
   const hasMoreItems = remainingCount > 0;
+  
+  // Disable nút thanh toán chỉ khi không có sản phẩm khả dụng hoặc tổng = 0
+  // Nếu có sản phẩm khả dụng, vẫn cho phép thanh toán bình thường
+  const isCheckoutDisabled = availableItems.length === 0 || availableTotal <= 0;
 
   return (
     <AnimatePresence>
@@ -56,9 +76,15 @@ export const CartDropdown = ({ isVisible, onClose }: CartDropdownProps) => {
                     <h4 className="text-sm font-medium text-gray-900 mb-1 line-clamp-2 leading-snug group-hover:text-gray-950 transition-colors">
                       {item.product.name}
                     </h4>
-                    <p className="text-xs text-gray-500 group-hover:text-gray-600 transition-colors">
-                      Số lượng: {item.quantity}
-                    </p>
+                    {item.stockQuantity !== undefined && item.stockQuantity === 0 ? (
+                      <p className="text-xs text-red-600 font-semibold">
+                        Hết hàng
+                      </p>
+                    ) : (
+                      <p className="text-xs text-gray-500 group-hover:text-gray-600 transition-colors">
+                        Số lượng: {item.quantity}
+                      </p>
+                    )}
                   </div>
 
                   {/* Remove Button */}
@@ -98,12 +124,12 @@ export const CartDropdown = ({ isVisible, onClose }: CartDropdownProps) => {
             <div className="p-4 space-y-2">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-gray-600">Tổng sản phẩm</span>
-                <span className="font-semibold text-gray-900">{totalQuantity}</span>
+                <span className="font-semibold text-gray-900">{availableQuantity}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-600">Tổng tiền</span>
                 <span className="text-base font-bold text-gray-900">
-                  {formatCurrency(getCartTotal())}₫
+                  {formatCurrency(availableTotal)}₫
                 </span>
               </div>
             </div>
@@ -119,10 +145,18 @@ export const CartDropdown = ({ isVisible, onClose }: CartDropdownProps) => {
               </Link>
               <button
                 onClick={() => {
-                  onClose();
-                  navigate("/checkout");
+                  if (!isCheckoutDisabled) {
+                    onClose();
+                    navigate("/checkout");
+                  }
                 }}
-                className="btn-slide-overlay-dark relative flex-1 px-4 py-2 text-sm font-medium text-white bg-black rounded-full hover:bg-gray-800 transition-colors overflow-hidden"
+                disabled={isCheckoutDisabled}
+                className={`relative flex-1 px-4 py-2 text-sm font-medium rounded-full transition-colors overflow-hidden ${
+                  isCheckoutDisabled
+                    ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                    : 'btn-slide-overlay-dark text-white bg-black hover:bg-gray-800'
+                }`}
+                title={isCheckoutDisabled ? 'Vui lòng loại bỏ sản phẩm hết hàng trước khi thanh toán' : ''}
               >
                 <span className="relative z-index-10">Thanh toán</span>
               </button>

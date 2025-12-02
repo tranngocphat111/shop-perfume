@@ -1,18 +1,15 @@
 package iuh.fit.server.services.impl;
 
+import com.resend.Resend;
+import com.resend.core.exception.ResendException;
+import com.resend.services.emails.model.SendEmailRequest;
+import com.resend.services.emails.model.SendEmailResponse;
 import iuh.fit.server.email.templates.PasswordResetEmailTemplate;
 import iuh.fit.server.services.EmailService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
-import software.amazon.awssdk.regions.Region;
-import software.amazon.awssdk.services.ses.SesClient;
-import software.amazon.awssdk.services.ses.model.*;
-import software.amazon.awssdk.services.ses.model.SesException;
-
-import java.nio.charset.StandardCharsets;
 
 @Service
 @RequiredArgsConstructor
@@ -21,96 +18,90 @@ public class EmailServiceImpl implements EmailService {
     
     private final PasswordResetEmailTemplate passwordResetEmailTemplate;
     
-    @Value("${aws.ses.region:us-east-1}")
-    private String awsRegion;
+    @Value("${resend.api-key}")
+    private String resendApiKey;
     
-    @Value("${aws.ses.from-email:phamdacthinh2301@gmail.com}")
+    @Value("${resend.from-email}")
     private String fromEmail;
     
-    private SesClient getSesClient() {
-        log.debug("Creating SES client with region: {}", awsRegion);
-        try {
-            DefaultCredentialsProvider credentialsProvider = DefaultCredentialsProvider.create();
-            log.debug("AWS Credentials Provider created successfully");
-            
-            SesClient client = SesClient.builder()
-                    .region(Region.of(awsRegion))
-                    .credentialsProvider(credentialsProvider)
-                    .build();
-            
-            log.debug("SES client created successfully");
-            return client;
-        } catch (Exception e) {
-            log.error("Failed to create SES client: {}", e.getMessage(), e);
-            throw new RuntimeException("Không thể khởi tạo AWS SES client. Vui lòng kiểm tra AWS credentials và region. Chi tiết: " + e.getMessage(), e);
-        }
-    }
+    @Value("${app.frontend.url:http://localhost:3000}")
+    private String frontendUrl;
     
     @Override
     public void sendPasswordResetEmail(String toEmail, String resetToken, String resetUrl) {
         log.info("Attempting to send password reset email to: {}", toEmail);
-        log.info("Using AWS SES Region: {}, From Email: {}", awsRegion, fromEmail);
+        log.info("Using Resend API, From Email: {}", fromEmail);
         
-        try (SesClient sesClient = getSesClient()) {
-            String subject = passwordResetEmailTemplate.getSubject(resetUrl);
-            String htmlBody = passwordResetEmailTemplate.buildHtml(resetUrl);
-            String textBody = passwordResetEmailTemplate.buildText(resetUrl);
-            
-            log.debug("Building email request for destination: {}", toEmail);
-            
-            SendEmailRequest emailRequest = SendEmailRequest.builder()
-                    .destination(Destination.builder()
-                            .toAddresses(toEmail)
-                            .build())
-                    .message(Message.builder()
-                            .subject(Content.builder()
-                                    .data(subject)
-                                    .charset(StandardCharsets.UTF_8.name())
-                                    .build())
-                            .body(Body.builder()
-                                    .html(Content.builder()
-                                            .data(htmlBody)
-                                            .charset(StandardCharsets.UTF_8.name())
-                                            .build())
-                                    .text(Content.builder()
-                                            .data(textBody)
-                                            .charset(StandardCharsets.UTF_8.name())
-                                            .build())
-                                    .build())
-                            .build())
-                    .source(fromEmail)
-                    .build();
-            
-            log.info("Sending email via AWS SES...");
-            SendEmailResponse response = sesClient.sendEmail(emailRequest);
-            log.info("✅ Password reset email sent successfully!");
-            log.info("   - To: {}", toEmail);
-            log.info("   - Message ID: {}", response.messageId());
-            log.info("   - Region: {}", awsRegion);
-            log.info("   - From: {}", fromEmail);
-        } catch (SesException e) {
-            log.error("❌ AWS SES Error sending password reset email to {}: {}", toEmail, e.getMessage());
-            log.error("   - Error Code: {}", e.awsErrorDetails().errorCode());
-            log.error("   - Error Message: {}", e.awsErrorDetails().errorMessage());
-            log.error("   - Request ID: {}", e.requestId());
-            log.error("   - Status Code: {}", e.statusCode());
-            
-            // Provide more helpful error messages
-            String errorCode = e.awsErrorDetails().errorCode();
-            String errorMessage = "Không thể gửi email đặt lại mật khẩu";
-            
-            if ("MessageRejected".equals(errorCode)) {
-                errorMessage = "Email bị từ chối. Có thể email người nhận chưa được verify trong AWS SES (Sandbox mode) hoặc email người gửi chưa được verify.";
-            } else if ("MailFromDomainNotVerifiedException".equals(errorCode)) {
-                errorMessage = "Email người gửi chưa được verify trong AWS SES. Vui lòng verify email: " + fromEmail;
-            } else if ("ConfigurationSetDoesNotExistException".equals(errorCode)) {
-                errorMessage = "Cấu hình AWS SES không đúng. Vui lòng kiểm tra lại.";
-            } else if ("AccountSendingPausedException".equals(errorCode)) {
-                errorMessage = "Tài khoản AWS SES đang bị tạm dừng gửi email.";
+        try {
+            // Validate required configuration
+            if (resendApiKey == null || resendApiKey.isEmpty()) {
+                throw new IllegalStateException("RESEND_API_KEY is not configured. Please set it in environment variables.");
+            }
+            if (fromEmail == null || fromEmail.isEmpty()) {
+                throw new IllegalStateException("RESEND_FROM_EMAIL is not configured. Please set it in environment variables.");
             }
             
-            throw new RuntimeException(errorMessage + " (Error: " + errorCode + ")", e);
+            Resend resend = new Resend(resendApiKey);
+            
+            // Build reset URL with frontend domain
+            String fullResetUrl = resetUrl;
+            if (!resetUrl.startsWith("http")) {
+                fullResetUrl = frontendUrl + resetUrl;
+            }
+            
+            String subject = passwordResetEmailTemplate.getSubject(fullResetUrl);
+            String htmlBody = passwordResetEmailTemplate.buildHtml(fullResetUrl);
+            String textBody = passwordResetEmailTemplate.buildText(fullResetUrl);
+            
+            log.debug("Building email request for destination: {}", toEmail);
+            log.debug("Reset URL: {}", fullResetUrl);
+            
+            // Create email using Resend API 2.1.0
+            SendEmailRequest emailRequest = SendEmailRequest.builder()
+                    .from(fromEmail)
+                    .to(toEmail)
+                    .subject(subject)
+                    .html(htmlBody)
+                    .text(textBody)
+                    .build();
+
+            SendEmailResponse response = resend.emails().send(emailRequest);
+            String emailId = response.getId();
+
+            log.info("✅ Password reset email sent successfully!");
+            log.info("   - To: {}", toEmail);
+            log.info("   - Email ID: {}", emailId);
+            log.info("   - From: {}", fromEmail);
+            
+        } catch (ResendException resendEx) {
+            // Handle Resend API specific errors
+            log.error("❌ Resend API Error sending password reset email to {}: {}", toEmail, resendEx.getMessage());
+
+            String errorMessage = "Không thể gửi email đặt lại mật khẩu: " + resendEx.getMessage();
+
+            // Check for common error messages
+            String msg = resendEx.getMessage().toLowerCase();
+            if (msg.contains("unauthorized") || msg.contains("401")) {
+                errorMessage = "API Key không hợp lệ. Vui lòng kiểm tra RESEND_API_KEY.";
+            } else if (msg.contains("forbidden") || msg.contains("403")) {
+                errorMessage = "Domain chưa được verify trong Resend. Vui lòng verify domain: " + fromEmail.split("@")[1];
+            } else if (msg.contains("validation") || msg.contains("422")) {
+                errorMessage = "Email không hợp lệ hoặc domain chưa được cấu hình đúng.";
+            } else if (msg.contains("rate limit") || msg.contains("429")) {
+                errorMessage = "Đã vượt quá giới hạn gửi email. Vui lòng thử lại sau.";
+            }
+
+            throw new RuntimeException(errorMessage, resendEx);
+
         } catch (Exception e) {
+
+            // Handle configuration errors
+            if (e instanceof IllegalStateException) {
+                log.error("❌ Configuration error: {}", e.getMessage());
+                throw e;
+            }
+            
+            // Handle other unexpected errors
             log.error("❌ Unexpected error sending password reset email to {}: {}", toEmail, e.getMessage(), e);
             log.error("   - Exception Type: {}", e.getClass().getName());
             throw new RuntimeException("Không thể gửi email đặt lại mật khẩu: " + e.getMessage(), e);
