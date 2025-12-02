@@ -79,10 +79,7 @@ export const ContactForm = ({ onSubmit }: ContactFormProps) => {
       onSubmit?.(formData);
 
       setSubmitStatus("success");
-      
-      // Show success alert
-      alert("✓ Cảm ơn bạn! Tin nhắn của bạn đã được gửi thành công. Chúng tôi sẽ phản hồi sớm nhất có thể.");
-      
+
       setFormData({
         name: "",
         email: "",
@@ -97,33 +94,33 @@ export const ContactForm = ({ onSubmit }: ContactFormProps) => {
       }, 5000);
     } catch (error: any) {
       console.error("Failed to send contact email:", error);
-      
+
       // Hiển thị lỗi chi tiết cho user
       let errorMessage = "Có lỗi xảy ra khi gửi email. Vui lòng thử lại sau.";
-      
+
       if (error.response?.data) {
         const responseData = error.response.data;
-        
+
         // Nếu có errors object (validation errors)
-        if (responseData.errors && typeof responseData.errors === 'object') {
+        if (responseData.errors && typeof responseData.errors === "object") {
           const validationErrors = Object.values(responseData.errors);
           errorMessage = validationErrors.join("\n");
-        } 
+        }
         // Nếu có message
         else if (responseData.message) {
           errorMessage = responseData.message;
         }
         // Nếu response data là string
-        else if (typeof responseData === 'string') {
+        else if (typeof responseData === "string") {
           errorMessage = responseData;
         }
       } else if (error.message) {
         errorMessage = error.message;
       }
-      
+
       // Hiển thị thông báo lỗi
       alert(errorMessage);
-      
+
       setSubmitStatus("error");
       setTimeout(() => {
         setSubmitStatus("idle");
