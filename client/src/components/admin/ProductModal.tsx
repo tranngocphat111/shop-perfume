@@ -78,6 +78,7 @@ export const ProductModal = ({
     { imageId: number; url: string; primary: boolean }[]
   >([]);
   const [imagesToDelete, setImagesToDelete] = useState<number[]>([]);
+  const [hasSetNewPrimary, setHasSetNewPrimary] = useState(false);
 
   useEffect(() => {
     if (initialData) {
@@ -110,6 +111,7 @@ export const ProductModal = ({
     }
     setErrors({});
     setImagePreviews([]);
+    setHasSetNewPrimary(false);
   }, [initialData, isOpen, mode]);
 
   const validate = () => {
@@ -131,12 +133,31 @@ export const ProductModal = ({
       newErrors.categoryId = "Please select a category";
     }
 
-    if (formData.columeMl <= 0) {
-      newErrors.columeMl = "Volume must be greater than 0";
+    if (formData.columeMl <= 0 || !Number.isInteger(formData.columeMl)) {
+      newErrors.columeMl = "Volume must be a positive integer";
     }
 
-    if (formData.unitPrice <= 0) {
-      newErrors.unitPrice = "Price must be greater than 0";
+    if (formData.unitPrice <= 0 || !Number.isInteger(formData.unitPrice)) {
+      newErrors.unitPrice = "Price must be a positive integer";
+    }
+
+    // Validate perfumeLongevity format: 15-20%
+    const longevityPattern = /^\d{1,2}-\d{1,2}%$/;
+    if (
+      formData.perfumeLongevity &&
+      !longevityPattern.test(formData.perfumeLongevity.trim())
+    ) {
+      newErrors.perfumeLongevity = "Longevity must be in format: 15-20%";
+    }
+
+    // Validate perfumeConcentration format: 4-5 hours
+    const concentrationPattern = /^\d{1,2}-\d{1,2}\s*hours?$/i;
+    if (
+      formData.perfumeConcentration &&
+      !concentrationPattern.test(formData.perfumeConcentration.trim())
+    ) {
+      newErrors.perfumeConcentration =
+        "Concentration must be in format: 4-5 hours";
     }
 
     // Validate images for both add and edit mode
@@ -196,6 +217,15 @@ export const ProductModal = ({
 
   const handleSetPrimary = (index: number) => {
     setFormData({ ...formData, primaryImageIndex: index });
+    setHasSetNewPrimary(true);
+    // Remove primary from all existing images when selecting new image as primary
+    if (mode === "edit") {
+      const updatedExisting = existingImages.map((img) => ({
+        ...img,
+        primary: false,
+      }));
+      setExistingImages(updatedExisting);
+    }
   };
 
   const handleRemoveExistingImage = (imageId: number) => {
@@ -212,6 +242,8 @@ export const ProductModal = ({
       primary: img.imageId === imageId,
     }));
     setExistingImages(updatedExisting);
+    // Reset new primary flag when selecting existing image as primary
+    setHasSetNewPrimary(false);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -381,9 +413,16 @@ export const ProductModal = ({
                   setFormData({ ...formData, perfumeLongevity: e.target.value })
                 }
                 disabled={isSubmitting}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
-                placeholder="e.g., Long lasting, Moderate"
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed ${
+                  errors.perfumeLongevity ? "border-red-500" : "border-gray-300"
+                }`}
+                placeholder="e.g., 15-20%"
               />
+              {errors.perfumeLongevity && (
+                <p className="mt-1 text-sm text-red-500">
+                  {errors.perfumeLongevity}
+                </p>
+              )}
             </div>
 
             {/* Perfume Concentration */}
@@ -401,9 +440,18 @@ export const ProductModal = ({
                   })
                 }
                 disabled={isSubmitting}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
-                placeholder="e.g., EDP, EDT, EAU"
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed ${
+                  errors.perfumeConcentration
+                    ? "border-red-500"
+                    : "border-gray-300"
+                }`}
+                placeholder="e.g., 4-5 hours"
               />
+              {errors.perfumeConcentration && (
+                <p className="mt-1 text-sm text-red-500">
+                  {errors.perfumeConcentration}
+                </p>
+              )}
             </div>
 
             {/* Release Year */}
@@ -432,14 +480,18 @@ export const ProductModal = ({
                 type="number"
                 value={formData.columeMl}
                 onChange={(e) =>
-                  setFormData({ ...formData, columeMl: Number(e.target.value) })
+                  setFormData({
+                    ...formData,
+                    columeMl: parseInt(e.target.value) || 0,
+                  })
                 }
-                min="0"
+                min="1"
+                step="1"
                 disabled={isSubmitting}
                 className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed ${
                   errors.columeMl ? "border-red-500" : "border-gray-300"
                 }`}
-                placeholder="Enter volume"
+                placeholder="e.g., 50, 100"
               />
               {errors.columeMl && (
                 <p className="mt-1 text-sm text-red-500">{errors.columeMl}</p>
@@ -452,22 +504,29 @@ export const ProductModal = ({
                 Unit Price (đ) <span className="text-red-500">*</span>
               </label>
               <input
-                type="number"
-                value={formData.unitPrice}
-                onChange={(e) =>
+                type="text"
+                value={formData.unitPrice || ""}
+                onChange={(e) => {
+                  const value = e.target.value.replace(/\D/g, ""); // Remove non-digits
                   setFormData({
                     ...formData,
-                    unitPrice: Number(e.target.value),
-                  })
-                }
-                min="0"
-                step="1000"
+                    unitPrice: value ? parseInt(value, 10) : 0,
+                  });
+                }}
                 disabled={isSubmitting}
                 className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed ${
                   errors.unitPrice ? "border-red-500" : "border-gray-300"
                 }`}
-                placeholder="Enter price"
+                placeholder="e.g., 500000, 1000000"
               />
+              {formData.unitPrice > 0 && (
+                <p className="mt-1 text-sm text-gray-500 italic">
+                  {new Intl.NumberFormat("vi-VN", {
+                    style: "currency",
+                    currency: "VND",
+                  }).format(formData.unitPrice)}
+                </p>
+              )}
               {errors.unitPrice && (
                 <p className="mt-1 text-sm text-red-500">{errors.unitPrice}</p>
               )}
@@ -621,23 +680,21 @@ export const ProductModal = ({
                               alt={`Preview ${index + 1}`}
                               className="w-full h-32 object-cover"
                             />
-                            {formData.primaryImageIndex === index && (
-                              <div className="absolute top-0 right-0 bg-green-500 text-white text-xs px-2 py-1">
-                                New Primary
-                              </div>
-                            )}
+                            {formData.primaryImageIndex === index &&
+                              (mode === "add" || hasSetNewPrimary) && (
+                                <div className="absolute top-0 right-0 bg-green-500 text-white text-xs px-2 py-1">
+                                  New Primary
+                                </div>
+                              )}
                             <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 flex justify-around p-1">
-                              {mode === "add" &&
-                                formData.primaryImageIndex !== index && (
-                                  <button
-                                    type="button"
-                                    onClick={() => handleSetPrimary(index)}
-                                    disabled={isSubmitting}
-                                    className="text-white text-xs hover:text-blue-300 disabled:opacity-50 disabled:cursor-not-allowed"
-                                    title="Set as primary">
-                                    <i className="fas fa-star"></i>
-                                  </button>
-                                )}
+                              <button
+                                type="button"
+                                onClick={() => handleSetPrimary(index)}
+                                disabled={isSubmitting}
+                                className="text-white text-xs hover:text-blue-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                                title="Set as primary">
+                                <i className="fas fa-star"></i>
+                              </button>
                               <button
                                 type="button"
                                 onClick={() => handleRemoveImage(index)}
