@@ -28,13 +28,18 @@ export const PerfumeCard = ({ inventory, brands = [] }: ProductCardProps) => {
   const imageUrl = getPrimaryImageUrl(product);
 
   // Get brand logo from passed brands
-  const brand = brands.length > 0 
-    ? brands.find((b) => b.brandId === product.brand.brandId)
-    : null;
+  const brand =
+    brands.length > 0
+      ? brands.find((b) => b.brandId === product.brand.brandId)
+      : null;
   const brandLogoUrl = getBrandLogoUrl(brand?.url);
 
   // Show "Liên hệ" if price is 0, otherwise show price
   const showPrice = product.unitPrice > 0;
+
+  // Check stock status
+  const isOutOfStock = inventory.quantity === 0;
+  const isLowStock = inventory.quantity > 0 && inventory.quantity <= 10;
 
   const handleAddToCart = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -106,14 +111,33 @@ export const PerfumeCard = ({ inventory, brands = [] }: ProductCardProps) => {
 
   return (
     <div
-      className="product-box cursor-pointer"
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
+      className="product-box cursor-pointer relative" // Thêm relative để overlay hoạt động chuẩn
+      onMouseEnter={() => !isOutOfStock && setIsHovered(true)}
+      onMouseLeave={() => !isOutOfStock && setIsHovered(false)}
       onDragStart={(e) => e.preventDefault()}
       onMouseDown={handleMouseDown}
-      onClick={handleClick}>
+      onClick={handleClick}
+    >
       {/* Product Image Container */}
-      <div className="product-image-wrapper">
+      <div className="product-image-wrapper relative">
+        {" "}
+        {/* Đảm bảo wrapper là relative */}
+        {/* --- PHẦN THÊM MỚI: HẾT HÀNG (Giống ảnh mẫu) --- */}
+        {isOutOfStock && (
+          <div className="absolute inset-0 z-30 flex items-center justify-center bg-white/60 backdrop-blur-[2px]">
+            <div className="bg-[#444] text-white px-6 py-2 uppercase tracking-[0.2em] text-xs font-semibold shadow-md">
+              Hết hàng
+            </div>
+          </div>
+        )}
+        {/* --- PHẦN THÊM MỚI: SẮP HẾT HÀNG (Style giống mẫu) --- */}
+        {!isOutOfStock && isLowStock && (
+          <div className="absolute top-3 left-3 z-30">
+            <div className="bg-[#FF8C42] text-white px-3 py-1 uppercase tracking-[0.15em] text-[10px] font-semibold shadow-md">
+              Sắp hết
+            </div>
+          </div>
+        )}
         {/* Brand Logo - Top Center - Larger and Better Positioned */}
         <div className="brand-logo">
           {brandLogoUrl ? (
@@ -135,7 +159,6 @@ export const PerfumeCard = ({ inventory, brands = [] }: ProductCardProps) => {
             <span>{product.brand.name}</span>
           )}
         </div>
-
         {/* Product Image */}
         <div className="product-image w-full h-full flex items-center justify-center relative z-0">
           <motion.img
@@ -151,56 +174,57 @@ export const PerfumeCard = ({ inventory, brands = [] }: ProductCardProps) => {
             }}
           />
         </div>
-
-        {/* Hover Overlay with Icons - Bottom Position */}
-        <motion.div
-          className="absolute inset-0 bg-black/0 z-20 flex items-end justify-center pb-6 pointer-events-none"
-          animate={{
-            backgroundColor: isHovered
-              ? "rgba(0, 0, 0, 0.05)"
-              : "rgba(0, 0, 0, 0)",
-          }}
-          transition={{ duration: 0.3 }}>
+        {/* Hover Overlay with Icons - Bottom Position - Chỉ hiện khi KHÔNG hết hàng */}
+        {!isOutOfStock && (
           <motion.div
-            className="product-action-buttons"
-            initial={{ opacity: 0, y: 20 }}
+            className="absolute inset-0 bg-black/0 z-20 flex items-end justify-center pb-6 pointer-events-none"
             animate={{
-              opacity: isHovered ? 1 : 0,
-              y: isHovered ? 0 : 20,
+              backgroundColor: isHovered
+                ? "rgba(0, 0, 0, 0.05)"
+                : "rgba(0, 0, 0, 0)",
             }}
-            transition={{ duration: 0.3 }}>
-            {/* View Details Icon */}
-            <motion.button
-              onClick={handleViewDetails}
-              onMouseDown={(e) => e.stopPropagation()}
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.95 }}
-              className="bg-white hover:bg-black text-black hover:text-white hover:shadow-xl"
-              aria-label="Xem chi tiết">
-              <Eye className="w-4 h-4 md:w-4 md:h-4" />
-            </motion.button>
+            transition={{ duration: 0.3 }}
+          >
+            <motion.div
+              className="product-action-buttons"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{
+                opacity: isHovered ? 1 : 0,
+                y: isHovered ? 0 : 20,
+              }}
+              transition={{ duration: 0.3 }}
+            >
+              {/* View Details Icon */}
+              <motion.button
+                onClick={handleViewDetails}
+                onMouseDown={(e) => e.stopPropagation()}
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.95 }}
+                className="bg-white hover:bg-black text-black hover:text-white hover:shadow-xl"
+                aria-label="Xem chi tiết"
+              >
+                <Eye className="w-4 h-4 md:w-4 md:h-4" />
+              </motion.button>
 
-            {/* Add to Cart Icon */}
-            <motion.button
-              onClick={handleAddToCart}
-              onMouseDown={(e) => e.stopPropagation()}
-              disabled={inventory.quantity === 0 || isAdding}
-              whileHover={{ scale: inventory.quantity > 0 ? 1.1 : 1 }}
-              whileTap={{ scale: inventory.quantity > 0 ? 0.95 : 1 }}
-              className={`hover:shadow-xl ${
-                inventory.quantity === 0 || isAdding
-                  ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                  : "bg-white hover:bg-black text-black hover:text-white"
-              }`}
-              aria-label="Thêm vào giỏ hàng">
-              {isAdding ? (
-                <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <ShoppingCart className="w-4 h-4 md:w-4 md:h-4" />
-              )}
-            </motion.button>
+              {/* Add to Cart Icon */}
+              <motion.button
+                onClick={handleAddToCart}
+                onMouseDown={(e) => e.stopPropagation()}
+                disabled={isAdding}
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.95 }}
+                className="bg-white hover:bg-black text-black hover:text-white hover:shadow-xl"
+                aria-label="Thêm vào giỏ hàng"
+              >
+                {isAdding ? (
+                  <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <ShoppingCart className="w-4 h-4 md:w-4 md:h-4" />
+                )}
+              </motion.button>
+            </motion.div>
           </motion.div>
-        </motion.div>
+        )}
       </div>
 
       {/* Product Info */}
@@ -208,7 +232,8 @@ export const PerfumeCard = ({ inventory, brands = [] }: ProductCardProps) => {
         <h3
           className={`text-sm sm:text-base md:text-lg font-normal text-gray-900 line-clamp-2 min-h-[2rem] sm:min-h-[2.5rem] leading-relaxed transition-colors ${
             isHovered ? "text-gray-600" : ""
-          }`}>
+          }`}
+        >
           {product.name}
         </h3>
 
@@ -223,6 +248,17 @@ export const PerfumeCard = ({ inventory, brands = [] }: ProductCardProps) => {
             </span>
           )}
         </div>
+
+        {/* Stock Status Text - Phần này giữ nguyên text bên dưới để người dùng vẫn đọc được chi tiết */}
+        {isOutOfStock ? (
+          <div className="text-xs sm:text-sm text-red-600 font-medium">
+            Tạm hết hàng
+          </div>
+        ) : isLowStock ? (
+          <div className="text-xs sm:text-sm text-orange-500 font-medium">
+            Chỉ còn {inventory.quantity} sản phẩm
+          </div>
+        ) : null}
       </div>
     </div>
   );
