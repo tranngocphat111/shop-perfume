@@ -9,7 +9,6 @@ import iuh.fit.server.dto.request.UpdateUserRequest;
 import iuh.fit.server.dto.response.AuthResponse;
 import iuh.fit.server.dto.response.TokenRefreshResponse;
 import iuh.fit.server.dto.response.UserInfoResponse;
-import org.springframework.transaction.annotation.Transactional;
 
 public interface AuthService {
 
@@ -27,7 +26,9 @@ public interface AuthService {
     
     UserInfoResponse updateProfile(String email, UpdateUserRequest request);
     
-    void changePassword(String email, String currentPassword, String newPassword);
-    
+    void changePassword(String email, ChangePasswordRequest request);
+
+    UserInfoResponse getUserInfo(String email);
+
     AuthResponse signInWithGoogle(String googleIdToken);
 }

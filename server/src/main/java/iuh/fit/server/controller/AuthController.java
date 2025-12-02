@@ -12,7 +12,6 @@ import iuh.fit.server.dto.response.AuthResponse;
 import iuh.fit.server.dto.response.TokenRefreshResponse;
 import iuh.fit.server.dto.response.UserInfoResponse;
 import iuh.fit.server.services.AuthService;
-import iuh.fit.server.repository.UserRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -24,7 +23,6 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
-import java.util.Optional;
 
 import java.util.Map;
 
@@ -39,7 +37,6 @@ import java.util.Map;
 public class AuthController {
 
     private final AuthService authService;
-    private final UserRepository userRepository;
 
     @PostMapping("/register")
     @Operation(summary = "Đăng ký tài khoản mới")
@@ -98,33 +95,15 @@ public class AuthController {
             String email = userDetails.getUsername();
             log.info("Getting user info for email: {}", email);
 
-            Optional<iuh.fit.server.model.entity.User> userOpt = userRepository.findByEmail(email);
-            if (userOpt.isEmpty()) {
-                log.warn("User not found for email: {}", email);
-                return ResponseEntity.status(404).build();
-            }
-
-            iuh.fit.server.model.entity.User user = userOpt.get();
-            UserInfoResponse response = new UserInfoResponse();
-            response.setUserId(user.getUserId());
-            response.setName(user.getName());
-            response.setEmail(user.getEmail());
-            response.setLoyaltyPoints(user.getLoyaltyPoints() != null ? user.getLoyaltyPoints() : 0);
-
-            // Safely get role
-            String role = "CUSTOMER";
-            if (user.getRoles() != null && !user.getRoles().isEmpty()) {
-                role = user.getRoles().stream()
-                        .map(r -> r != null ? r.getName() : "CUSTOMER")
-                        .filter(name -> name != null)
-                        .findFirst()
-                        .orElse("CUSTOMER");
-            }
-            response.setRole(role);
+            // Use service method to get user info (eliminates code duplication)
+            UserInfoResponse response = authService.getUserInfo(email);
 
             log.info("Successfully retrieved user info for userId: {}, loyaltyPoints: {}",
-                    user.getUserId(), response.getLoyaltyPoints());
+                    response.getUserId(), response.getLoyaltyPoints());
             return ResponseEntity.ok(response);
+        } catch (RuntimeException e) {
+            log.error("Error getting current user info: {}", e.getMessage());
+            return ResponseEntity.status(404).build();
         } catch (Exception e) {
             log.error("Error getting current user info", e);
             return ResponseEntity.status(500).build();

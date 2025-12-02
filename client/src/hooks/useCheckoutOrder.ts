@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCart } from '../contexts/CartContext';
+import { useAuth } from '../contexts/AuthContext';
 import { inventoryService } from '../services/inventory.service';
 import { apiService } from '../services/api';
 import type { CheckoutFormData, OrderRequest, OrderResponse } from '../types';
@@ -19,7 +20,8 @@ interface UseCheckoutOrderReturn {
 
 export const useCheckoutOrder = (): UseCheckoutOrderReturn => {
   const navigate = useNavigate();
-  const { removeFromCart, refreshCartStock, appliedCouponId } = useCart();
+  const { removeFromCart, refreshCartStock } = useCart();
+  const { user, isAuthenticated } = useAuth();
   
   const [isProcessing, setIsProcessing] = useState(false);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
@@ -94,6 +96,14 @@ export const useCheckoutOrder = (): UseCheckoutOrderReturn => {
       return;
     }
 
+    // Lưu formData và total để dùng khi check order sau timeout (khai báo ở ngoài try để có thể truy cập trong catch)
+    const savedFormData = { ...formData };
+    const savedTotal = cartItems.reduce(
+      (sum, item) => sum + item.product.unitPrice * item.quantity,
+      0
+    );
+    const savedDiscount = discount;
+
     try {
       // Prepare order request
       const fullAddress = `${formData.address}, ${formData.ward}, ${formData.district}, ${formData.city}`;
@@ -110,10 +120,7 @@ export const useCheckoutOrder = (): UseCheckoutOrderReturn => {
       }));
 
       // Tính total từ cartItems
-      const total = cartItems.reduce(
-        (sum, item) => sum + item.product.unitPrice * item.quantity,
-        0
-      );
+      const total = savedTotal;
       const finalTotal = total - discount;
 
       const orderRequest: OrderRequest = {
@@ -187,19 +194,36 @@ export const useCheckoutOrder = (): UseCheckoutOrderReturn => {
       const isOutOfStockError = errorMessage.includes('không đủ hàng') || 
                                 errorMessage.includes('hết hàng') ||
                                 errorMessage.includes('Số lượng trong kho') ||
-                                errorMessage.includes('Lock wait timeout exceeded');
+                                errorMessage.includes('Số lượng còn lại trong kho') ||
+                                errorMessage.includes('đang được xử lý bởi đơn hàng khác') ||
+                                errorMessage.includes('Lock wait timeout exceeded') ||
+                                errorMessage.includes('Lock timeout');
 
       if (isOutOfStockError) {
-        // Refresh cart stock (không block UI)
+        // Refresh cart stock (không block UI) để cập nhật số lượng mới nhất
         refreshCartStock().catch(console.error);
         
         // Show out of stock modal (blocks interaction)
         setIsErrorNotification(true);
+        
+        // Xác định thông báo phù hợp dựa trên loại lỗi
+        let displayMessage = 'Sản phẩm đã hết hàng';
+        let displaySubMessage = errorMessage || 'Sản phẩm bạn chọn đã được người khác đặt trước. Vui lòng kiểm tra lại giỏ hàng.';
+        
+        if (errorMessage.includes('đang được xử lý bởi đơn hàng khác')) {
+          displayMessage = 'Sản phẩm đang được xử lý';
+          displaySubMessage = 'Sản phẩm bạn chọn đang được người khác đặt hàng. Vui lòng kiểm tra lại số lượng hàng có sẵn.';
+        } else if (errorMessage.includes('không đủ hàng') || errorMessage.includes('Số lượng còn lại')) {
+          displayMessage = 'Sản phẩm không đủ hàng';
+          displaySubMessage = errorMessage;
+        } else if (errorMessage.includes('hết hàng')) {
+          displayMessage = 'Sản phẩm đã hết hàng';
+          displaySubMessage = errorMessage;
+        }
+        
         setSuccessMessage({
-          message: 'Sản phẩm đã hết hàng',
-          subMessage: errorMessage.includes('Lock wait timeout') 
-            ? 'Hệ thống đang quá tải. Sản phẩm bạn chọn đã được người khác đặt trước. Vui lòng kiểm tra lại giỏ hàng.'
-            : (errorMessage || 'Sản phẩm bạn chọn đã được người khác đặt trước. Vui lòng kiểm tra lại giỏ hàng.'),
+          message: displayMessage,
+          subMessage: displaySubMessage,
         });
         setShowSuccessNotification(true);
         // Scroll chỉ khi có response từ backend (có lỗi thực sự)
@@ -264,9 +288,80 @@ export const useCheckoutOrder = (): UseCheckoutOrderReturn => {
           // Timeout từ backend: có response.data
           if (!err.response || !err.response.data) {
             // Timeout từ frontend - KHÔNG có response từ backend
-            // Có thể đang chờ lock, KHÔNG hiển thị modal, KHÔNG scroll, KHÔNG set error
+            // Có thể request vẫn đang chạy ở backend và đã tạo đơn hàng
+            // Check xem có đơn hàng nào đã được tạo chưa (trong vòng 2 phút gần đây)
+            console.error('Frontend timeout - no response from backend, checking if order was created...');
+            
+            try {
+              // Đợi thêm 5 giây để backend có thời gian hoàn thành request
+              await new Promise(resolve => setTimeout(resolve, 5000));
+              
+              // Check xem có đơn hàng nào đã được tạo chưa
+              const checkOrdersUrl = isAuthenticated && user 
+                ? `/orders/my-orders` 
+                : `/orders/my-orders?email=${encodeURIComponent(savedFormData.email)}`;
+              
+              const recentOrders = await apiService.get<OrderResponse[]>(checkOrdersUrl);
+              
+              // Tìm đơn hàng được tạo trong vòng 2 phút gần đây với cùng email và totalAmount
+              const now = new Date();
+              const twoMinutesAgo = new Date(now.getTime() - 2 * 60 * 1000);
+              
+              const matchingOrder = recentOrders?.find(order => {
+                const orderDate = new Date(order.orderDate);
+                const isRecent = orderDate >= twoMinutesAgo;
+                const matchesEmail = order.guestEmail === savedFormData.email;
+                const matchesAmount = Math.abs(order.totalAmount - (savedTotal - savedDiscount)) < 0.01;
+                return isRecent && matchesEmail && matchesAmount;
+              });
+              
+              if (matchingOrder) {
+                // Đơn hàng đã được tạo thành công, chỉ là frontend timeout
+                console.log('✅ Order was created successfully despite frontend timeout:', matchingOrder);
+                
+                // Show success notification
+                setIsErrorNotification(false);
+                setSuccessMessage({
+                  message: 'Đặt hàng thành công!',
+                  subMessage: `Đơn hàng #${matchingOrder.orderId} đã được tạo`,
+                });
+                setShowSuccessNotification(true);
+                
+                // Refresh user info if points were used
+                if (appliedCouponIdParam) {
+                  window.dispatchEvent(new Event('refreshUserInfo'));
+                }
+                
+                // Remove items from cart
+                const orderItemsToRemove = cartItems.map(item => item.product.productId);
+                if (savedFormData.paymentMethod === 'cod') {
+                  cartItems.forEach(item => {
+                    removeFromCart(item.product.productId);
+                  });
+                } else {
+                  localStorage.setItem(`pending_order_${matchingOrder.orderId}`, JSON.stringify(orderItemsToRemove));
+                }
+                
+                // Navigate to payment page
+                navigate('/payment', {
+                  state: {
+                    order: matchingOrder,
+                    paymentMethod: savedFormData.paymentMethod,
+                    totalAmount: savedTotal - savedDiscount,
+                  },
+                  replace: true,
+                });
+                
+                return; // Return sớm, đơn hàng đã được tạo thành công
+              }
+            } catch (checkError) {
+              console.error('Error checking for existing order:', checkError);
+              // Nếu không check được, tiếp tục xử lý như timeout bình thường
+            }
+            
+            // Không tìm thấy đơn hàng - có thể request thực sự failed hoặc vẫn đang chờ
             // KHÔNG dừng loading - để nút tiếp tục loading cho đến khi có response
-            console.error('Frontend timeout - no response from backend, request may still be processing (waiting for lock)');
+            console.error('No matching order found, request may still be processing (waiting for lock)');
             shouldStopLoading = false; // KHÔNG dừng loading
             return; // Return sớm, KHÔNG làm gì cả - nút tiếp tục loading
           } else {
