@@ -215,18 +215,30 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
             );
             query.setParameter("productId", cartItem.getProductId());
             query.setLockMode(LockModeType.PESSIMISTIC_WRITE);
-            // Set lock timeout to 50 seconds (MariaDB default lock wait timeout)
-            // This prevents indefinite waiting and allows proper error handling
-            query.setHint("jakarta.persistence.lock.timeout", 50000); // 50 seconds in milliseconds
+            // Set lock timeout to 0 = NOWAIT (fail immediately if lock cannot be acquired)
+            // This ensures that if another transaction is holding the lock, this transaction will fail immediately
+            // Instead of waiting, we want to fail fast and let the user know the product is out of stock
+            query.setHint("jakarta.persistence.lock.timeout", 0); // 0 = NOWAIT (fail immediately)
             
             iuh.fit.server.model.entity.Inventory inventory;
             try {
                 inventory = query.getSingleResult();
+                // Flush ngay sau khi lock để đảm bảo lock được acquire và giữ
+                // Điều này đảm bảo rằng lock được apply ngay lập tức, không có transaction khác có thể đọc/update
+                entityManager.flush();
             } catch (jakarta.persistence.NoResultException e) {
                 throw new RuntimeException("Inventory not found for product: " + cartItem.getProductId());
+            } catch (jakarta.persistence.PessimisticLockException e) {
+                // Lock cannot be acquired - another transaction is holding the lock
+                String errorMsg = String.format(
+                    "Sản phẩm '%s' đang được xử lý bởi đơn hàng khác. Vui lòng thử lại sau.", 
+                    product.getName()
+                );
+                log.error("❌ [createOrder] Lock acquisition failed for productId: {}", cartItem.getProductId());
+                throw new BadRequestException(errorMsg);
             }
             
-            log.info("✅ [createOrder] Lock acquired for productId: {}, inventoryId: {}, current quantity: {}", 
+            log.info("✅ [createOrder] Lock acquired and flushed for productId: {}, inventoryId: {}, current quantity: {}", 
                     cartItem.getProductId(), inventory.getInventoryId(), inventory.getQuantity());
             
             // Validate stock - check quantity trong inventory (sau khi đã lock)
@@ -242,17 +254,15 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
             // Trừ số lượng từ inventory ngay lập tức (cho tất cả loại thanh toán)
             // Entity đã được lock và quản lý bởi EntityManager (từ find với lock)
             // Chỉ cần set quantity, EntityManager sẽ tự động track thay đổi
-            // KHÔNG flush ở đây - để lock được giữ cho đến khi transaction commit
             int newQuantity = inventory.getQuantity() - cartItem.getQuantity();
             inventory.setQuantity(newQuantity);
-            // Entity đã được quản lý, không cần merge hay save - chỉ cần set property
+            
+            // Flush lại sau khi update để đảm bảo thay đổi được ghi vào DB và lock được giữ
+            entityManager.flush();
             
             log.info("✅ [createOrder] Deducted {} units of product {} (new quantity: {}), lock held until transaction commit", 
                     cartItem.getQuantity(), cartItem.getProductId(), newQuantity);
         }
-        
-        // Flush tất cả thay đổi inventory trước khi tiếp tục xử lý order
-        // Đảm bảo lock được giữ và không có transaction khác có thể đọc giá trị cũ
 
         // Create Order entity
         Order order = new Order();
