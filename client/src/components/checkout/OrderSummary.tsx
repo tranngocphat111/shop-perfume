@@ -107,11 +107,10 @@ export const OrderSummary: React.FC<OrderSummaryProps> = ({
           type="button"
           onClick={onSubmit}
           disabled={isProcessing}
-          className={`w-full py-4 rounded-lg font-semibold text-lg transition-all ${
-            isPaymentConfirmed
-              ? 'bg-gradient-to-r from-green-500 to-green-600 text-white hover:from-green-600 hover:to-green-700 animate-glow'
-              : 'bg-black text-white hover:bg-gray-800 hover:shadow-lg hover:-translate-y-0.5'
-          } disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2`}
+          className={`relative btn-slide-overlay-dark overflow-hidden w-full py-2.5 rounded-full font-semibold text-lg ${isPaymentConfirmed
+              ? 'bg-gradient-to-r from-green-500 to-green-600 text-white '
+              : 'bg-black text-white hover:bg-gray-800 '
+            } disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2`}
         >
           {isProcessing ? (
             <>
@@ -135,8 +134,8 @@ export const OrderSummary: React.FC<OrderSummaryProps> = ({
             </>
           ) : (
             <>
-              <FaCheckCircle />
-              Đặt hàng
+              <span className="flex items-center gap-3 relative z-10"> <FaCheckCircle />
+                Đặt hàng</span>
             </>
           )}
         </button>

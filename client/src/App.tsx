@@ -19,6 +19,7 @@ import ForgotPassword from "./pages/auth/ForgotPassword";
 import ResetPassword from "./pages/auth/ResetPassword";
 import Profile from "./pages/Profile";
 import { About } from "./pages/About";
+import { PrivacyPolicy } from "./pages/PrivacyPolicy";
 import {
   GuestRoute,
   CustomerRoute,
@@ -34,6 +35,7 @@ import { Suppliers } from "./pages/admin/Suppliers";
 import { PurchaseInvoices } from "./pages/admin/PurchaseInvoices";
 import { ScrollToTop } from "./components/ScrollToTop";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import { Contact } from "./pages/Contact";
 
 function AppContent() {
   const location = useLocation();
@@ -129,6 +131,14 @@ function AppContent() {
             }
           />
           <Route
+            path="/privacy-policy"
+            element={
+              <GuestRoute>
+                <PrivacyPolicy />
+              </GuestRoute>
+            }
+          />
+          <Route
             path="/brands"
             element={
               <GuestRoute>
@@ -140,9 +150,7 @@ function AppContent() {
             path="/contact"
             element={
               <GuestRoute>
-                <div className="p-8 text-center">
-                  Contact Page - Coming Soon
-                </div>
+                <Contact />
               </GuestRoute>
             }
           />

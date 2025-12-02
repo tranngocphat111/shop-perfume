@@ -3,6 +3,7 @@ package iuh.fit.server.controller;
 import io.swagger.v3.oas.annotations.Operation;
 import iuh.fit.server.dto.request.OrderCreateRequest;
 import iuh.fit.server.dto.response.OrderResponse;
+import iuh.fit.server.dto.response.RevenueStatsResponse;
 import iuh.fit.server.services.OrderService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -61,6 +62,21 @@ public class OrderController {
         log.info("REST request to total revenue");
         double totalSize = orderService.getTotalRevenue();
         return ResponseEntity.ok(totalSize);
+    }
+
+    /**
+     * Get revenue statistics by period (monthly/quarterly/yearly)
+     * Chỉ ADMIN mới có quyền xem thống kê
+     */
+    @GetMapping("/stats/revenue")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Get revenue statistics", description = "Retrieve revenue statistics by period (monthly/quarterly/yearly)")
+    public ResponseEntity<RevenueStatsResponse> getRevenueStats(
+            @RequestParam String period,
+            @RequestParam(required = false) Integer year) {
+        log.info("REST request to get revenue stats - period: {}, year: {}", period, year);
+        iuh.fit.server.dto.response.RevenueStatsResponse stats = orderService.getRevenueStatsByPeriod(period, year);
+        return ResponseEntity.ok(stats);
     }
 
     /**

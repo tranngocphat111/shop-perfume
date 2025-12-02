@@ -1,9 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { useCart } from '../contexts/CartContext';
 import { useAuth } from '../contexts/AuthContext';
 import { ShippingForm, PaymentMethodSelector, OrderSummary } from '../components/checkout';
-import { Breadcrumb, SuccessNotification } from '../components/common';
+import { SuccessNotification } from '../components/common';
+import { CouponSelect } from '../components/checkout/CouponSelect';
+import { couponService, type Coupon } from '../services/coupon.service';
+import { userService, type UserInfo } from '../services/user.service';
+import { inventoryService } from '../services/inventory.service';
 import type { CheckoutFormData, OrderRequest, OrderResponse } from '../types';
 import { apiService } from '../services/api';
 
@@ -24,14 +29,24 @@ const initialFormData: CheckoutFormData = {
 
 export const Checkout: React.FC = () => {
   const navigate = useNavigate();
-  const { cart, clearCart, appliedCouponId, discount } = useCart();
+  const { cart, clearCart, appliedCouponId, discount, setAppliedCouponId, setDiscount, updateQuantity, removeFromCart } = useCart();
   const { user, isAuthenticated } = useAuth();
-  const cartItems = cart.items;
+  
+  // Filter out of stock items ngay từ đầu - chỉ lấy items còn hàng
+  const cartItems = cart.items.filter(item => 
+    item.stockQuantity === undefined || item.stockQuantity > 0
+  );
   const [formData, setFormData] = useState<CheckoutFormData>(initialFormData);
   const [isProcessing, setIsProcessing] = useState(false);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [showSuccessNotification, setShowSuccessNotification] = useState(false);
   const [successMessage, setSuccessMessage] = useState<{ message: string; subMessage?: string } | null>(null);
+  
+  // Coupon state
+  const [coupons, setCoupons] = useState<Coupon[]>([]);
+  const [selectedCouponId, setSelectedCouponId] = useState<number | null>(appliedCouponId);
+  const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
+  const [isLoadingCoupons, setIsLoadingCoupons] = useState(false);
 
   // Scroll to top when component mounts
   useEffect(() => {
@@ -65,6 +80,102 @@ export const Checkout: React.FC = () => {
     0
   );
 
+  // Load user info and coupons when authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      loadUserInfo().then(() => {
+        loadCoupons();
+      });
+    } else {
+      setCoupons([]);
+      setSelectedCouponId(null);
+      setUserInfo(null);
+    }
+  }, [isAuthenticated]);
+
+  // Auto validate selected coupon when total changes
+  useEffect(() => {
+    if (selectedCouponId && total > 0 && userInfo) {
+      validateAndApplyCoupon(selectedCouponId);
+    }
+  }, [total, selectedCouponId, userInfo]);
+
+  // Sync with CartContext
+  useEffect(() => {
+    if (selectedCouponId !== appliedCouponId) {
+      if (selectedCouponId) {
+        validateAndApplyCoupon(selectedCouponId);
+      } else {
+        handleRemoveCoupon();
+      }
+    }
+  }, [selectedCouponId]);
+
+  const loadUserInfo = async (): Promise<void> => {
+    try {
+      const info = await userService.getCurrentUser();
+      if (info) {
+        setUserInfo(info);
+      }
+    } catch (error: any) {
+      console.error('Error loading user info:', error);
+    }
+  };
+
+  const loadCoupons = async () => {
+    try {
+      setIsLoadingCoupons(true);
+      const availableCoupons = await couponService.getAvailableCoupons();
+      setCoupons(availableCoupons);
+    } catch (error: any) {
+      console.error('Error loading coupons:', error);
+      setCoupons([]);
+    } finally {
+      setIsLoadingCoupons(false);
+    }
+  };
+
+  // Validate and apply coupon
+  const validateAndApplyCoupon = async (couponId: number) => {
+    try {
+      const result = await couponService.validateCouponWithPoints(couponId, total);
+      
+      if (result.valid && result.discountAmount) {
+        setDiscount(result.discountAmount);
+        setAppliedCouponId(couponId);
+      } else {
+        handleRemoveCoupon();
+      }
+    } catch (error) {
+      console.error('Error validating coupon:', error);
+      handleRemoveCoupon();
+    }
+  };
+
+  const handleSelectCoupon = (couponId: number | null) => {
+    if (couponId === null) {
+      handleRemoveCoupon();
+      return;
+    }
+
+    const coupon = coupons.find(c => c.couponId === couponId);
+    if (!coupon) return;
+
+    // Check if user has enough points
+    if (userInfo && userInfo.loyaltyPoints < coupon.requiredPoints) {
+      console.warn('Not enough loyalty points');
+      return;
+    }
+
+    setSelectedCouponId(couponId);
+  };
+
+  const handleRemoveCoupon = () => {
+    setSelectedCouponId(null);
+    setDiscount(0);
+    setAppliedCouponId(null);
+  };
+
   const updateFormData = (data: Partial<CheckoutFormData>) => {
     setFormData(prev => ({ ...prev, ...data }));
     // Clear validation errors for all fields being updated
@@ -84,7 +195,7 @@ export const Checkout: React.FC = () => {
         address: ['address'],
         paymentMethod: ['paymentMethod'],
       };
-      
+
       // Clear errors for all related fields
       Object.keys(data).forEach(field => {
         const relatedFields = fieldMapping[field] || [field];
@@ -94,7 +205,7 @@ export const Checkout: React.FC = () => {
           }
         });
       });
-      
+
       return newErrors;
     });
   };
@@ -183,23 +294,94 @@ export const Checkout: React.FC = () => {
       return;
     }
 
+    // Validate stock và filter out of stock items before submitting
+    let filteredCartItems = [...cartItems];
+    try {
+      const stockValidationErrors: string[] = [];
+      const validCartItems = [];
+      
+      for (const item of cartItems) {
+        const availableStock = await inventoryService.getAvailableStock(item.product.productId);
+        
+        // Nếu hết hàng, bỏ qua item này (KHÔNG xóa khỏi cart, chỉ bỏ qua khi submit order)
+        if (availableStock === 0) {
+          stockValidationErrors.push(
+            `Sản phẩm "${item.product.name}" đã hết hàng và đã được loại bỏ khỏi đơn hàng.`
+          );
+          // KHÔNG xóa khỏi cart - chỉ bỏ qua khi submit order
+          continue;
+        }
+        
+        // Nếu không đủ hàng, điều chỉnh quantity
+        if (availableStock < item.quantity) {
+          stockValidationErrors.push(
+            `Sản phẩm "${item.product.name}" không đủ hàng. Số lượng có sẵn: ${availableStock}, đã điều chỉnh từ ${item.quantity} xuống ${availableStock}`
+          );
+          // Cập nhật quantity trong cart
+          updateQuantity(item.product.productId, availableStock);
+          // Thêm item với quantity đã điều chỉnh
+          validCartItems.push({ ...item, quantity: availableStock });
+        } else {
+          // Đủ hàng, thêm bình thường
+          validCartItems.push(item);
+        }
+      }
+
+      // Nếu có items bị loại bỏ hoặc điều chỉnh
+      if (stockValidationErrors.length > 0 || validCartItems.length !== cartItems.length) {
+        if (validCartItems.length === 0) {
+          setValidationErrors({
+            stock: 'Tất cả sản phẩm trong giỏ hàng đã hết hàng. Vui lòng chọn sản phẩm khác.'
+          });
+          setSuccessMessage({
+            message: 'Không thể đặt hàng',
+            subMessage: 'Tất cả sản phẩm trong giỏ hàng đã hết hàng.'
+          });
+          setShowSuccessNotification(true);
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+          setIsProcessing(false);
+          return;
+        }
+
+        // Hiển thị thông báo về các items bị loại bỏ/điều chỉnh
+        setSuccessMessage({
+          message: 'Đã cập nhật giỏ hàng',
+          subMessage: stockValidationErrors.join('\n')
+        });
+        setShowSuccessNotification(true);
+        
+        // Sử dụng validCartItems cho order
+        filteredCartItems = validCartItems;
+      }
+    } catch (error) {
+      console.error('Error validating stock:', error);
+      // Continue with order creation if stock validation fails (backend will also validate)
+    }
+
     setIsProcessing(true);
 
     try {
       // Prepare order request
       const fullAddress = `${formData.address}, ${formData.ward}, ${formData.district}, ${formData.city}`;
-      
-      // Map cartItems to the format expected by backend
-      const mappedCartItems = cartItems.map(item => ({
+
+      // Map filteredCartItems to the format expected by backend (đã loại bỏ items hết hàng)
+      const mappedCartItems = filteredCartItems.map(item => ({
         productId: item.product.productId,
         productName: item.product.name,
         unitPrice: item.product.unitPrice,
-        imageUrl: item.product.images && item.product.images.length > 0 
-          ? item.product.images[0].url 
+        imageUrl: item.product.images && item.product.images.length > 0
+          ? item.product.images[0].url
           : '',
         quantity: item.quantity,
       }));
-      
+
+      // Tính lại total từ filteredCartItems
+      const filteredTotal = filteredCartItems.reduce(
+        (sum, item) => sum + item.product.unitPrice * item.quantity,
+        0
+      );
+      const finalTotal = filteredTotal - discount;
+
       const orderRequest: OrderRequest = {
         fullName: formData.fullName,
         phone: formData.phone,
@@ -211,7 +393,7 @@ export const Checkout: React.FC = () => {
         note: formData.note || '',
         paymentMethod: formData.paymentMethod,
         cartItems: mappedCartItems,
-        totalAmount: total - discount, // Trừ đi discount
+        totalAmount: finalTotal, // Tính từ filteredCartItems và trừ discount
         couponId: appliedCouponId || undefined, // Gửi couponId nếu có
       };
 
@@ -225,9 +407,28 @@ export const Checkout: React.FC = () => {
           subMessage: `Đơn hàng #${response.orderId} đã được tạo`,
         });
         setShowSuccessNotification(true);
+
+        // Refresh user info if points were used (coupon applied)
+        if (appliedCouponId) {
+          // Dispatch event to refresh user info in Header
+          window.dispatchEvent(new Event('refreshUserInfo'));
+        }
+
+        // Lưu thông tin order items để remove sau khi payment thành công (cho QR payment)
+        const orderItemsToRemove = filteredCartItems.map(item => item.product.productId);
         
+        // Nếu là COD, remove items ngay (vì COD = thanh toán khi nhận hàng, order được tạo = đã chấp nhận)
+        if (formData.paymentMethod === 'cod') {
+          // Remove các items đã submit (chỉ items còn hàng, không remove items hết hàng)
+          filteredCartItems.forEach(item => {
+            removeFromCart(item.product.productId);
+          });
+        } else {
+          // QR payment: lưu để remove sau khi payment PAID
+          localStorage.setItem(`pending_order_${response.orderId}`, JSON.stringify(orderItemsToRemove));
+        }
+
         // Navigate to payment page immediately with order information
-        // Clear cart after navigation to avoid redirect to empty cart
         navigate('/payment', {
           state: {
             order: response,
@@ -236,11 +437,6 @@ export const Checkout: React.FC = () => {
           },
           replace: true, // Replace current history to prevent back button issues
         });
-        
-        // Clear cart after navigation
-        setTimeout(() => {
-          clearCart();
-        }, 100);
       }
     } catch (err: any) {
       console.error('Error placing order:', err);
@@ -250,21 +446,21 @@ export const Checkout: React.FC = () => {
         errorData: err.response?.data,
         errors: err.response?.data?.errors,
       });
-      
+
       // Handle validation errors from backend
       if (err.status === 400) {
         const errorData = err.response?.data || err;
         console.log('Processing validation errors:', errorData);
-        
+
         if (errorData.errors && typeof errorData.errors === 'object') {
           // Map backend field names to frontend field names if needed
           const mappedErrors: Record<string, string> = {};
           const cartItemsErrors: string[] = [];
-          
+
           // Process all errors from backend
           Object.entries(errorData.errors).forEach(([field, message]) => {
             const errorMessage = Array.isArray(message) ? message[0] : message;
-            
+
             // Handle nested errors from cartItems (e.g., cartItems[0].unitPrice)
             if (field.startsWith('cartItems')) {
               // Extract the actual field name from nested path (e.g., "unitPrice" from "cartItems[0].unitPrice")
@@ -285,14 +481,14 @@ export const Checkout: React.FC = () => {
               mappedErrors[field] = errorMessage as string;
             }
           });
-          
+
           console.log('Mapped errors:', mappedErrors);
-          
+
           // Store cartItems errors separately for better display
           if (cartItemsErrors.length > 0) {
             mappedErrors._cartItemsArray = JSON.stringify(cartItemsErrors);
           }
-          
+
           setValidationErrors(mappedErrors);
         } else if (errorData.message) {
           // If there's a general error message but no field-specific errors
@@ -307,30 +503,73 @@ export const Checkout: React.FC = () => {
         const errorMessage = err.response?.data?.message || err.message || 'Có lỗi xảy ra khi đặt hàng. Vui lòng thử lại.';
         setValidationErrors({ _general: errorMessage });
       }
-      
+
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } finally {
       setIsProcessing(false);
     }
   };
 
-  return (
-    <div className="min-h-screen bg-gray-50 pt-24 pb-8">
-      <div className="container mx-auto px-4 max-w-7xl">
-        {/* Breadcrumb */}
-        <Breadcrumb
-          items={[
-            { label: 'Trang chủ', path: '/' },
-            { label: 'Giỏ hàng', path: '/cart' },
-            { label: 'Thanh toán' },
-          ]}
-        />
+  const breadcrumbs = [
+    { label: 'Trang chủ', path: '/' },
+    { label: 'Giỏ hàng', path: '/cart' },
+    { label: 'Thanh toán' },
+  ];
 
-        {/* Page Title */}
-        <h1 className="text-3xl md:text-4xl font-bold mb-2">Thanh toán</h1>
-        <p className="text-gray-600 mb-8">
-          Vui lòng điền đầy đủ thông tin để hoàn tất đơn hàng
-        </p>
+  return (
+    <div className="min-h-screen bg-gray-50 pb-8 ">
+      {/* Header */}
+      <motion.div
+        className="bg-white rounded-lg shadow-sm py-16 px-6 mb-6"
+        initial={{ opacity: 0, y: -30 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, ease: 'easeOut' }}
+      >
+        <div className="text-center">
+          <motion.h1
+            className="text-3.5xl md:text-4.5xl lg:text-5.5xl font-normal text-black mb-4 leading-tight tracking-tight"
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.1, ease: 'easeOut' }}
+          >
+            Thanh toán
+          </motion.h1>
+
+          {/* Breadcrumb */}
+          <motion.nav
+            className="text-sm md:text-base flex items-center justify-center gap-2"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.5, delay: 0.3 }}
+          >
+            {breadcrumbs.map((item, index) => (
+              <motion.div
+                key={index}
+                className="flex items-center gap-2"
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.4, delay: 0.4 + index * 0.1 }}
+              >
+                {item.path ? (
+                  <Link
+                    to={item.path}
+                    className="text-gray-600 font-normal hover:text-black transition-colors"
+                  >
+                    {item.label}
+                  </Link>
+                ) : (
+                  <span className="text-black font-medium text-base md:text-lg">{item.label}</span>
+                )}
+                {index < breadcrumbs.length - 1 && (
+                  <span className="text-black">{'>'}</span>
+                )}
+              </motion.div>
+            ))}
+          </motion.nav>
+        </div>
+      </motion.div>
+      <div className="container mx-auto px-4 max-w-7xl">
+
 
         {/* Checkout Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -338,6 +577,23 @@ export const Checkout: React.FC = () => {
           <div className="lg:col-span-2 space-y-6">
             {/* Shipping Form */}
             <ShippingForm formData={formData} onUpdate={updateFormData} validationErrors={validationErrors} />
+
+            {/* Coupon Select */}
+            {isAuthenticated && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+              >
+                <CouponSelect
+                  coupons={coupons}
+                  selectedCouponId={selectedCouponId}
+                  userInfo={userInfo}
+                  isLoading={isLoadingCoupons}
+                  onSelectCoupon={handleSelectCoupon}
+                />
+              </motion.div>
+            )}
 
             {/* Payment Methods */}
             <PaymentMethodSelector

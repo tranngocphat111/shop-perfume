@@ -7,6 +7,7 @@ import { productService } from '../services/perfume.service';
 
 interface CartContextType {
   cart: Cart;
+  isCartLoading: boolean; // Track if cart is still loading
   addToCart: (product: Product, quantity: number) => Promise<void>;
   removeFromCart: (productId: number) => void;
   updateQuantity: (productId: number, quantity: number) => void;
@@ -40,6 +41,9 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     return { items: [], total: 0, totalItems: 0 };
   });
   
+  // Track if cart is still loading (from DB or fetching stock)
+  const [isCartLoading, setIsCartLoading] = useState(true);
+  
   // Coupon state
   const [appliedCouponId, setAppliedCouponId] = useState<number | null>(null);
   const [discount, setDiscount] = useState<number>(0);
@@ -53,6 +57,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
 
   // Track if we've already loaded/merged cart for this user
   const hasLoadedCartRef = useRef<number | null>(null);
+  const isInitialLoadRef = useRef(true);
 
   // Load cart from DB when user is authenticated (only once on mount or when user changes)
   useEffect(() => {
@@ -60,19 +65,26 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       // Only load if we haven't loaded for this user yet
       // mergeCartOnLogin will handle the merge, so we only load if no merge happened
       if (hasLoadedCartRef.current !== user.userId) {
+        setIsCartLoading(true); // Set loading when starting to load
         const hasSessionCart = sessionStorage.getItem(CART_STORAGE_KEY);
         if (hasSessionCart) {
           // If there's a session cart, mergeCartOnLogin should be called from login
           // But if it wasn't (e.g., page refresh), we should merge now
           mergeCartOnLogin(user.userId).then(() => {
             hasLoadedCartRef.current = user.userId;
+            isInitialLoadRef.current = false;
           });
         } else {
           // No session cart, just load from DB
           loadCartFromDB(user.userId).then(() => {
             hasLoadedCartRef.current = user.userId;
+            isInitialLoadRef.current = false;
           });
         }
+      } else {
+        // Already loaded for this user, cart is ready
+        isInitialLoadRef.current = false;
+        setIsCartLoading(false);
       }
     } else if (!isAuthenticated) {
       // User logged out - clear cart state and sessionStorage
@@ -82,38 +94,74 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       lastCartRef.current = '';
       // Reset the loaded cart ref so we can load again on next login
       hasLoadedCartRef.current = null;
+      isInitialLoadRef.current = true;
+      // For guest users, check if cart from sessionStorage is ready
+      const savedCart = sessionStorage.getItem(CART_STORAGE_KEY);
+      if (!savedCart) {
+        setIsCartLoading(false);
+      }
+      // Otherwise, let the stock fetching effect handle it
     }
   }, [isAuthenticated, user?.userId]);
 
   // Fetch inventory for cart items that don't have stockQuantity (for sessionStorage cart)
   const hasFetchedStockRef = useRef<Set<number>>(new Set());
   
+  // Helper function to get available stock (takes into account pending QR orders)
+  const getAvailableStock = async (productId: number): Promise<number | undefined> => {
+    try {
+      const { inventoryService } = await import('../services/inventory.service');
+      return await inventoryService.getAvailableStock(productId);
+    } catch (error) {
+      console.error(`Error fetching available stock for product ${productId}:`, error);
+      // Fallback to regular inventory
+      try {
+        const inventory = await productService.getInventoryByProductId(productId);
+        return inventory?.quantity;
+      } catch (fallbackError) {
+        console.error(`Error fetching inventory for product ${productId}:`, fallbackError);
+        return undefined;
+      }
+    }
+  };
+  
   useEffect(() => {
-    if (cart.items.length === 0 || isAuthenticated) return; // Skip if authenticated (DB cart already has stock)
+    if (isAuthenticated) {
+      // For authenticated users, cart loading is handled by loadCartFromDB/mergeCartOnLogin
+      // Don't set loading to false here - let loadCartFromDB/mergeCartOnLogin handle it
+      // This prevents showing empty cart before DB cart is loaded
+      return;
+    }
+    
+    // For guest users, fetch stock for sessionStorage cart
+    if (cart.items.length === 0) {
+      setIsCartLoading(false);
+      return;
+    }
     
     const itemsNeedingStock = cart.items.filter(
       item => item.stockQuantity === undefined && !hasFetchedStockRef.current.has(item.product.productId)
     );
-    if (itemsNeedingStock.length === 0) return;
+    
+    if (itemsNeedingStock.length === 0) {
+      setIsCartLoading(false);
+      return;
+    }
 
     // Fetch inventory for items that don't have stockQuantity
     const fetchStockForItems = async () => {
+      setIsCartLoading(true);
       const itemsWithStock = await Promise.all(
         cart.items.map(async (item) => {
           if (item.stockQuantity !== undefined || hasFetchedStockRef.current.has(item.product.productId)) {
             return item;
           }
           hasFetchedStockRef.current.add(item.product.productId);
-          try {
-            const inventory = await productService.getInventoryByProductId(item.product.productId);
-            return {
-              ...item,
-              stockQuantity: inventory.quantity,
-            };
-          } catch (error) {
-            console.error(`Error fetching inventory for product ${item.product.productId}:`, error);
-            return item;
-          }
+          const availableStock = await getAvailableStock(item.product.productId);
+          return {
+            ...item,
+            stockQuantity: availableStock,
+          };
         })
       );
 
@@ -121,33 +169,28 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         ...prevCart,
         items: itemsWithStock,
       }));
+      setIsCartLoading(false);
     };
 
     fetchStockForItems();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cart.items.map(item => item.product.productId).join(',')]); // Run when product IDs change
+  }, [cart.items.map(item => item.product.productId).join(','), isAuthenticated]); // Run when product IDs change
 
   const loadCartFromDB = async (userId: number) => {
     try {
+      setIsCartLoading(true);
       isSyncingRef.current = true; // Prevent sync when loading from DB
       const cartResponse = await cartService.getOrCreateCart(userId);
       
-      // Fetch inventory for each product
+      // Fetch available stock for each product
       const itemsWithStock = await Promise.all(
         (cartResponse.items || []).map(async (item) => {
-          try {
-            const inventory = await productService.getInventoryByProductId(item.product.productId);
-            return {
-              ...item,
-              stockQuantity: inventory.quantity,
-            };
-          } catch (error) {
-            console.error(`Error fetching inventory for product ${item.product.productId}:`, error);
-            return {
-              ...item,
-              stockQuantity: undefined,
-            };
-          }
+          const availableStock = await getAvailableStock(item.product.productId);
+          hasFetchedStockRef.current.add(item.product.productId);
+          return {
+            ...item,
+            stockQuantity: availableStock,
+          };
         })
       );
       
@@ -169,14 +212,17 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       // Clear sessionStorage after loading from DB
       sessionStorage.removeItem(CART_STORAGE_KEY);
       isSyncingRef.current = false;
+      setIsCartLoading(false);
     } catch (error) {
       console.error('Error loading cart from DB:', error);
       isSyncingRef.current = false;
+      setIsCartLoading(false);
     }
   };
 
   const mergeCartOnLogin = async (userId: number) => {
     try {
+      setIsCartLoading(true);
       isSyncingRef.current = true; // Prevent sync during merge
       
       // Get session cart items
@@ -205,22 +251,15 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       // Merge with DB cart
       const mergedCart = await cartService.mergeCart(userId, sessionCartItems);
       
-      // Fetch inventory for each product
+      // Fetch available stock for each product
       const itemsWithStock = await Promise.all(
         (mergedCart.items || []).map(async (item) => {
-          try {
-            const inventory = await productService.getInventoryByProductId(item.product.productId);
-            return {
-              ...item,
-              stockQuantity: inventory.quantity,
-            };
-          } catch (error) {
-            console.error(`Error fetching inventory for product ${item.product.productId}:`, error);
-            return {
-              ...item,
-              stockQuantity: undefined,
-            };
-          }
+          const availableStock = await getAvailableStock(item.product.productId);
+          hasFetchedStockRef.current.add(item.product.productId);
+          return {
+            ...item,
+            stockQuantity: availableStock,
+          };
         })
       );
       
@@ -243,12 +282,14 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       sessionStorage.removeItem(CART_STORAGE_KEY);
       hasLoadedCartRef.current = userId;
       isSyncingRef.current = false;
+      setIsCartLoading(false);
     } catch (error) {
       console.error('Error merging cart on login:', error);
       // Fallback: just load from DB
       await loadCartFromDB(userId);
       hasLoadedCartRef.current = userId;
       isSyncingRef.current = false;
+      setIsCartLoading(false);
     }
   };
 
@@ -264,13 +305,13 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const addToCart = async (product: Product, quantity: number) => {
-    // Fetch inventory for the product
-    let stockQuantity: number | undefined;
-    try {
-      const inventory = await productService.getInventoryByProductId(product.productId);
-      stockQuantity = inventory.quantity;
-    } catch (error) {
-      console.error(`Error fetching inventory for product ${product.productId}:`, error);
+    // Fetch available stock for the product
+    const stockQuantity = await getAvailableStock(product.productId);
+
+    // Không cho phép thêm vào cart nếu hết hàng
+    if (stockQuantity !== undefined && stockQuantity === 0) {
+      console.warn(`Cannot add product ${product.productId} to cart: out of stock`);
+      return;
     }
 
     setCart((prevCart) => {
@@ -390,6 +431,13 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
 
     setCart((prevCart) => {
       const item = prevCart.items.find((item) => item.product.productId === productId);
+      
+      // Nếu hết hàng, không cho phép update quantity
+      if (item && item.stockQuantity !== undefined && item.stockQuantity === 0) {
+        console.warn(`Cannot update quantity for product ${productId}: out of stock`);
+        return prevCart;
+      }
+      
       // Validate quantity against stock
       if (item && item.stockQuantity !== undefined && quantity > item.stockQuantity) {
         // Limit to stock quantity
@@ -415,7 +463,8 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const getCartTotal = () => {
-    return cart.total;
+    // Tính lại từ items để đảm bảo chính xác
+    return calculateTotal(cart.items);
   };
 
   const getCartCount = () => {
@@ -427,6 +476,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     <CartContext.Provider
       value={{
         cart,
+        isCartLoading,
         addToCart,
         removeFromCart,
         updateQuantity,

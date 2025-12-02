@@ -1,5 +1,7 @@
-const API_BASE_URL = "http://13.251.125.90:8080/api";
-// const API_BASE_URL = "http://localhost:8080/api";
+import { refreshTokenManager } from "./refreshTokenManager";
+
+// const API_BASE_URL = "http://13.251.125.90:8080/api";
+const API_BASE_URL = "http://localhost:8080/api";
 
 interface ApiError {
   message: string;
@@ -14,6 +16,46 @@ const clearAuthData = () => {
   localStorage.removeItem("auth_token");
   localStorage.removeItem("refresh_token");
   localStorage.removeItem("user_info");
+};
+
+// Helper function to check if token is expired
+const isTokenExpired = (token: string): boolean => {
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    const expirationTime = payload.exp * 1000; // Convert to milliseconds
+    return Date.now() >= expirationTime;
+  } catch {
+    return true; // If can't parse, consider it expired
+  }
+};
+
+// Helper function to check if token will expire soon (within 5 minutes)
+const isTokenExpiringSoon = (token: string): boolean => {
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    const expirationTime = payload.exp * 1000;
+    const fiveMinutes = 5 * 60 * 1000; // 5 minutes in milliseconds
+    return Date.now() >= expirationTime - fiveMinutes;
+  } catch {
+    return true; // If can't parse, consider it expired
+  }
+};
+
+// Ensure token is valid before making request (proactive refresh)
+// This prevents 401 errors by refreshing token before it expires
+const ensureValidToken = async (): Promise<void> => {
+  const token = localStorage.getItem("auth_token");
+
+  // If no token, nothing to do (request will fail with 401, which is handled)
+  if (!token) {
+    return;
+  }
+
+  // Check if token is expired or expiring soon
+  if (isTokenExpired(token) || isTokenExpiringSoon(token)) {
+    // Try to refresh token proactively
+    await refreshTokenManager.refreshToken();
+  }
 };
 
 // Helper function to get auth headers
@@ -31,52 +73,6 @@ const getAuthHeaders = (endpoint: string = ""): Record<string, string> => {
   }
 
   return headers;
-};
-
-// Helper to refresh token (avoid circular dependency)
-const attemptTokenRefresh = async (): Promise<boolean> => {
-  const refreshToken = localStorage.getItem("refresh_token");
-  if (!refreshToken) {
-    return false;
-  }
-
-  try {
-    const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ refreshToken }),
-    });
-
-    if (!response.ok) {
-      return false;
-    }
-
-    const data = await response.json();
-
-    // Update tokens
-    localStorage.setItem("auth_token", data.accessToken);
-    localStorage.setItem("refresh_token", data.refreshToken);
-
-    // Update user info
-    const userInfo = localStorage.getItem("user_info");
-    if (userInfo) {
-      try {
-        const user = JSON.parse(userInfo);
-        user.token = data.accessToken;
-        user.refreshToken = data.refreshToken;
-        localStorage.setItem("user_info", JSON.stringify(user));
-      } catch {
-        // Ignore parse errors
-      }
-    }
-
-    return true;
-  } catch (error) {
-    console.error("Token refresh failed:", error);
-    return false;
-  }
 };
 
 // Check if endpoint is public (doesn't require authentication)
@@ -110,30 +106,58 @@ const isPublicEndpoint = (endpoint: string): boolean => {
 };
 
 // Handle 401 errors - try refresh token first, then redirect
+// retryCount: 0 = first attempt, 1 = already retried once, prevent infinite loop
 const handle401Error = async <T>(
   endpoint: string,
-  originalRequest?: () => Promise<T>
+  originalRequest?: () => Promise<T>,
+  retryCount: number = 0
 ): Promise<T> => {
+  // CRITICAL: If this is /auth/refresh endpoint, never try to refresh again
+  // This prevents infinite loop if /auth/refresh itself returns 401
+  if (endpoint.includes("/auth/refresh")) {
+    console.error("Refresh token endpoint returned 401, logging out");
+    clearAuthData();
+    const isAdminEndpoint = endpoint.includes("/admin/");
+    window.location.href = isAdminEndpoint ? "/admin/login" : "/login";
+    return Promise.reject(new Error("Refresh token invalid"));
+  }
+
   // If this is a public endpoint, don't logout - just reject the error
   if (isPublicEndpoint(endpoint)) {
     console.warn(`401 on public endpoint ${endpoint} - not logging out`);
     return Promise.reject(new Error("Unauthorized"));
   }
 
-  // Try to refresh token first
-  const refreshed = await attemptTokenRefresh();
+  // If already retried once, don't retry again to prevent infinite loop
+  if (retryCount > 0) {
+    console.error("Request failed after retry, logging out");
+    clearAuthData();
+    const isAdminEndpoint = endpoint.includes("/admin/");
+    window.location.href = isAdminEndpoint ? "/admin/login" : "/login";
+    return Promise.reject(new Error("Unauthorized after retry"));
+  }
+
+  // Try to refresh token first using shared refresh manager
+  const refreshed = await refreshTokenManager.refreshToken();
 
   if (refreshed && originalRequest) {
-    // Retry the original request with new token
+    // Retry the original request with new token (only once)
+    // getAuthHeaders() will automatically use the new token from localStorage
     try {
       return await originalRequest();
     } catch (retryError) {
-      // If retry still fails, proceed to logout
+      // If retry still fails, call handle401Error again with retryCount=1 to prevent further retries
       console.error("Request failed after token refresh:", retryError);
+      // Check if it's still a 401 error
+      if ((retryError as ApiError).status === 401) {
+        return handle401Error(endpoint, originalRequest, 1);
+      }
+      // For other errors, throw them
+      throw retryError;
     }
   }
 
-  // If refresh failed or retry failed, clear auth and redirect
+  // If refresh failed, clear auth and redirect
   clearAuthData();
   const isAdminEndpoint = endpoint.includes("/admin/");
   window.location.href = isAdminEndpoint ? "/admin/login" : "/login";
@@ -164,6 +188,12 @@ const createApiError = (
 
 export const apiService = {
   async get<T>(endpoint: string): Promise<T> {
+    // Ensure token is valid before making request (proactive refresh)
+    // Skip for public endpoints
+    if (!endpoint.includes("/auth/")) {
+      await ensureValidToken();
+    }
+
     const makeRequest = async (): Promise<T> => {
       const fullUrl = `${API_BASE_URL}${endpoint}`;
       const headers = getAuthHeaders(endpoint);
@@ -173,8 +203,9 @@ export const apiService = {
         const errorData = await parseErrorResponse(response);
 
         // Handle 401 Unauthorized - try refresh token first
+        // Exclude /auth/refresh to prevent infinite loop
         if (response.status === 401 && !endpoint.includes("/auth/")) {
-          return handle401Error(endpoint, makeRequest);
+          return handle401Error(endpoint, makeRequest, 0);
         }
 
         throw createApiError(errorData, response.status);
@@ -198,6 +229,12 @@ export const apiService = {
     data: unknown,
     options?: { headers?: Record<string, string> }
   ): Promise<T> {
+    // Ensure token is valid before making request (proactive refresh)
+    // Skip for public endpoints
+    if (!endpoint.includes("/auth/")) {
+      await ensureValidToken();
+    }
+
     const makeRequest = async (): Promise<T> => {
       const fullUrl = `${API_BASE_URL}${endpoint}`;
       const isFormData = data instanceof FormData;
@@ -217,8 +254,9 @@ export const apiService = {
         const errorData = await parseErrorResponse(response);
 
         // Handle 401 Unauthorized - try refresh token first
+        // Exclude /auth/refresh to prevent infinite loop
         if (response.status === 401 && !endpoint.includes("/auth/")) {
-          return handle401Error(endpoint, makeRequest);
+          return handle401Error(endpoint, makeRequest, 0);
         }
 
         throw createApiError(errorData, response.status);
@@ -255,6 +293,12 @@ export const apiService = {
     data: unknown,
     options?: { headers?: Record<string, string> }
   ): Promise<T> {
+    // Ensure token is valid before making request (proactive refresh)
+    // Skip for public endpoints
+    if (!endpoint.includes("/auth/")) {
+      await ensureValidToken();
+    }
+
     const makeRequest = async (): Promise<T> => {
       const fullUrl = `${API_BASE_URL}${endpoint}`;
       const isFormData = data instanceof FormData;
@@ -274,8 +318,9 @@ export const apiService = {
         const errorData = await parseErrorResponse(response);
 
         // Handle 401 Unauthorized - try refresh token first
+        // Exclude /auth/refresh to prevent infinite loop
         if (response.status === 401 && !endpoint.includes("/auth/")) {
-          return handle401Error(endpoint, makeRequest);
+          return handle401Error(endpoint, makeRequest, 0);
         }
 
         throw createApiError(errorData, response.status);
@@ -295,6 +340,12 @@ export const apiService = {
   },
 
   async delete<T>(endpoint: string): Promise<T> {
+    // Ensure token is valid before making request (proactive refresh)
+    // Skip for public endpoints
+    if (!endpoint.includes("/auth/")) {
+      await ensureValidToken();
+    }
+
     const makeRequest = async (): Promise<T> => {
       const fullUrl = `${API_BASE_URL}${endpoint}`;
       const headers = getAuthHeaders(endpoint);
@@ -308,8 +359,9 @@ export const apiService = {
         const errorData = await parseErrorResponse(response);
 
         // Handle 401 Unauthorized - try refresh token first
+        // Exclude /auth/refresh to prevent infinite loop
         if (response.status === 401 && !endpoint.includes("/auth/")) {
-          return handle401Error(endpoint, makeRequest);
+          return handle401Error(endpoint, makeRequest, 0);
         }
 
         throw createApiError(errorData, response.status);
@@ -337,7 +389,7 @@ export const apiService = {
         throw error;
       }
       // Check if it's a JSON parse error from empty response
-      if (error instanceof SyntaxError && error.message.includes('JSON')) {
+      if (error instanceof SyntaxError && error.message.includes("JSON")) {
         // This is likely a 204 No Content response, which is actually success
         return null as T;
       }

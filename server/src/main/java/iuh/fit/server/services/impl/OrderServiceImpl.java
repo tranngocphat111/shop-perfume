@@ -4,22 +4,23 @@ import iuh.fit.server.dto.request.OrderCreateRequest;
 import iuh.fit.server.dto.request.SepayWebhookRequest;
 import iuh.fit.server.dto.response.OrderResponse;
 import iuh.fit.server.dto.response.PaymentCheckResponse;
+import iuh.fit.server.dto.response.RevenueStatsResponse;
 import iuh.fit.server.mapper.OrderMapper;
 import iuh.fit.server.model.entity.*;
 import iuh.fit.server.model.enums.Method;
 import iuh.fit.server.model.enums.PaymentStatus;
 import iuh.fit.server.model.enums.ShipmentStatus;
-import iuh.fit.server.repository.OrderRepository;
-import iuh.fit.server.repository.PaymentRepository;
-import iuh.fit.server.repository.ProductRepository;
-import iuh.fit.server.repository.UserRepository;
+import iuh.fit.server.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Year;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
@@ -35,10 +36,44 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
     private final ProductRepository productRepository;
     private final UserRepository userRepository;
     private final OrderMapper orderMapper;
-    private final iuh.fit.server.repository.CouponRepository couponRepository;
+    private final CouponRepository couponRepository;
     
     // Timeout for QR payment: 30 minutes in milliseconds
     private static final long QR_PAYMENT_TIMEOUT_MS = 30 * 60 * 1000;
+    private final InventoryRepository inventoryRepository;
+
+    /**
+     * Helper method to restore inventory for an order
+     * Only restore if payment status is PENDING (to avoid double restore)
+     */
+    private void restoreInventoryForOrder(Order order) {
+        Payment payment = order.getPayment();
+        
+        // Only restore if payment is still PENDING
+        if (payment == null || payment.getStatus() != PaymentStatus.PENDING) {
+            log.info("⚠️ [restoreInventory] Order {} payment status is {}, skipping restore", 
+                    order.getOrderId(), payment != null ? payment.getStatus() : "null");
+            return;
+        }
+        
+        // Restore inventory for all order items
+        if (order.getOrderItems() != null && !order.getOrderItems().isEmpty()) {
+            for (OrderItem orderItem : order.getOrderItems()) {
+                iuh.fit.server.model.entity.Inventory inventory = 
+                        inventoryRepository.findByProductId(orderItem.getProduct().getProductId());
+                if (inventory != null) {
+                    int restoredQuantity = inventory.getQuantity() + orderItem.getQuantity();
+                    inventory.setQuantity(restoredQuantity);
+                    inventoryRepository.save(inventory);
+                    log.info("✅ [restoreInventory] Restored {} units of product {} (new quantity: {})", 
+                            orderItem.getQuantity(), orderItem.getProduct().getProductId(), restoredQuantity);
+                } else {
+                    log.warn("⚠️ [restoreInventory] Inventory not found for product {}", 
+                            orderItem.getProduct().getProductId());
+                }
+            }
+        }
+    }
 
 
     @Override
@@ -57,6 +92,93 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
     public double getTotalRevenue() {
         return orderRepository.getTotalRevenue(PaymentStatus.PAID);
     };
+
+    @Override
+    public RevenueStatsResponse getRevenueStatsByPeriod(String period, Integer year) {
+        List<Object[]> results;
+        List<String> labels = new ArrayList<>();
+        List<Double> revenues = new ArrayList<>();
+        List<Long> orderCounts = new ArrayList<>();
+        
+        switch (period.toLowerCase()) {
+            case "monthly":
+                if (year == null) {
+                    year = java.time.Year.now().getValue();
+                }
+                results = orderRepository.getMonthlyRevenueStats(year, PaymentStatus.PAID);
+                
+                // Initialize all 12 months with zero values
+                for (int i = 1; i <= 12; i++) {
+                    labels.add(getMonthName(i));
+                    revenues.add(0.0);
+                    orderCounts.add(0L);
+                }
+                
+                // Fill in actual data
+                for (Object[] result : results) {
+                    int month = (Integer) result[0];
+                    double revenue = ((Number) result[1]).doubleValue();
+                    long orderCount = ((Number) result[2]).longValue();
+                    
+                    revenues.set(month - 1, revenue);
+                    orderCounts.set(month - 1, orderCount);
+                }
+                break;
+                
+            case "quarterly":
+                if (year == null) {
+                    year = Year.now().getValue();
+                }
+                results = orderRepository.getQuarterlyRevenueStats(year, PaymentStatus.PAID);
+                
+                // Initialize all 4 quarters with zero values
+                for (int i = 1; i <= 4; i++) {
+                    labels.add("Q" + i);
+                    revenues.add(0.0);
+                    orderCounts.add(0L);
+                }
+                
+                // Fill in actual data
+                for (Object[] result : results) {
+                    int quarter = (Integer) result[0];
+                    double revenue = ((Number) result[1]).doubleValue();
+                    long orderCount = ((Number) result[2]).longValue();
+                    
+                    revenues.set(quarter - 1, revenue);
+                    orderCounts.set(quarter - 1, orderCount);
+                }
+                break;
+                
+            case "yearly":
+                results = orderRepository.getYearlyRevenueStats(PaymentStatus.PAID);
+                
+                for (Object[] result : results) {
+                    int resultYear = (Integer) result[0];
+                    double revenue = ((Number) result[1]).doubleValue();
+                    long orderCount = ((Number) result[2]).longValue();
+                    
+                    labels.add(String.valueOf(resultYear));
+                    revenues.add(revenue);
+                    orderCounts.add(orderCount);
+                }
+                break;
+                
+            default:
+                throw new IllegalArgumentException("Invalid period: " + period + ". Use 'monthly', 'quarterly', or 'yearly'");
+        }
+        
+        return RevenueStatsResponse.builder()
+                .labels(labels)
+                .revenues(revenues)
+                .orderCounts(orderCounts)
+                .build();
+    }
+    
+    private String getMonthName(int month) {
+        String[] monthNames = {"Jan", "Feb", "Mar", "Apr", "May", "Jun", 
+                              "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
+        return monthNames[month - 1];
+    }
 
     @Transactional
     @Override
@@ -84,8 +206,8 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
                 Object principal = authentication.getPrincipal();
                 log.info("🔍 [createOrder] Principal type: {}", principal.getClass().getName());
                 
-                if (principal instanceof org.springframework.security.core.userdetails.UserDetails) {
-                    String email = ((org.springframework.security.core.userdetails.UserDetails) principal).getUsername();
+                if (principal instanceof UserDetails) {
+                    String email = ((UserDetails) principal).getUsername();
                     log.info("🔍 [createOrder] User email from token: {}", email);
                     
                     Optional<User> userOpt = userRepository.findByEmail(email);
@@ -106,6 +228,35 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
         } catch (Exception e) {
             log.error("❌ [createOrder] Error setting user for order: {}", e.getMessage(), e);
             // Continue as guest order if cannot get user
+        }
+
+        // Validate stock và trừ inventory cho TẤT CẢ đơn hàng (không phân biệt loại thanh toán)
+        for (iuh.fit.server.dto.request.OrderItemRequest cartItem : request.getCartItems()) {
+            Product product = productRepository.findById(cartItem.getProductId())
+                    .orElseThrow(() -> new RuntimeException("Product not found: " + cartItem.getProductId()));
+            
+            iuh.fit.server.model.entity.Inventory inventory = inventoryRepository.findByProductId(cartItem.getProductId());
+            if (inventory == null) {
+                throw new RuntimeException("Inventory not found for product: " + cartItem.getProductId());
+            }
+            
+            // Validate stock - check quantity trong inventory
+            if (inventory.getQuantity() < cartItem.getQuantity()) {
+                String errorMsg = String.format(
+                    "Sản phẩm '%s' không đủ hàng. Số lượng trong kho: %d, yêu cầu: %d", 
+                    product.getName(), inventory.getQuantity(), cartItem.getQuantity()
+                );
+                log.error("❌ [createOrder] Stock validation failed: {}", errorMsg);
+                throw new RuntimeException(errorMsg);
+            }
+            
+            // Trừ số lượng từ inventory ngay lập tức (cho tất cả loại thanh toán)
+            int newQuantity = inventory.getQuantity() - cartItem.getQuantity();
+            inventory.setQuantity(newQuantity);
+            inventoryRepository.save(inventory);
+            
+            log.info("✅ [createOrder] Deducted {} units of product {} (new quantity: {})", 
+                    cartItem.getQuantity(), cartItem.getProductId(), newQuantity);
         }
 
         // Create OrderItems
@@ -358,9 +509,14 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
         
         long timeElapsed = System.currentTimeMillis() - orderDate.getTime();
         if (timeElapsed > QR_PAYMENT_TIMEOUT_MS) {
+            // Restore inventory và cancel order
+            restoreInventoryForOrder(order);
+            
             // Cancel the order by setting payment status to FAILED
             payment.setStatus(PaymentStatus.FAILED);
             paymentRepository.save(payment);
+            
+            log.info("✅ [cancelOrderIfTimeout] Order {} cancelled due to timeout, inventory restored", orderId);
         }
     }
     
@@ -397,11 +553,14 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
             throw new RuntimeException("Chỉ có thể hủy đơn hàng đang chờ thanh toán");
         }
         
+        // Restore inventory cho tất cả loại thanh toán (vì đã trừ inventory khi tạo order)
+        restoreInventoryForOrder(order);
+        
         // Hủy đơn hàng bằng cách đặt trạng thái thanh toán thành FAILED
         payment.setStatus(PaymentStatus.FAILED);
         paymentRepository.save(payment);
         
-        log.info("✅ Order {} has been cancelled", orderId);
+        log.info("✅ Order {} has been cancelled, inventory restored", orderId);
     }
     
     @Override

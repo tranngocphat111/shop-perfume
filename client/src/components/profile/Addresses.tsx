@@ -177,7 +177,7 @@ export const Addresses = () => {
   };
 
   return (
-    <div className="bg-white border border-gray-100 rounded-xl shadow-sm overflow-hidden">
+    <div className="bg-white border border-gray-100 rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
       {/* Header */}
       <div className="px-6 py-5 bg-gradient-to-r from-gray-50 to-white border-b border-gray-100 flex justify-between items-center">
         <div className="flex items-center gap-3">
@@ -194,10 +194,10 @@ export const Addresses = () => {
         <motion.button
           type="button"
           onClick={openAdd}
-          className="btn-slide-overlay-dark relative overflow-hidden flex items-center gap-2 px-5 py-1.5 bg-black text-white rounded-full hover:bg-gray-800 transition-colors shadow-sm"
+          className="btn-slide-overlay-dark relative overflow-hidden flex items-center gap-2 px-5 py-2 bg-black text-white rounded-full hover:bg-gray-800 transition-colors shadow-sm"
         >
           <Plus size={16} className="relative z-10" />
-          <span className="relative z-10">Thêm địa chỉ</span>
+          <span className="relative z-10 text-sm">Thêm địa chỉ</span>
         </motion.button>
       </div>
 

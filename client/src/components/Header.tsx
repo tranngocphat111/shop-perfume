@@ -92,6 +92,20 @@ export const Header = () => {
     }
   }, [isAuthenticated]);
 
+  // Listen for user info refresh events (e.g., after order placement with points usage)
+  useEffect(() => {
+    const handleRefreshUserInfo = () => {
+      if (isAuthenticated) {
+        userService.getCurrentUser().then(setUserInfo).catch(console.error);
+      }
+    };
+
+    window.addEventListener('refreshUserInfo', handleRefreshUserInfo);
+    return () => {
+      window.removeEventListener('refreshUserInfo', handleRefreshUserInfo);
+    };
+  }, [isAuthenticated]);
+
   // Listen for add to cart event to force show header
   useEffect(() => {
     const handleAddToCart = () => {

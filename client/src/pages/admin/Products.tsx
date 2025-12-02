@@ -185,22 +185,6 @@ export const Products = () => {
       ),
     },
     {
-      key: "status",
-      label: "Status",
-      sortable: true,
-      onSort: handleSort,
-      render: (value: string) => (
-        <span
-          className={`inline-block whitespace-nowrap px-2 py-1 text-xs rounded font-semibold ${
-            value === "ACTIVE"
-              ? "bg-green-100 text-green-800"
-              : "bg-red-100 text-red-800"
-          }`}>
-          {value}
-        </span>
-      ),
-    },
-    {
       key: "lastUpdated",
       label: "Last Updated",
       sortable: true,
@@ -289,6 +273,41 @@ export const Products = () => {
       }
 
       alert(userMessage);
+    }
+  };
+
+  const handleDelete = async (item: ProductData) => {
+    const confirmDelete = window.confirm(
+      `⚠️ Bạn có chắc chắn muốn xóa sản phẩm này?\n\nSản phẩm: ${
+        item.name
+      }\nThương hiệu: ${
+        item.brand
+      }\nGiá: ${item.unitPrice.toLocaleString()} đ\n\nLưu ý: Sản phẩm sẽ được chuyển sang trạng thái INACTIVE và không hiển thị cho khách hàng.`
+    );
+
+    if (!confirmDelete) {
+      return;
+    }
+
+    try {
+      await productAdminService.deleteProduct(item.id);
+      alert(
+        `✅ Đã xóa sản phẩm thành công!\n\nSản phẩm "${item.name}" đã được chuyển sang trạng thái INACTIVE.`
+      );
+      // Refresh the product list
+      fetchProducts(
+        currentPage,
+        pageSize,
+        sortField,
+        sortDirection,
+        searchQuery
+      );
+    } catch (err) {
+      console.error("Error deleting product:", err);
+      const errorMessage = err instanceof Error ? err.message : "Unknown error";
+      alert(
+        `❌ Lỗi khi xóa sản phẩm!\n\nChi tiết: ${errorMessage}\nVui lòng thử lại sau.`
+      );
     }
   };
 
@@ -514,6 +533,7 @@ export const Products = () => {
           onAdd={handleAdd}
           onView={handleView}
           onEdit={handleEdit}
+          onDelete={handleDelete}
           searchPlaceholder="Search by ID, name, brand, category, status, price, volume..."
           onSearch={handleSearch}
           serverSide={true}

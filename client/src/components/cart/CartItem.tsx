@@ -18,6 +18,7 @@ export const CartItem = ({
 }: CartItemProps) => {
   const navigate = useNavigate();
   const maxQuantity = item.stockQuantity ?? Infinity;
+  const isOutOfStock = item.stockQuantity !== undefined && item.stockQuantity === 0;
   const isMaxQuantity = item.quantity >= maxQuantity;
   const isMinQuantity = item.quantity <= 1;
   const subtotal = item.product.unitPrice * item.quantity;
@@ -60,8 +61,13 @@ export const CartItem = ({
             className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
             onError={(e) => { e.currentTarget.src = 'https://via.placeholder.com/200'; }}
           />
-           {/* Badge số lượng tồn kho (nếu ít) */}
-           {item.stockQuantity !== undefined && item.stockQuantity < 10 && (
+           {/* Badge số lượng tồn kho */}
+           {item.stockQuantity !== undefined && item.stockQuantity === 0 && (
+            <div className="absolute top-2 left-2 bg-red-600 text-white text-[10px] font-bold px-2 py-1 rounded shadow-sm">
+              HẾT HÀNG
+            </div>
+          )}
+          {item.stockQuantity !== undefined && item.stockQuantity > 0 && item.stockQuantity < 10 && (
             <div className="absolute top-2 left-2 bg-red-500 text-white text-[10px] font-bold px-2 py-1 rounded shadow-sm">
               SẮP HẾT
             </div>
@@ -80,10 +86,17 @@ export const CartItem = ({
                 {item.product.name}
               </h3>
               <div className="flex items-center gap-2 mt-2">
-                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-gray-100 text-xs font-semibold text-gray-600 border border-gray-200">
-                  <Package className="w-3 h-3" />
-                  {item.product.category?.name || 'Sản phẩm'}
-                </span>
+                {item.stockQuantity !== undefined && item.stockQuantity === 0 ? (
+                  <span className="text-lg inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-red-50 text-xs font-semibold text-red-600 border border-red-200">
+                    <Package className="w-3 h-3 " />
+                    <span className="mt-[-2px]"> Hết hàng</span>
+                  </span>
+                ) : (
+                  <span className="text-lg inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-gray-100 text-xs font-semibold text-gray-600 border border-gray-200">
+                    <Package className="w-3 h-3 " />
+                    <span className="mt-[-2px]"> {item.stockQuantity ?? 'N/A'} sản phẩm</span>
+                  </span>
+                )}
                 <span className="text-sm font-medium text-gray-400">
                    • Đơn giá: {formatCurrency(item.product.unitPrice)}
                 </span>
@@ -109,16 +122,20 @@ export const CartItem = ({
           >
             
             {/* Quantity Control: Rounded full style like product detail */}
-            <div className="flex items-center border border-gray-200 rounded-full overflow-hidden bg-white hover:border-gray-300 transition-colors w-full md:w-auto">
+            <div className={`flex items-center border rounded-lg overflow-hidden transition-colors w-full md:w-auto ${
+              isOutOfStock 
+                ? 'border-red-200 bg-red-50' 
+                : 'border-gray-200 bg-white hover:border-gray-300'
+            }`}>
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   handleQuantityChange(item.quantity - 1);
                 }}
-                disabled={isMinQuantity}
+                disabled={isMinQuantity || isOutOfStock}
                 className="p-1.5 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
-                <Minus className="w-3 h-3 text-gray-700" />
+                <Minus className="w-4 h-5 text-gray-700" />
               </button>
               
               <input
@@ -129,7 +146,8 @@ export const CartItem = ({
                   handleQuantityChange(val);
                 }}
                 onClick={(e) => e.stopPropagation()}
-                className="w-12 text-center border-0 focus:outline-none focus:ring-0 py-1 text-sm font-semibold text-gray-900 bg-transparent flex items-center justify-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                disabled={isOutOfStock}
+                className="w-12 text-center border-0 focus:outline-none focus:ring-0 py-1.5 text-sm font-semibold text-gray-900 bg-transparent flex items-center justify-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none disabled:opacity-50"
                 min="1"
                 max={maxQuantity !== Infinity ? maxQuantity : undefined}
               />
@@ -139,10 +157,10 @@ export const CartItem = ({
                   e.stopPropagation();
                   handleQuantityChange(item.quantity + 1);
                 }}
-                disabled={isMaxQuantity}
+                disabled={isMaxQuantity || isOutOfStock}
                 className="p-1.5 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
-                <Plus className="w-3 h-3 text-gray-700" />
+                <Plus className="w-4 h-5 text-gray-700" />
               </button>
             </div>
 

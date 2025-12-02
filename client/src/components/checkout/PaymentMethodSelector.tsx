@@ -23,7 +23,7 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
   };
 
   return (
-    <div className="bg-white p-6 md:p-8 rounded-xl shadow-[0_2px_8px_rgba(0,0,0,0.1)] border border-slate-100 mt-6">
+    <div className="bg-white p-6 md:p-8 rounded-xl shadow-[0_1px_4px_rgba(0,0,0,0.02)] border border-slate-100 mt-6">
       <h2 className="text-xl md:text-2xl font-semibold text-slate-800 mb-6 pb-4 border-b-2 border-slate-100">
         Phương thức thanh toán
       </h2>

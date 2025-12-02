@@ -3,9 +3,10 @@ import { User, Phone, MapPin, Building2, Map, Check, X } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { addressService, type Address } from '../../services/address.service';
 import type { CheckoutFormData, Province, District, Ward, ProvinceDetail, DistrictDetail } from '../../types';
-import { FaMapMarkerAlt, FaPlus } from 'react-icons/fa';
-import { GoSync } from "react-icons/go";
+import { FaMapMarkerAlt, FaPlus, } from 'react-icons/fa';
+import { GoSync, } from "react-icons/go";
 import { CustomSelect } from '../profile/CustomSelect';
+import { MdAddCircleOutline } from "react-icons/md";
 
 interface AddressSelectorProps {
   formData: CheckoutFormData;
@@ -295,8 +296,274 @@ export const AddressSelector: React.FC<AddressSelectorProps> = ({
     }
   };
 
-  if (!isAuthenticated || addresses.length === 0) {
+  // Kiểm tra có địa chỉ mặc định không
+  const hasDefaultAddress = addresses.some(a => a.isDefault);
+  const hasAnyAddress = addresses.length > 0;
+
+  // Nếu chưa đăng nhập, không hiển thị gì
+  if (!isAuthenticated) {
     return null;
+  }
+
+  // Nếu chưa đăng nhập, không hiển thị gì
+  if (!isAuthenticated) {
+    return null;
+  }
+
+  // Nếu không có địa chỉ nào, chỉ hiển thị nút thêm
+  if (!hasAnyAddress) {
+    return (
+      <div className="mb-6">
+        <div className="flex items-center justify-between mb-4">
+          <label className="flex items-center text-base font-semibold text-gray-900">
+            <FaMapMarkerAlt className="mr-2 text-gray-600" />
+            Chọn địa chỉ đã lưu
+          </label>
+          <button
+            type="button"
+            onClick={() => {
+              setShowAddForm(true);
+              setFormError('');
+              if (provinces.length === 0) {
+                loadProvincesForForm();
+              }
+            }}
+            className="relative btn-slide-overlay-dark overflow-hidden px-4 py-2 text-sm font-medium text-white bg-black rounded-full hover:bg-gray-800 transition-colors flex items-center gap-2 shadow-sm hover:shadow-md"
+          >
+            <span className="flex items-center gap-1 relative z-10">
+              <MdAddCircleOutline className="text-lg" />
+              Thêm địa chỉ
+            </span>
+          </button>
+        </div>
+        
+        {/* Modal thêm địa chỉ mới */}
+        {showAddForm && (
+          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+            <div className="bg-white w-full max-w-2xl rounded-xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto">
+              {/* Header */}
+              <div className="px-5 py-3.5 bg-gradient-to-r from-gray-50 to-white border-b border-gray-100 flex items-center justify-between sticky top-0 bg-white z-10">
+                <h4 className="text-base font-bold text-gray-900">
+                  Thêm địa chỉ
+                </h4>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAddForm(false);
+                    setFormError('');
+                    setNewAddressForm({
+                      recipientName: '',
+                      phone: '',
+                      addressLine: '',
+                      ward: '',
+                      district: '',
+                      city: '',
+                      isDefault: false,
+                    });
+                    setDistricts([]);
+                    setWards([]);
+                  }}
+                  className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+              <div className="p-5 space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {/* Name Field */}
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-semibold text-gray-700">
+                      Tên người nhận
+                    </label>
+                    <div className="relative">
+                      <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                        <User size={16} />
+                      </div>
+                      <input
+                        className="w-full pl-10 pr-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-1 focus:ring-gray-400 focus:border-gray-400 transition-all outline-none"
+                        placeholder="Nhập tên người nhận"
+                        value={newAddressForm.recipientName}
+                        onChange={(e) => setNewAddressForm({ ...newAddressForm, recipientName: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Phone Field */}
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-semibold text-gray-700">
+                      Số điện thoại
+                    </label>
+                    <div className="relative">
+                      <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                        <Phone size={16} />
+                      </div>
+                      <input
+                        className="w-full pl-10 pr-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-1 focus:ring-gray-400 focus:border-gray-400 transition-all outline-none"
+                        placeholder="Nhập số điện thoại"
+                        value={newAddressForm.phone}
+                        onChange={(e) => setNewAddressForm({ ...newAddressForm, phone: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Address Line Field */}
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-gray-700">
+                    Địa chỉ
+                  </label>
+                  <div className="relative">
+                    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                      <MapPin size={16} />
+                    </div>
+                    <input
+                      className="w-full pl-10 pr-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-1 focus:ring-gray-400 focus:border-gray-400 transition-all outline-none"
+                      placeholder="Số nhà, tên đường..."
+                      value={newAddressForm.addressLine}
+                      onChange={(e) => setNewAddressForm({ ...newAddressForm, addressLine: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                {/* Location Dropdowns */}
+                <div className="space-y-3">
+                  {/* Province/City Dropdown */}
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-semibold text-gray-700">
+                      Tỉnh/Thành phố <span className="text-red-500">*</span>
+                    </label>
+                    <CustomSelect
+                      value={provinces.find(p => p.name === newAddressForm.city)?.code.toString() || ''}
+                      onChange={async (code) => {
+                        const selected = provinces.find(p => p.code.toString() === code);
+                        if (selected) {
+                          setNewAddressForm({ ...newAddressForm, city: selected.name, district: '', ward: '' });
+                          setDistricts([]);
+                          setWards([]);
+                          await loadDistrictsForForm(code);
+                        }
+                      }}
+                      options={provinces}
+                      placeholder="Chọn tỉnh/thành phố"
+                      icon={<Building2 size={16} />}
+                      disabled={loading.provinces}
+                      loading={loading.provinces}
+                    />
+                  </div>
+
+                  {/* District Dropdown */}
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-semibold text-gray-700">
+                      Quận/Huyện <span className="text-red-500">*</span>
+                    </label>
+                    <CustomSelect
+                      value={districts.find(d => d.name === newAddressForm.district)?.code.toString() || ''}
+                      onChange={async (code) => {
+                        const selected = districts.find(d => d.code.toString() === code);
+                        if (selected) {
+                          setNewAddressForm({ ...newAddressForm, district: selected.name, ward: '' });
+                          setWards([]);
+                          await loadWardsForForm(code);
+                        }
+                      }}
+                      options={districts}
+                      placeholder="Chọn quận/huyện"
+                      icon={<Map size={16} />}
+                      disabled={!newAddressForm.city || loading.districts}
+                      loading={loading.districts}
+                    />
+                  </div>
+
+                  {/* Ward Dropdown */}
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-semibold text-gray-700">
+                      Xã/Phường/Thị trấn <span className="text-red-500">*</span>
+                    </label>
+                    <CustomSelect
+                      value={wards.find(w => w.name === newAddressForm.ward)?.code.toString() || ''}
+                      onChange={(code) => {
+                        const selected = wards.find(w => w.code.toString() === code);
+                        if (selected) {
+                          setNewAddressForm({ ...newAddressForm, ward: selected.name });
+                        }
+                      }}
+                      options={wards}
+                      placeholder="Chọn xã/phường/thị trấn"
+                      icon={<MapPin size={16} />}
+                      disabled={!newAddressForm.district || loading.wards}
+                      loading={loading.wards}
+                    />
+                  </div>
+                </div>
+
+                {/* Default Address Checkbox */}
+                <div className="flex items-center gap-3 pt-2">
+                  <label className="relative flex items-center cursor-pointer group">
+                    <input
+                      type="checkbox"
+                      checked={newAddressForm.isDefault}
+                      onChange={(e) => setNewAddressForm({ ...newAddressForm, isDefault: e.target.checked })}
+                      className="sr-only"
+                    />
+                    <div className={`w-4 h-4 rounded border-2 transition-all flex items-center justify-center ${
+                      newAddressForm.isDefault 
+                        ? 'bg-black border-black' 
+                        : 'border-gray-300 group-hover:border-gray-400'
+                    }`}>
+                      {newAddressForm.isDefault && (
+                        <Check size={12} className="text-white" />
+                      )}
+                    </div>
+                    <span className="ml-3 text-sm font-medium text-gray-700 group-hover:text-gray-900 transition-colors">
+                      Đặt làm địa chỉ mặc định
+                    </span>
+                  </label>
+                </div>
+              </div>
+              {/* Error Message */}
+              {formError && (
+                <div className="px-6 py-3 bg-red-50 border-t border-red-100">
+                  <p className="text-sm text-red-700 font-medium">{formError}</p>
+                </div>
+              )}
+
+              {/* Footer Buttons */}
+              <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex gap-3 justify-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAddForm(false);
+                    setFormError('');
+                    setNewAddressForm({
+                      recipientName: '',
+                      phone: '',
+                      addressLine: '',
+                      ward: '',
+                      district: '',
+                      city: '',
+                      isDefault: false,
+                    });
+                    setDistricts([]);
+                    setWards([]);
+                  }}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="button"
+                  onClick={handleAddAddress}
+                  disabled={loading.saving}
+                  className="px-4 py-2 text-sm font-medium text-white bg-black rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {loading.saving ? 'Đang lưu...' : 'Lưu địa chỉ'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
   }
 
   const selectedAddress = addresses.find(a => a.id === selectedAddressId);
@@ -317,10 +584,12 @@ export const AddressSelector: React.FC<AddressSelectorProps> = ({
               loadProvincesForForm();
             }
           }}
-          className="px-4 py-2 text-sm font-medium text-white bg-black rounded-lg hover:bg-gray-800 transition-colors flex items-center gap-2 shadow-sm hover:shadow-md"
+          className="relative btn-slide-overlay-dark overflow-hidden px-4 py-2 text-sm font-medium text-white bg-black rounded-full hover:bg-gray-800 transition-colors flex items-center gap-2 shadow-sm hover:shadow-md"
         >
-          <FaPlus className="text-xs" />
+          <span className="flex items-center gap-1 relative z-10">
+          <MdAddCircleOutline className="text-lg" />
           Thêm địa chỉ mới
+          </span>
         </button>
       </div>
 

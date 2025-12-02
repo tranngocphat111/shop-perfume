@@ -53,5 +53,13 @@ public interface InventoryService {
      */
     InventoryResponse updateQuantity(Integer inventoryId, Integer quantity);
 
+    /**
+     * Tính số lượng hàng có sẵn (available stock)
+     * = quantity trong inventory - số lượng đang reserve trong pending QR orders
+     * @param productId ID của sản phẩm
+     * @return Số lượng hàng có sẵn
+     */
+    Integer getAvailableStock(Integer productId);
+
 }
 

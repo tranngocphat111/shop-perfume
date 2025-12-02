@@ -159,5 +159,19 @@ public class InventoryController {
         return ResponseEntity.ok(updated);
     }
 
+    /**
+     * GET /api/inventories/product/{productId}/available - Lấy số lượng hàng có sẵn (available stock)
+     * Available stock = total quantity - reserved quantity trong pending QR orders
+     */
+    @GetMapping("/product/{productId}/available")
+    @Operation(summary = "Get available stock for a product", description = "Get available stock (total quantity minus reserved in pending QR orders)")
+    public ResponseEntity<Map<String, Integer>> getAvailableStock(
+            @PathVariable Integer productId
+    ) {
+        log.info("REST request to get available stock for product: {}", productId);
+        Integer availableStock = inventoryService.getAvailableStock(productId);
+        return ResponseEntity.ok(Map.of("availableStock", availableStock));
+    }
+
 }
 
