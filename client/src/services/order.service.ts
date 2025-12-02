@@ -1,5 +1,5 @@
 import { apiService } from './api';
-import type { Order, Address } from '../types';
+import type { Order, Address, OrderResponse, PageResponse } from '../types';
 
 export interface CheckoutData {
   shippingAddress: Address;
@@ -44,8 +44,29 @@ export const orderService = {
   },
 
   // Get order by id
-  getOrderById: async (orderId: number) => {
-    return apiService.get<Order>(`/orders/${orderId}`);
+  getOrderById: async (orderId: number): Promise<OrderResponse> => {
+    return apiService.get<OrderResponse>(`/orders/${orderId}`);
+  },
+
+  // Get orders with pagination (Admin)
+  getOrdersPage: async (
+    page: number,
+    size: number,
+    sortBy?: string,
+    direction?: string,
+    search?: string
+  ): Promise<PageResponse<OrderResponse>> => {
+    let url = `/orders/page?page=${page}&size=${size}`;
+
+    if (sortBy && direction) {
+      url += `&sortBy=${sortBy}&direction=${direction}`;
+    }
+
+    if (search && search.trim() !== "") {
+      url += `&search=${encodeURIComponent(search.trim())}`;
+    }
+
+    return apiService.get<PageResponse<OrderResponse>>(url);
   },
 
   // VNPay payment

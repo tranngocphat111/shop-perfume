@@ -210,6 +210,50 @@ public class OrderController {
                     .body(new ErrorResponse("Có lỗi xảy ra khi lấy danh sách đơn hàng: " + e.getMessage()));
         }
     }
+    
+    /**
+     * GET /api/orders/page - Get orders with pagination and search (Admin only)
+     */
+    @GetMapping({"/page", "/paginated"})
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Get orders with pagination", description = "Retrieve orders with pagination and search (Admin only)")
+    public ResponseEntity<org.springframework.data.domain.Page<OrderResponse>> getOrdersPage(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String sort,
+            @RequestParam(required = false) String sortBy,
+            @RequestParam(required = false) String direction,
+            @RequestParam(required = false) String search) {
+        log.info("REST request to get orders with pagination - page: {}, size: {}, search: {}", page, size, search);
+        
+        // Parse sort parameter
+        String fieldName = "orderId";
+        org.springframework.data.domain.Sort.Direction sortDirection = org.springframework.data.domain.Sort.Direction.DESC;
+        
+        if (sort != null && !sort.isEmpty()) {
+            String[] sortParams = sort.split(",");
+            fieldName = sortParams[0];
+            if (sortParams.length > 1) {
+                sortDirection = sortParams[1].equalsIgnoreCase("desc") 
+                        ? org.springframework.data.domain.Sort.Direction.DESC 
+                        : org.springframework.data.domain.Sort.Direction.ASC;
+            }
+        } else if (sortBy != null && !sortBy.isEmpty()) {
+            fieldName = sortBy;
+            if (direction != null && direction.equalsIgnoreCase("DESC")) {
+                sortDirection = org.springframework.data.domain.Sort.Direction.DESC;
+            } else if (direction != null && direction.equalsIgnoreCase("ASC")) {
+                sortDirection = org.springframework.data.domain.Sort.Direction.ASC;
+            }
+        }
+        
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(
+                page, size, org.springframework.data.domain.Sort.by(sortDirection, fieldName));
+        
+        org.springframework.data.domain.Page<OrderResponse> orders = orderService.getOrdersPage(pageable, search);
+        
+        return ResponseEntity.ok(orders);
+    }
 
     // Error Response DTO
     private record ErrorResponse(String message) {}
