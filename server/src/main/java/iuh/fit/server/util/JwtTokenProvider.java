@@ -216,22 +216,17 @@ public class JwtTokenProvider {
 
             return signedJWT.serialize();
         } catch (JOSEException e) {
-
             log.error("Error generating refresh token for email: {}. Error: {}", email, e.getMessage(), e);
             throw new RuntimeException("Không thể tạo refresh token: " + e.getMessage(), e);
         } catch (IllegalStateException e) {
+            log.error("JWT configuration error: {}", e.getMessage());
+            throw e;
+        }
     }
 
-    /**
-     * Validate refresh token
-     */
-        try {
 
+        try {
             if (jwtSecret == null || jwtSecret.isEmpty()) {
-                log.error("JWT secret key is not configured");
-                return false;
-            }
-            
             // HS512 requires at least 64 bytes (512 bits)
             byte[] secretBytes = jwtSecret.getBytes();
             if (secretBytes.length < 64) {
@@ -247,16 +242,10 @@ public class JwtTokenProvider {
             SignedJWT signedJWT = SignedJWT.parse(token);
             JWSVerifier verifier = new MACVerifier(secretBytes);
 
-
             if (!signedJWT.verify(verifier)) {
                 log.warn("Refresh token signature verification failed");
                 return false;
-            }
 
-            // Kiểm tra đây có phải refresh token không
-            String tokenType = signedJWT.getJWTClaimsSet().getStringClaim("type");
-            if (!"refresh".equals(tokenType)) {
-                log.warn("Token is not a refresh token");
                 return false;
             }
 
