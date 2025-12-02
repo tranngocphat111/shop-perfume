@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
+import { useState, useEffect } from "react";
 import {
   ShoppingCart,
   Plus,
@@ -9,9 +10,11 @@ import {
   Sparkles,
   Tag,
   ShoppingBag,
+  Star,
 } from "lucide-react";
 import type { Product, Inventory } from "../../types";
 import { formatCurrency } from "../../utils/helpers";
+import { reviewService, type Review } from "../../services/review.service";
 
 interface ProductInfoProps {
   product: Product;
@@ -31,11 +34,34 @@ export const ProductInfo = ({
   onAddToCart,
 }: ProductInfoProps) => {
   const navigate = useNavigate();
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [averageRating, setAverageRating] = useState<number>(0);
+
   const isInStock = inventory ? inventory.quantity > 0 : true;
   const isLowStock = inventory
     ? inventory.quantity > 0 && inventory.quantity <= 10
     : false;
   const showPrice = product.unitPrice > 0;
+
+  // Fetch reviews for this product
+  useEffect(() => {
+    const fetchReviews = async () => {
+      try {
+        const data = await reviewService.getReviewsByProduct(product.productId);
+        setReviews(data);
+
+        // Calculate average rating
+        if (data.length > 0) {
+          const total = data.reduce((sum, review) => sum + review.rating, 0);
+          setAverageRating(total / data.length);
+        }
+      } catch (error) {
+        console.error("Failed to fetch reviews:", error);
+      }
+    };
+
+    fetchReviews();
+  }, [product.productId]);
 
   return (
     <motion.div
@@ -86,6 +112,36 @@ export const ProductInfo = ({
       >
         {product.name}
       </motion.h1>
+
+      {/* Rating Display - Only show if there are reviews */}
+      {reviews.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-50px" }}
+          transition={{ duration: 0.4, delay: 0.45 }}
+          className="flex items-center gap-2"
+        >
+          <div className="flex items-center gap-1">
+            {[1, 2, 3, 4, 5].map((star) => (
+              <Star
+                key={star}
+                className={`w-4 h-4 ${
+                  star <= Math.round(averageRating)
+                    ? "fill-yellow-400 text-yellow-400"
+                    : "fill-gray-200 text-gray-200"
+                }`}
+              />
+            ))}
+          </div>
+          <span className="text-sm text-gray-600">
+            {averageRating.toFixed(1)}
+          </span>
+          <span className="text-sm text-gray-400">
+            ({reviews.length} đánh giá)
+          </span>
+        </motion.div>
+      )}
 
       {/* Price */}
       <motion.div

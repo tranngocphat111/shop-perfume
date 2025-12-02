@@ -250,11 +250,7 @@ export const PerfumeCard = ({ inventory, brands = [] }: ProductCardProps) => {
         </div>
 
         {/* Stock Status Text - Phần này giữ nguyên text bên dưới để người dùng vẫn đọc được chi tiết */}
-        {isOutOfStock ? (
-          <div className="text-xs sm:text-sm text-red-600 font-medium">
-            Tạm hết hàng
-          </div>
-        ) : isLowStock ? (
+        {isLowStock ? (
           <div className="text-xs sm:text-sm text-orange-500 font-medium">
             Chỉ còn {inventory.quantity} sản phẩm
           </div>
