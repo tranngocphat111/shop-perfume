@@ -147,6 +147,14 @@ public class InventoryServiceImpl implements iuh.fit.server.services.InventorySe
         
         return Math.max(0, availableStock); // Đảm bảo không âm
     }
+    
+    @Override
+    @Transactional(readOnly = true)
+    public Page<InventoryResponse> searchInventories(String searchTerm, Pageable pageable) {
+        log.info("Searching inventories with term '{}' and pagination: {}", searchTerm, pageable);
+        Page<Inventory> inventories = inventoryRepository.searchInventories(searchTerm, pageable);
+        return inventories.map(inventoryMapper::toResponse);
+    }
 
 }
 

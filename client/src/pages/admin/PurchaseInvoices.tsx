@@ -1,10 +1,15 @@
 import { useState, useEffect } from "react";
 import { AdminLayout, DataTable, type Column } from "../../components/admin";
 import { purchaseInvoiceService } from "../../services/purchaseInvoice.service";
+import { productService as productAdminService } from "../../services/product.service";
 import { useSuppliers } from "../../hooks/useSuppliers";
-import { useProducts } from "../../hooks/usePerfumes";
-import type { PurchaseInvoice, PurchaseInvoiceFormData } from "../../types";
-import { PurchaseInvoiceModal } from "../../components/admin/PurchaseInvoiceModal";
+import type {
+  PurchaseInvoice,
+  PurchaseInvoiceFormData,
+  Product,
+} from "../../types";
+import { PurchaseInvoiceAddModal } from "../../components/admin/PurchaseInvoiceAddModal";
+import { PurchaseInvoiceViewModal } from "../../components/admin/PurchaseInvoiceViewModal";
 
 interface PurchaseInvoiceData extends Record<string, unknown> {
   id: number;
@@ -28,22 +33,72 @@ export const PurchaseInvoices = () => {
   // Sort and search states
   const [sortField, setSortField] = useState<string>("purchaseInvoiceId");
   const [sortDirection, setSortDirection] = useState<"ASC" | "DESC">("DESC");
+  const [searchTerm, setSearchTerm] = useState<string>("");
 
   // Modal states
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [modalMode, setModalMode] = useState<"add" | "edit" | "view">("add");
-  const [selectedInvoice, setSelectedInvoice] =
-    useState<PurchaseInvoiceFormData | null>(null);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [viewInvoiceData, setViewInvoiceData] =
+    useState<PurchaseInvoice | null>(null);
 
   // Fetch suppliers and products
   const { suppliers } = useSuppliers();
-  const { products } = useProducts();
+  const [products, setProducts] = useState<Product[]>([]);
+  const [productsLoading, setProductsLoading] = useState(true);
+
+  // Fetch ACTIVE products using productAdminService
+  useEffect(() => {
+    const fetchActiveProducts = async () => {
+      try {
+        setProductsLoading(true);
+        console.log("🔍 Fetching products with status=ACTIVE...");
+
+        // Fetch products with status filter
+        const pageResponse = await productAdminService.getProductPage(
+          0,
+          1000,
+          undefined,
+          undefined,
+          undefined,
+          "ACTIVE" // Filter by ACTIVE status
+        );
+
+        console.log("✅ Products response:", pageResponse);
+        console.log(
+          "📦 ACTIVE products count:",
+          pageResponse.content?.length || 0
+        );
+
+        const activeProducts = pageResponse.content || [];
+
+        if (activeProducts.length > 0) {
+          console.log("📋 First product:", activeProducts[0]);
+          console.log("📋 Sample products:", activeProducts.slice(0, 3));
+        } else {
+          console.warn("⚠️ No ACTIVE products found!");
+        }
+
+        setProducts(activeProducts);
+      } catch (err) {
+        console.error("❌ Error fetching products:", err);
+        if (err instanceof Error) {
+          console.error("❌ Error message:", err.message);
+        }
+        setProducts([]);
+      } finally {
+        setProductsLoading(false);
+      }
+    };
+
+    fetchActiveProducts();
+  }, []);
 
   const fetchInvoices = async (
     page: number,
     size: number,
     sortBy?: string,
-    direction?: string
+    direction?: string,
+    search?: string
   ) => {
     try {
       setLoading(true);
@@ -53,7 +108,8 @@ export const PurchaseInvoices = () => {
         page,
         size,
         sortBy,
-        direction as "ASC" | "DESC" | undefined
+        direction as "ASC" | "DESC" | undefined,
+        search
       );
 
       const transformedData: PurchaseInvoiceData[] = pageResponse.content.map(
@@ -80,8 +136,8 @@ export const PurchaseInvoices = () => {
   };
 
   useEffect(() => {
-    fetchInvoices(currentPage, pageSize, sortField, sortDirection);
-  }, [currentPage, pageSize, sortField, sortDirection]);
+    fetchInvoices(currentPage, pageSize, sortField, sortDirection, searchTerm);
+  }, [currentPage, pageSize, sortField, sortDirection, searchTerm]);
 
   const handlePageChange = (page: number, size: number) => {
     if (size !== pageSize) {
@@ -90,6 +146,11 @@ export const PurchaseInvoices = () => {
     } else {
       setCurrentPage(page);
     }
+  };
+
+  const handleSearch = (query: string) => {
+    setSearchTerm(query);
+    setCurrentPage(0); // Reset to first page when searching
   };
 
   // Map backend field to frontend field for display
@@ -196,109 +257,63 @@ export const PurchaseInvoices = () => {
     },
   ];
 
-  const getInvoiceDetailsForModal = async (id: number) => {
-    const invoice = await purchaseInvoiceService.getInvoiceById(id);
-    const details =
-      invoice.details && invoice.details.length > 0
-        ? invoice.details
-        : await purchaseInvoiceService.getInvoiceDetailById(id);
-
-    return {
-      purchaseInvoiceId: invoice.purchaseInvoiceId,
-      supplierId: invoice.supplier.supplierId,
-      email: invoice.email,
-      status: invoice.status,
-      details: details.map((detail) => ({
-        productId: detail.product.productId,
-        quantity: detail.quantity,
-        importPrice: detail.importPrice,
-      })),
-    } as PurchaseInvoiceFormData;
-  };
-
   const handleView = async (item: PurchaseInvoiceData) => {
     try {
-      const formData = await getInvoiceDetailsForModal(item.id);
-      setSelectedInvoice(formData);
-      setModalMode("view");
-      setIsModalOpen(true);
+      const invoice = await purchaseInvoiceService.getInvoiceById(item.id);
+      const details =
+        invoice.details && invoice.details.length > 0
+          ? invoice.details
+          : await purchaseInvoiceService.getInvoiceDetailById(item.id);
+
+      setViewInvoiceData({ ...invoice, details });
+      setIsViewModalOpen(true);
     } catch (err) {
       console.error("Error fetching invoice details:", err);
       alert("❌ Failed to load invoice details. Please try again.");
     }
   };
 
-  const handleEdit = async (item: PurchaseInvoiceData) => {
-    try {
-      const formData = await getInvoiceDetailsForModal(item.id);
-      setSelectedInvoice(formData);
-      setModalMode("edit");
-      setIsModalOpen(true);
-    } catch (err) {
-      console.error("Error fetching invoice for edit:", err);
-      alert("❌ Failed to load invoice for editing. Please try again.");
-    }
-  };
-
   const handleAdd = () => {
-    setSelectedInvoice(null);
-    setModalMode("add");
-    setIsModalOpen(true);
+    if (productsLoading) {
+      alert("⏳ Please wait, products are still loading...");
+      return;
+    }
+    if (products.length === 0) {
+      alert("⚠️ No active products available. Please add products first.");
+      return;
+    }
+    console.log("✅ Opening Add Modal with", products.length, "products");
+    setIsAddModalOpen(true);
   };
 
-  const handleModalSubmit = async (data: PurchaseInvoiceFormData) => {
+  const handleAddModalSubmit = async (data: PurchaseInvoiceFormData) => {
     try {
-      if (modalMode === "view") {
-        setIsModalOpen(false);
-        setSelectedInvoice(null);
-        return;
-      }
-      if (modalMode === "add") {
-        // Validate
-        if (data.supplierId === 0) {
-          alert("⚠️ Please select a supplier!");
-          return;
-        }
-        if (!data.email.trim()) {
-          alert("⚠️ Please enter email!");
-          return;
-        }
-        if (data.details.length === 0) {
-          alert("⚠️ Please add at least one product!");
-          return;
-        }
+      const { purchaseInvoiceId, ...payload } = data;
+      void purchaseInvoiceId; // Explicitly mark as intentionally unused
+      const created = await purchaseInvoiceService.createInvoice(payload);
+      alert(
+        `✅ Purchase invoice created successfully!\n\nInvoice ID: ${
+          created.purchaseInvoiceId
+        }\nTotal: ${created.totalAmount.toLocaleString(
+          "vi-VN"
+        )} đ\n\n💡 Inventory has been updated for all products.`
+      );
 
-        const { purchaseInvoiceId: _unused, ...payload } = data;
-        const created = await purchaseInvoiceService.createInvoice(payload);
-        alert(
-          `✅ Purchase invoice created successfully!\n\nInvoice ID: ${
-            created.purchaseInvoiceId
-          }\nTotal: ${created.totalAmount.toLocaleString("vi-VN")} đ`
-        );
-      } else {
-        const invoiceId =
-          data.purchaseInvoiceId || selectedInvoice?.purchaseInvoiceId;
-        if (!invoiceId) {
-          alert("⚠️ No invoice selected for editing!");
-          return;
-        }
-        const { purchaseInvoiceId: _unused, ...payload } = data;
-        await purchaseInvoiceService.updateInvoice(invoiceId, payload);
-        alert("✅ Invoice updated successfully!");
-      }
-      setIsModalOpen(false);
-      setSelectedInvoice(null);
+      setIsAddModalOpen(false);
       await fetchInvoices(currentPage, pageSize, sortField, sortDirection);
     } catch (err) {
-      console.error("Error saving invoice:", err);
+      console.error("Error creating invoice:", err);
       const errorMessage = err instanceof Error ? err.message : "Unknown error";
 
-      let userMessage =
-        modalMode === "add"
-          ? `❌ Failed to create invoice!\n\n`
-          : `❌ Failed to update invoice!\n\n`;
+      let userMessage = `❌ Failed to create invoice!\n\n`;
 
-      userMessage += `Details: ${errorMessage}`;
+      if (errorMessage.includes("INACTIVE")) {
+        userMessage += `Error: One or more products are INACTIVE\n`;
+        userMessage += `Please ensure all products have ACTIVE status.`;
+      } else {
+        userMessage += `Details: ${errorMessage}`;
+      }
+
       alert(userMessage);
     }
   };
@@ -330,7 +345,6 @@ export const PurchaseInvoices = () => {
             </p>
           </div>
         </div>
-
         {/* Error Message */}
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex items-center gap-2">
@@ -343,7 +357,6 @@ export const PurchaseInvoices = () => {
             </button>
           </div>
         )}
-
         {/* Data Table */}
         <DataTable
           columns={columns}
@@ -352,8 +365,8 @@ export const PurchaseInvoices = () => {
           title="Purchase Invoices"
           onAdd={handleAdd}
           onView={handleView}
-          onEdit={handleEdit}
-          searchPlaceholder="Search by invoice ID, supplier, email, status..."
+          onSearch={handleSearch}
+          searchPlaceholder="Search by supplier, status, amount... (For ID search: 'ID 101')"
           serverSide={true}
           totalElements={totalElements}
           currentPage={currentPage}
@@ -362,19 +375,25 @@ export const PurchaseInvoices = () => {
           sortField={backendToFrontendFieldMapping[sortField] || sortField}
           sortDirection={sortDirection === "ASC" ? "asc" : "desc"}
         />
-
-        Add/Edit Modal
-        <PurchaseInvoiceModal
-          isOpen={isModalOpen}
+        {/* View Modal */}
+        <PurchaseInvoiceViewModal
+          isOpen={isViewModalOpen}
           onClose={() => {
-            setIsModalOpen(false);
-            setSelectedInvoice(null);
+            setIsViewModalOpen(false);
+            setViewInvoiceData(null);
           }}
-          onSubmit={handleModalSubmit}
-          mode={modalMode}
+          invoice={viewInvoiceData}
+        />
+
+        {/* Add Modal */}
+        <PurchaseInvoiceAddModal
+          isOpen={isAddModalOpen}
+          onClose={() => {
+            setIsAddModalOpen(false);
+          }}
+          onSubmit={handleAddModalSubmit}
           suppliers={suppliers}
           products={products}
-          initialData={selectedInvoice || undefined}
         />
       </div>
     </AdminLayout>

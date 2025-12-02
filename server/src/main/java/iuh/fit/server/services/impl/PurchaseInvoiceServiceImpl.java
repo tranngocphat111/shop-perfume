@@ -8,6 +8,7 @@ import iuh.fit.server.exception.ResourceNotFoundException;
 import iuh.fit.server.mapper.PurchaseInvoiceDetailMapper;
 import iuh.fit.server.mapper.PurchaseInvoiceMapper;
 import iuh.fit.server.model.entity.*;
+import iuh.fit.server.model.enums.ProductStatus;
 import iuh.fit.server.repository.*;
 import iuh.fit.server.services.PurchaseInvoiceService;
 import lombok.RequiredArgsConstructor;
@@ -63,6 +64,27 @@ public class PurchaseInvoiceServiceImpl implements PurchaseInvoiceService {
     
     @Override
     @Transactional(readOnly = true)
+    public Page<PurchaseInvoiceResponse> searchPurchaseInvoices(String searchTerm, Pageable pageable) {
+        log.info("Searching purchase invoices with term: {} and pagination: {}", searchTerm, pageable);
+        
+        // Check if search term is numeric
+        boolean isNumeric = false;
+        Double numericValue = 0.0;
+        
+        try {
+            numericValue = Double.parseDouble(searchTerm);
+            isNumeric = true;
+            log.info("Search term is numeric: {}, searching for totalAmount >= {}", searchTerm, numericValue);
+        } catch (NumberFormatException e) {
+            log.info("Search term is not numeric: {}, searching by text fields", searchTerm);
+        }
+        
+        return purchaseInvoiceRepository.searchPurchaseInvoices(searchTerm, isNumeric, numericValue, pageable)
+                .map(purchaseInvoiceMapper::toResponse);
+    }
+    
+    @Override
+    @Transactional(readOnly = true)
     public PurchaseInvoiceResponse findById(Integer id) {
         log.info("Finding purchase invoice by id: {}", id);
         PurchaseInvoice invoice = purchaseInvoiceRepository.findById(id)
@@ -94,6 +116,11 @@ public class PurchaseInvoiceServiceImpl implements PurchaseInvoiceService {
             // Find product
             Product product = productRepository.findById(detailReq.getProductId())
                     .orElseThrow(() -> new ResourceNotFoundException("Product not found with id: " + detailReq.getProductId()));
+            
+            // Validate product is ACTIVE
+            if (product.getStatus() != ProductStatus.ACTIVE) {
+                throw new IllegalStateException("Cannot create purchase invoice for INACTIVE product: " + product.getName());
+            }
             
             // Create detail
             PurchaseInvoiceDetail detail = new PurchaseInvoiceDetail();

@@ -31,7 +31,7 @@ export const StockAdjustments = () => {
 
   // Search state
   const [searchQuery, setSearchQuery] = useState<string>("");
-  const [sortField, setSortField] = useState<string>("productId");
+  const [sortField, setSortField] = useState<string>("product.productId");
   const [sortDirection, setSortDirection] = useState<"ASC" | "DESC">("DESC");
   // Modal states
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -140,38 +140,56 @@ export const StockAdjustments = () => {
     } else {
       setSortField(backendField);
       setSortDirection(
-        backendField === "productId" || backendField === "lastUpdated"
+        backendField === "product.productId" || backendField === "lastUpdated"
           ? "DESC"
           : "ASC"
       );
     }
   };
 
+  // Map backend field to frontend field for display
+  const backendToFrontendFieldMapping: Record<string, string> = {
+    "product.productId": "productId",
+    "product.name": "productName",
+    "product.brand.name": "brand",
+    "product.category.name": "category",
+    quantity: "quantity",
+    "product.columeMl": "columeMl",
+    "product.unitPrice": "unitPrice",
+    lastUpdated: "lastUpdated",
+    "product.lastUpdatedBy": "updatedBy",
+  };
+
   const columns: Column[] = [
     {
       key: "productId",
       label: "ID",
+      sortable: true,
       onSort: handleSort,
     },
     {
       key: "productName",
       label: "Product Name",
       sortable: true,
+      onSort: handleSort,
     },
     {
       key: "brand",
       label: "Brand",
       sortable: true,
+      onSort: handleSort,
     },
     {
       key: "category",
       label: "Category",
       sortable: true,
+      onSort: handleSort,
     },
     {
       key: "quantity",
       label: "Quantity",
       sortable: true,
+      onSort: handleSort,
       render: (value: number) => (
         <span
           className={`font-semibold ${
@@ -185,11 +203,13 @@ export const StockAdjustments = () => {
       key: "columeMl",
       label: "Volume (ml)",
       sortable: true,
+      onSort: handleSort,
     },
     {
       key: "unitPrice",
       label: "Price",
       sortable: true,
+      onSort: handleSort,
       render: (value: number) => (
         <span className="whitespace-nowrap">{`${value.toFixed(0)} đ`}</span>
       ),
@@ -198,6 +218,7 @@ export const StockAdjustments = () => {
       key: "status",
       label: "Status",
       sortable: true,
+      onSort: handleSort,
       render: (value: string) => (
         <span
           className={`inline-block whitespace-nowrap px-2 py-1 text-xs rounded ${
@@ -215,11 +236,13 @@ export const StockAdjustments = () => {
       key: "lastUpdated",
       label: "Last Updated",
       sortable: true,
+      onSort: handleSort,
     },
     {
       key: "updatedBy",
       label: "Updated By",
       sortable: true,
+      onSort: handleSort,
     },
   ];
 
@@ -342,13 +365,15 @@ export const StockAdjustments = () => {
           title="Stock Adjustments"
           onView={handleView}
           // onEdit={handleEdit}
-          searchPlaceholder="Search by product name, brand, category..."
+          searchPlaceholder="Search by product name, brand, category... (For ID search: 'ID 101')"
           onSearch={handleSearch}
           serverSide={true}
           totalElements={totalElements}
           currentPage={currentPage}
           onPageChange={handlePageChange}
           loading={loading}
+          sortField={backendToFrontendFieldMapping[sortField] || sortField}
+          sortDirection={sortDirection === "ASC" ? "asc" : "desc"}
         />
 
         {/* Edit Modal */}
