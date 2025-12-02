@@ -13,9 +13,10 @@ interface CartSummaryProps {
   itemCount?: number;
   discount?: number;
   onCouponApply?: (couponId: number | null, discountAmount: number) => void;
+  disabled?: boolean; // Disable khi tổng = 0
 }
 
-export default function CartSummary({ total, itemCount, discount = 0, onCouponApply }: CartSummaryProps) {
+export default function CartSummary({ total, itemCount, discount = 0, onCouponApply, disabled = false }: CartSummaryProps) {
   const { isAuthenticated } = useAuth();
   const { appliedCouponId, setAppliedCouponId, setDiscount } = useCart();
   
@@ -179,6 +180,7 @@ export default function CartSummary({ total, itemCount, discount = 0, onCouponAp
           itemCount={itemCount}
           isAuthenticated={isAuthenticated}
           selectedCoupon={selectedCoupon}
+          disabled={disabled}
         />
       </div>
 
@@ -196,6 +198,7 @@ export default function CartSummary({ total, itemCount, discount = 0, onCouponAp
         showCouponPopup={showStickyCoupons}
         onToggleCouponPopup={() => setShowStickyCoupons(!showStickyCoupons)}
         onSelectCoupon={handleSelectCoupon}
+        disabled={disabled}
       />
     </>
   );

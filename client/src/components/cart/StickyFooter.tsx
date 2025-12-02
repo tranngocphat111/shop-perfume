@@ -18,6 +18,7 @@ interface StickyFooterProps {
   showCouponPopup: boolean;
   onToggleCouponPopup: () => void;
   onSelectCoupon: (couponId: number | null) => void;
+  disabled?: boolean; // Disable khi tổng = 0
 }
 
 export default function StickyFooter({
@@ -32,10 +33,12 @@ export default function StickyFooter({
   userInfo,
   showCouponPopup,
   onToggleCouponPopup,
-  onSelectCoupon
+  onSelectCoupon,
+  disabled = false
 }: StickyFooterProps) {
   const navigate = useNavigate();
   const finalTotal = total - discount;
+  const isDisabled = disabled || finalTotal <= 0;
 
   return (
     <>
@@ -107,8 +110,13 @@ export default function StickyFooter({
 
                 {/* Right Section - Button */}
                 <button 
-                  onClick={() => navigate('/checkout')}
-                   className="relative btn-slide-overlay-dark overflow-hidden w-full md:w-auto bg-black text-white hover:bg-gray-800 px-4 md:px-8 py-2 md:py-2.5 rounded-full font-bold text-base md:text-lg shadow-lg transition-all flex justify-center items-center gap-2"
+                  onClick={() => !isDisabled && navigate('/checkout')}
+                  disabled={isDisabled}
+                  className={`relative btn-slide-overlay-dark overflow-hidden w-full md:w-auto px-4 md:px-8 py-2 md:py-2.5 rounded-full font-bold text-base md:text-lg shadow-lg transition-all flex justify-center items-center gap-2 ${
+                    isDisabled 
+                      ? 'bg-gray-400 text-gray-200 cursor-not-allowed' 
+                      : 'bg-black text-white hover:bg-gray-800'
+                  }`}
                 >
                   <span className="hidden sm:inline relative z-10">Thanh toán</span>
                   <span className="sm:hidden">Thanh toán</span>

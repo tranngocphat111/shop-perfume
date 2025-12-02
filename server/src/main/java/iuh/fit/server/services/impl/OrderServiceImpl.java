@@ -36,9 +36,43 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
     private final UserRepository userRepository;
     private final OrderMapper orderMapper;
     private final iuh.fit.server.repository.CouponRepository couponRepository;
+    private final iuh.fit.server.repository.InventoryRepository inventoryRepository;
     
     // Timeout for QR payment: 30 minutes in milliseconds
     private static final long QR_PAYMENT_TIMEOUT_MS = 30 * 60 * 1000;
+    
+    /**
+     * Helper method to restore inventory for an order
+     * Only restore if payment status is PENDING (to avoid double restore)
+     */
+    private void restoreInventoryForOrder(Order order) {
+        Payment payment = order.getPayment();
+        
+        // Only restore if payment is still PENDING
+        if (payment == null || payment.getStatus() != PaymentStatus.PENDING) {
+            log.info("⚠️ [restoreInventory] Order {} payment status is {}, skipping restore", 
+                    order.getOrderId(), payment != null ? payment.getStatus() : "null");
+            return;
+        }
+        
+        // Restore inventory for all order items
+        if (order.getOrderItems() != null && !order.getOrderItems().isEmpty()) {
+            for (OrderItem orderItem : order.getOrderItems()) {
+                iuh.fit.server.model.entity.Inventory inventory = 
+                        inventoryRepository.findByProductId(orderItem.getProduct().getProductId());
+                if (inventory != null) {
+                    int restoredQuantity = inventory.getQuantity() + orderItem.getQuantity();
+                    inventory.setQuantity(restoredQuantity);
+                    inventoryRepository.save(inventory);
+                    log.info("✅ [restoreInventory] Restored {} units of product {} (new quantity: {})", 
+                            orderItem.getQuantity(), orderItem.getProduct().getProductId(), restoredQuantity);
+                } else {
+                    log.warn("⚠️ [restoreInventory] Inventory not found for product {}", 
+                            orderItem.getProduct().getProductId());
+                }
+            }
+        }
+    }
 
 
     @Override
@@ -106,6 +140,35 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
         } catch (Exception e) {
             log.error("❌ [createOrder] Error setting user for order: {}", e.getMessage(), e);
             // Continue as guest order if cannot get user
+        }
+
+        // Validate stock và trừ inventory cho TẤT CẢ đơn hàng (không phân biệt loại thanh toán)
+        for (iuh.fit.server.dto.request.OrderItemRequest cartItem : request.getCartItems()) {
+            Product product = productRepository.findById(cartItem.getProductId())
+                    .orElseThrow(() -> new RuntimeException("Product not found: " + cartItem.getProductId()));
+            
+            iuh.fit.server.model.entity.Inventory inventory = inventoryRepository.findByProductId(cartItem.getProductId());
+            if (inventory == null) {
+                throw new RuntimeException("Inventory not found for product: " + cartItem.getProductId());
+            }
+            
+            // Validate stock - check quantity trong inventory
+            if (inventory.getQuantity() < cartItem.getQuantity()) {
+                String errorMsg = String.format(
+                    "Sản phẩm '%s' không đủ hàng. Số lượng trong kho: %d, yêu cầu: %d", 
+                    product.getName(), inventory.getQuantity(), cartItem.getQuantity()
+                );
+                log.error("❌ [createOrder] Stock validation failed: {}", errorMsg);
+                throw new RuntimeException(errorMsg);
+            }
+            
+            // Trừ số lượng từ inventory ngay lập tức (cho tất cả loại thanh toán)
+            int newQuantity = inventory.getQuantity() - cartItem.getQuantity();
+            inventory.setQuantity(newQuantity);
+            inventoryRepository.save(inventory);
+            
+            log.info("✅ [createOrder] Deducted {} units of product {} (new quantity: {})", 
+                    cartItem.getQuantity(), cartItem.getProductId(), newQuantity);
         }
 
         // Create OrderItems
@@ -358,9 +421,14 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
         
         long timeElapsed = System.currentTimeMillis() - orderDate.getTime();
         if (timeElapsed > QR_PAYMENT_TIMEOUT_MS) {
+            // Restore inventory và cancel order
+            restoreInventoryForOrder(order);
+            
             // Cancel the order by setting payment status to FAILED
             payment.setStatus(PaymentStatus.FAILED);
             paymentRepository.save(payment);
+            
+            log.info("✅ [cancelOrderIfTimeout] Order {} cancelled due to timeout, inventory restored", orderId);
         }
     }
     
@@ -397,11 +465,14 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
             throw new RuntimeException("Chỉ có thể hủy đơn hàng đang chờ thanh toán");
         }
         
+        // Restore inventory cho tất cả loại thanh toán (vì đã trừ inventory khi tạo order)
+        restoreInventoryForOrder(order);
+        
         // Hủy đơn hàng bằng cách đặt trạng thái thanh toán thành FAILED
         payment.setStatus(PaymentStatus.FAILED);
         paymentRepository.save(payment);
         
-        log.info("✅ Order {} has been cancelled", orderId);
+        log.info("✅ Order {} has been cancelled, inventory restored", orderId);
     }
     
     @Override
