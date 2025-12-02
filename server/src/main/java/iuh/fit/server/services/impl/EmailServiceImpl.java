@@ -1,15 +1,15 @@
 package iuh.fit.server.services.impl;
 
+import com.resend.Resend;
+import com.resend.core.exception.ResendException;
+import com.resend.services.emails.model.CreateEmailOptions;
+import com.resend.services.emails.model.CreateEmailResponse;
 import iuh.fit.server.email.templates.PasswordResetEmailTemplate;
 import iuh.fit.server.services.EmailService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import com.resend.Resend;
-import com.resend.core.exception.ResendException;
-import com.resend.services.emails.model.CreateEmailOptions;
-import com.resend.services.emails.model.CreateEmailResponse;
 
 @Service
 @RequiredArgsConstructor
@@ -18,35 +18,43 @@ public class EmailServiceImpl implements EmailService {
     
     private final PasswordResetEmailTemplate passwordResetEmailTemplate;
     
-    @Value("${resend.api-key:}")
+    @Value("${resend.api-key}")
     private String resendApiKey;
     
-    @Value("${resend.from-email:}")
+    @Value("${resend.from-email}")
     private String fromEmail;
     
-    private Resend getResendClient() {
-        if (resendApiKey == null || resendApiKey.isEmpty()) {
-            throw new RuntimeException("Resend API key chưa được cấu hình. Vui lòng set RESEND_API_KEY environment variable.");
-        }
-        return new Resend(resendApiKey);
-    }
+    @Value("${app.frontend.url:http://localhost:3000}")
+    private String frontendUrl;
     
     @Override
     public void sendPasswordResetEmail(String toEmail, String resetToken, String resetUrl) {
         log.info("Attempting to send password reset email to: {}", toEmail);
-        log.info("Using Resend, From Email: {}", fromEmail);
-        
-        if (fromEmail == null || fromEmail.isEmpty()) {
-            throw new RuntimeException("Resend from email chưa được cấu hình. Vui lòng set RESEND_FROM_EMAIL environment variable.");
-        }
+        log.info("Using Resend API, From Email: {}", fromEmail);
         
         try {
-            Resend resend = getResendClient();
-            String subject = passwordResetEmailTemplate.getSubject(resetUrl);
-            String htmlBody = passwordResetEmailTemplate.buildHtml(resetUrl);
-            String textBody = passwordResetEmailTemplate.buildText(resetUrl);
+            // Validate required configuration
+            if (resendApiKey == null || resendApiKey.isEmpty()) {
+                throw new IllegalStateException("RESEND_API_KEY is not configured. Please set it in environment variables.");
+            }
+            if (fromEmail == null || fromEmail.isEmpty()) {
+                throw new IllegalStateException("RESEND_FROM_EMAIL is not configured. Please set it in environment variables.");
+            }
+            
+            Resend resend = new Resend(resendApiKey);
+            
+            // Build reset URL with frontend domain
+            String fullResetUrl = resetUrl;
+            if (!resetUrl.startsWith("http")) {
+                fullResetUrl = frontendUrl + resetUrl;
+            }
+            
+            String subject = passwordResetEmailTemplate.getSubject(fullResetUrl);
+            String htmlBody = passwordResetEmailTemplate.buildHtml(fullResetUrl);
+            String textBody = passwordResetEmailTemplate.buildText(fullResetUrl);
             
             log.debug("Building email request for destination: {}", toEmail);
+            log.debug("Reset URL: {}", fullResetUrl);
             
             CreateEmailOptions emailOptions = CreateEmailOptions.builder()
                     .from(fromEmail)
@@ -56,31 +64,35 @@ public class EmailServiceImpl implements EmailService {
                     .text(textBody)
                     .build();
             
-            log.info("Sending email via Resend...");
+            log.info("Sending email via Resend API...");
             CreateEmailResponse response = resend.emails().send(emailOptions);
+            
             log.info("✅ Password reset email sent successfully!");
             log.info("   - To: {}", toEmail);
             log.info("   - Email ID: {}", response.getId());
             log.info("   - From: {}", fromEmail);
+            
         } catch (ResendException e) {
-            log.error("❌ Resend Error sending password reset email to {}: {}", toEmail, e.getMessage());
-            log.error("   - Error Type: {}", e.getClass().getSimpleName());
+            log.error("❌ Resend API Error sending password reset email to {}: {}", toEmail, e.getMessage());
             
-            // Provide more helpful error messages
-            String errorMessage = "Không thể gửi email đặt lại mật khẩu";
+            String errorMessage = "Không thể gửi email đặt lại mật khẩu: " + e.getMessage();
             
-            if (e.getMessage() != null) {
-                String message = e.getMessage().toLowerCase();
-                if (message.contains("invalid") || message.contains("unauthorized")) {
-                    errorMessage = "Resend API key không hợp lệ hoặc chưa được cấu hình đúng. Vui lòng kiểm tra RESEND_API_KEY.";
-                } else if (message.contains("domain") || message.contains("verify")) {
-                    errorMessage = "Email hoặc domain người gửi chưa được verify trong Resend. Vui lòng verify email: " + fromEmail;
-                } else if (message.contains("rate limit") || message.contains("quota")) {
-                    errorMessage = "Đã vượt quá giới hạn gửi email của Resend. Vui lòng thử lại sau.";
-                }
+            // Check for common error messages
+            String msg = e.getMessage().toLowerCase();
+            if (msg.contains("unauthorized") || msg.contains("401")) {
+                errorMessage = "API Key không hợp lệ. Vui lòng kiểm tra RESEND_API_KEY.";
+            } else if (msg.contains("forbidden") || msg.contains("403")) {
+                errorMessage = "Domain chưa được verify trong Resend. Vui lòng verify domain: " + fromEmail.split("@")[1];
+            } else if (msg.contains("validation") || msg.contains("422")) {
+                errorMessage = "Email không hợp lệ hoặc domain chưa được cấu hình đúng.";
+            } else if (msg.contains("rate limit") || msg.contains("429")) {
+                errorMessage = "Đã vượt quá giới hạn gửi email. Vui lòng thử lại sau.";
             }
             
-            throw new RuntimeException(errorMessage + " (Error: " + e.getMessage() + ")", e);
+            throw new RuntimeException(errorMessage, e);
+        } catch (IllegalStateException e) {
+            log.error("❌ Configuration error: {}", e.getMessage());
+            throw e;
         } catch (Exception e) {
             log.error("❌ Unexpected error sending password reset email to {}: {}", toEmail, e.getMessage(), e);
             log.error("   - Exception Type: {}", e.getClass().getName());
