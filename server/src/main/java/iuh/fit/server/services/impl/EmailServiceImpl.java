@@ -5,11 +5,25 @@ import com.resend.core.exception.ResendException;
 import com.resend.services.emails.model.SendEmailRequest;
 import com.resend.services.emails.model.SendEmailResponse;
 import iuh.fit.server.email.templates.PasswordResetEmailTemplate;
+import iuh.fit.server.model.entity.Order;
+import iuh.fit.server.model.enums.Method;
+import iuh.fit.server.model.enums.PaymentStatus;
 import iuh.fit.server.services.EmailService;
+import jakarta.mail.MessagingException;
+import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
+import org.thymeleaf.TemplateEngine;
+import org.thymeleaf.context.Context;
+
+import java.text.NumberFormat;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
 
 @Service
 @RequiredArgsConstructor
@@ -17,6 +31,8 @@ import org.springframework.stereotype.Service;
 public class EmailServiceImpl implements EmailService {
     
     private final PasswordResetEmailTemplate passwordResetEmailTemplate;
+    private final JavaMailSender mailSender;
+    private final TemplateEngine templateEngine;
     
     @Value("${resend.api-key}")
     private String resendApiKey;
@@ -26,6 +42,9 @@ public class EmailServiceImpl implements EmailService {
     
     @Value("${app.frontend.url:http://localhost:3000}")
     private String frontendUrl;
+    
+    @Value("${spring.mail.from:noreply@shopperfumestnp.dev}")
+    private String mailFrom;
     
     @Override
     public void sendPasswordResetEmail(String toEmail, String resetToken, String resetUrl) {
@@ -112,5 +131,110 @@ public class EmailServiceImpl implements EmailService {
             throw new RuntimeException("Không thể gửi email đặt lại mật khẩu: " + e.getMessage(), e);
         }
     }
+    
+    @Override
+    public void sendOrderConfirmationEmail(Order order) {
+        try {
+            // Xác định email người nhận
+            String toEmail;
+            String customerName;
+            
+            if (order.getUser() != null) {
+                // User đã đăng nhập
+                toEmail = order.getUser().getEmail();
+                customerName = order.getUser().getName();
+            } else {
+                // Guest order
+                toEmail = order.getGuestEmail();
+                customerName = order.getGuestName();
+            }
+            
+            if (toEmail == null || toEmail.isEmpty()) {
+                log.warn("⚠️ [sendOrderConfirmationEmail] No email address found for order {}", order.getOrderId());
+                return;
+            }
+            
+            log.info("📧 [sendOrderConfirmationEmail] Sending order confirmation email to: {}", toEmail);
+            
+            // Tạo context cho Thymeleaf template
+            Context context = new Context(new Locale("vi", "VN"));
+            context.setVariable("order", order);
+            context.setVariable("customerName", customerName);
+            context.setVariable("orderItems", order.getOrderItems());
+            context.setVariable("orderDate", formatDate(order.getOrderDate()));
+            context.setVariable("totalAmount", formatCurrency(order.getTotalAmount()));
+            context.setVariable("paymentMethod", getPaymentMethodLabel(order.getPayment().getMethod()));
+            context.setVariable("paymentStatus", getPaymentStatusLabel(order.getPayment().getStatus()));
+            context.setVariable("orderId", order.getOrderId());
+            
+            // Địa chỉ giao hàng (sử dụng guestAddress từ Order)
+            String deliveryAddress = order.getGuestAddress() != null ? order.getGuestAddress() : "Chưa có địa chỉ";
+            context.setVariable("deliveryAddress", deliveryAddress);
+            
+            // Process template
+            String htmlContent = templateEngine.process("email/order-confirmation", context);
+            
+            // Tạo email message
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+            
+            helper.setFrom(mailFrom);
+            helper.setTo(toEmail);
+            helper.setSubject("Xác nhận đơn hàng #" + order.getOrderId() + " - Shop Perfume");
+            helper.setText(htmlContent, true);
+            
+            // Gửi email
+            mailSender.send(message);
+            
+            log.info("✅ [sendOrderConfirmationEmail] Order confirmation email sent successfully to: {}", toEmail);
+            
+        } catch (MessagingException e) {
+            log.error("❌ [sendOrderConfirmationEmail] Error sending order confirmation email for order {}: {}", 
+                    order.getOrderId(), e.getMessage(), e);
+            // Không throw exception để không làm gián đoạn quá trình tạo đơn hàng
+        } catch (Exception e) {
+            log.error("❌ [sendOrderConfirmationEmail] Unexpected error sending order confirmation email for order {}: {}", 
+                    order.getOrderId(), e.getMessage(), e);
+            // Không throw exception để không làm gián đoạn quá trình tạo đơn hàng
+        }
+    }
+    
+    private String formatDate(Date date) {
+        if (date == null) return "";
+        SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy HH:mm", new Locale("vi", "VN"));
+        return sdf.format(date);
+    }
+    
+    private String formatCurrency(double amount) {
+        NumberFormat formatter = NumberFormat.getCurrencyInstance(new Locale("vi", "VN"));
+        return formatter.format(amount).replace("₫", "₫");
+    }
+    
+    private String getPaymentMethodLabel(Method method) {
+        if (method == null) return "Chưa xác định";
+        switch (method) {
+            case COD:
+                return "Thanh toán khi nhận hàng (COD)";
+            case QR_CODE:
+                return "Thanh toán qua QR Code";
+            default:
+                return method.name();
+        }
+    }
+    
+    private String getPaymentStatusLabel(PaymentStatus status) {
+        if (status == null) return "Chưa xác định";
+        switch (status) {
+            case PENDING:
+                return "Đang chờ thanh toán";
+            case PAID:
+                return "Đã thanh toán";
+            case FAILED:
+                return "Thanh toán thất bại";
+            default:
+                return status.name();
+        }
+    }
+    
 }
 

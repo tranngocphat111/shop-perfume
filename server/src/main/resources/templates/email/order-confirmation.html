@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Xác nhận đơn hàng</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f5f5f5;
+            padding: 0;
+            margin: 0;
+        }
+        .email-wrapper {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+        }
+        .container {
+            padding: 0;
+            background-color: #ffffff;
+        }
+        .header {
+            background: linear-gradient(135deg, #000000 0%, #333333 100%);
+            color: #ffffff;
+            text-align: center;
+            padding: 30px 20px;
+            margin-bottom: 0;
+        }
+        .header h1 {
+            color: #ffffff;
+            margin: 0;
+            font-size: 28px;
+            font-weight: 700;
+            letter-spacing: 2px;
+        }
+        .content {
+            padding: 30px 25px;
+        }
+        .greeting {
+            font-size: 16px;
+            margin-bottom: 25px;
+            color: #555;
+        }
+        .greeting strong {
+            color: #000;
+            font-weight: 600;
+        }
+        .order-info {
+            background: linear-gradient(to bottom, #fafafa 0%, #f5f5f5 100%);
+            padding: 25px;
+            border-radius: 10px;
+            margin-bottom: 25px;
+            border: 1px solid #e0e0e0;
+        }
+        .order-info h2 {
+            color: #000;
+            font-size: 20px;
+            margin-top: 0;
+            margin-bottom: 20px;
+            font-weight: 700;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #000;
+        }
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #e8e8e8;
+        }
+        .info-row:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+        .info-label {
+            font-weight: 600;
+            color: #666;
+            font-size: 14px;
+            flex: 0 0 45%;
+        }
+        .info-value {
+            color: #000;
+            font-weight: 500;
+            text-align: right;
+            flex: 1;
+            font-size: 14px;
+            word-break: break-word;
+        }
+        .order-items {
+            margin: 25px 0;
+        }
+        .order-items h2 {
+            color: #000;
+            font-size: 20px;
+            margin-bottom: 20px;
+            font-weight: 700;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #000;
+        }
+        .table-wrapper {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+            min-width: 500px;
+        }
+        th, td {
+            padding: 14px 12px;
+            text-align: left;
+            border-bottom: 1px solid #e8e8e8;
+        }
+        th {
+            background-color: #f8f8f8;
+            font-weight: 700;
+            color: #000;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        td {
+            font-size: 14px;
+            color: #333;
+        }
+        .product-name {
+            font-weight: 600;
+            color: #000;
+        }
+        .total-row {
+            font-weight: 700;
+            font-size: 18px;
+            background-color: #000;
+            color: #ffffff;
+        }
+        .total-row td {
+            color: #ffffff;
+            padding: 18px 12px;
+        }
+        .thank-you {
+            text-align: center;
+            margin: 35px 0;
+            padding: 25px;
+            background: linear-gradient(135deg, #f8f8f8 0%, #f0f0f0 100%);
+            border-radius: 10px;
+        }
+        .thank-you p {
+            font-size: 18px;
+            color: #000;
+            font-weight: 600;
+            margin: 0;
+        }
+        .footer {
+            margin-top: 30px;
+            padding-top: 25px;
+            border-top: 2px solid #e8e8e8;
+            text-align: center;
+            color: #666;
+            font-size: 13px;
+            background-color: #fafafa;
+            padding: 25px;
+        }
+        .footer p {
+            margin: 8px 0;
+        }
+        .footer p:last-child {
+            margin-top: 20px;
+            font-size: 11px;
+            color: #999;
+        }
+        
+        /* Mobile Responsive */
+        @media only screen and (max-width: 600px) {
+            .email-wrapper {
+                width: 100% !important;
+            }
+            .content {
+                padding: 20px 15px !important;
+            }
+            .header {
+                padding: 25px 15px !important;
+            }
+            .header h1 {
+                font-size: 24px !important;
+            }
+            .order-info {
+                padding: 20px 15px !important;
+            }
+            .order-info h2,
+            .order-items h2 {
+                font-size: 18px !important;
+            }
+            .info-row {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 5px;
+            }
+            .info-label {
+                flex: 1;
+                font-size: 13px;
+            }
+            .info-value {
+                text-align: left;
+                font-size: 14px;
+                font-weight: 600;
+            }
+            table {
+                min-width: 100%;
+                font-size: 12px;
+            }
+            th, td {
+                padding: 10px 8px !important;
+                font-size: 12px !important;
+            }
+            th {
+                font-size: 11px !important;
+            }
+            .total-row {
+                font-size: 16px !important;
+            }
+            .total-row td {
+                padding: 15px 8px !important;
+            }
+            .thank-you {
+                margin: 25px 0;
+                padding: 20px 15px;
+            }
+            .thank-you p {
+                font-size: 16px;
+            }
+            .footer {
+                padding: 20px 15px;
+            }
+        }
+        
+        /* Extra small devices */
+        @media only screen and (max-width: 480px) {
+            .header h1 {
+                font-size: 20px !important;
+                letter-spacing: 1px;
+            }
+            table {
+                display: block;
+            }
+            thead {
+                display: none;
+            }
+            tbody {
+                display: block;
+            }
+            tr {
+                display: block;
+                margin-bottom: 15px;
+                border: 1px solid #e8e8e8;
+                border-radius: 8px;
+                padding: 12px;
+                background-color: #fafafa;
+            }
+            td {
+                display: block;
+                text-align: right !important;
+                padding: 8px 0 !important;
+                border: none;
+                border-bottom: 1px solid #e8e8e8;
+            }
+            td:last-child {
+                border-bottom: none;
+            }
+            td:before {
+                content: attr(data-label);
+                float: left;
+                font-weight: 700;
+                color: #666;
+                text-transform: uppercase;
+                font-size: 11px;
+            }
+            .total-row {
+                display: table-row;
+                background-color: #000;
+            }
+            .total-row td {
+                display: table-cell;
+                color: #ffffff;
+                padding: 15px 8px !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="email-wrapper">
+        <div class="container">
+            <div class="header">
+                <h1>SHOP PERFUME</h1>
+            </div>
+            
+            <div class="content">
+                <div class="greeting">
+                    <p>Xin chào <strong th:text="${customerName}">Khách hàng</strong>,</p>
+                    <p>Cảm ơn bạn đã đặt hàng tại Shop Perfume! Chúng tôi đã nhận được đơn hàng của bạn và đang xử lý.</p>
+                </div>
+                
+                <div class="order-info">
+                    <h2>Thông tin đơn hàng</h2>
+                    <div class="info-row">
+                        <span class="info-label">Mã đơn hàng:</span>
+                        <span class="info-value" th:text="'#' + ${orderId}">#123</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Ngày đặt hàng:</span>
+                        <span class="info-value" th:text="${orderDate}">01/12/2025 10:00</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Phương thức thanh toán:</span>
+                        <span class="info-value" th:text="${paymentMethod}">COD</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Trạng thái thanh toán:</span>
+                        <span class="info-value" th:text="${paymentStatus}">Đang chờ</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Địa chỉ giao hàng:</span>
+                        <span class="info-value" th:text="${deliveryAddress}">Địa chỉ</span>
+                    </div>
+                </div>
+                
+                <div class="order-items">
+                    <h2>Chi tiết đơn hàng</h2>
+                    <div class="table-wrapper">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Sản phẩm</th>
+                                    <th style="text-align: center;">Số lượng</th>
+                                    <th style="text-align: right;">Đơn giá</th>
+                                    <th style="text-align: right;">Thành tiền</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr th:each="item : ${orderItems}">
+                                    <td class="product-name" data-label="Sản phẩm" th:text="${item.product.name}">Tên sản phẩm</td>
+                                    <td style="text-align: center;" data-label="Số lượng" th:text="${item.quantity}">1</td>
+                                    <td style="text-align: right;" data-label="Đơn giá" th:text="${#numbers.formatDecimal(item.unitPrice, 0, 'COMMA', 0, 'POINT')} + ' ₫'">100,000 ₫</td>
+                                    <td style="text-align: right;" data-label="Thành tiền" th:text="${#numbers.formatDecimal(item.subTotal, 0, 'COMMA', 0, 'POINT')} + ' ₫'">100,000 ₫</td>
+                                </tr>
+                            </tbody>
+                            <tfoot>
+                                <tr class="total-row">
+                                    <td colspan="3" style="text-align: right; padding-right: 12px;">Tổng cộng:</td>
+                                    <td style="text-align: right;" th:text="${totalAmount}">1,000,000 ₫</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+                
+                <div class="thank-you">
+                    <p>Cảm ơn bạn đã tin tưởng và lựa chọn Shop Perfume!</p>
+                </div>
+            </div>
+            
+            <div class="footer">
+                <p>Nếu bạn có bất kỳ câu hỏi nào, vui lòng liên hệ với chúng tôi.</p>
+                <p><strong>Email:</strong> support@shopperfumestnp.dev</p>
+                <p><strong>Hotline:</strong> 1900-xxxx</p>
+                <p>Đây là email tự động, vui lòng không trả lời email này.</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+

@@ -5,12 +5,14 @@ import iuh.fit.server.dto.request.SepayWebhookRequest;
 import iuh.fit.server.dto.response.OrderResponse;
 import iuh.fit.server.dto.response.PaymentCheckResponse;
 import iuh.fit.server.dto.response.RevenueStatsResponse;
+import iuh.fit.server.exception.BadRequestException;
 import iuh.fit.server.mapper.OrderMapper;
 import iuh.fit.server.model.entity.*;
 import iuh.fit.server.model.enums.Method;
 import iuh.fit.server.model.enums.PaymentStatus;
 import iuh.fit.server.model.enums.ShipmentStatus;
 import iuh.fit.server.repository.*;
+import iuh.fit.server.services.EmailService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.Authentication;
@@ -38,6 +40,7 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
     private final OrderMapper orderMapper;
     private final CouponRepository couponRepository;
     private final InventoryRepository inventoryRepository;
+    private final EmailService emailService;
     
     // Timeout for QR payment: 30 minutes in milliseconds
     private static final long QR_PAYMENT_TIMEOUT_MS = 30 * 60 * 1000;
@@ -247,7 +250,7 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
                     product.getName(), inventory.getQuantity(), cartItem.getQuantity()
                 );
                 log.error("❌ [createOrder] Stock validation failed: {}", errorMsg);
-                throw new RuntimeException(errorMsg);
+                throw new BadRequestException(errorMsg);
             }
             
             // Trừ số lượng từ inventory ngay lập tức (cho tất cả loại thanh toán)
@@ -358,6 +361,13 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
         // Save order first (cascade will save orderItems, payment, and shipment)
         Order savedOrder = orderRepository.save(order);
 
+        // Gửi email xác nhận đơn hàng (không block nếu lỗi)
+        try {
+            emailService.sendOrderConfirmationEmail(savedOrder);
+        } catch (Exception e) {
+            log.error("❌ [createOrder] Error sending order confirmation email: {}", e.getMessage());
+            // Không throw exception để không làm gián đoạn quá trình tạo đơn hàng
+        }
 
         // Map to response using OrderMapper
         return orderMapper.toResponse(savedOrder);
