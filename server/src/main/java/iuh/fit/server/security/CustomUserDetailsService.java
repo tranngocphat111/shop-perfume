@@ -3,6 +3,7 @@ package iuh.fit.server.security;
 import iuh.fit.server.model.entity.User;
 import iuh.fit.server.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -22,6 +23,7 @@ import java.util.Set;
  */
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class CustomUserDetailsService implements UserDetailsService {
 
     private final UserRepository userRepository;
@@ -32,13 +34,28 @@ public class CustomUserDetailsService implements UserDetailsService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("Không tìm thấy user với email: " + email));
 
+        // Log để debug authorization issues
+        log.debug("Loading user: {}, User ID: {}, Roles count: {}", 
+                user.getEmail(), user.getUserId(), user.getRoles() != null ? user.getRoles().size() : 0);
+        
+        if (user.getRoles() != null && !user.getRoles().isEmpty()) {
+            user.getRoles().forEach(role -> 
+                log.debug("User {} has role: {}", user.getEmail(), role.getName())
+            );
+        } else {
+            log.warn("⚠️ User {} has NO ROLES assigned! This will cause authorization failures.", user.getEmail());
+        }
+
         // Handle Google users (no password) - use empty string or a placeholder
         String password = user.getPasswordHash() != null ? user.getPasswordHash() : "{noop}";
+        
+        Collection<? extends GrantedAuthority> authorities = getAuthorities(user);
+        log.debug("User {} authorities: {}", user.getEmail(), authorities);
         
         return org.springframework.security.core.userdetails.User.builder()
                 .username(user.getEmail())
                 .password(password)
-                .authorities(getAuthorities(user))
+                .authorities(authorities)
                 .accountLocked(false)
                 .accountExpired(false)
                 .credentialsExpired(false)
@@ -53,16 +70,27 @@ public class CustomUserDetailsService implements UserDetailsService {
     private Collection<? extends GrantedAuthority> getAuthorities(User user) {
         Set<GrantedAuthority> authorities = new HashSet<>();
 
+        if (user.getRoles() == null || user.getRoles().isEmpty()) {
+            log.warn("⚠️ User {} has no roles! Returning empty authorities.", user.getEmail());
+            return authorities;
+        }
+
         // Thêm roles
         user.getRoles().forEach(role -> {
-            authorities.add(new SimpleGrantedAuthority("ROLE_" + role.getName()));
+            String roleAuthority = "ROLE_" + role.getName();
+            authorities.add(new SimpleGrantedAuthority(roleAuthority));
+            log.debug("Added role authority: {} for user {}", roleAuthority, user.getEmail());
 
             // Thêm permissions của role
-            role.getPermissions().forEach(permission ->
-                authorities.add(new SimpleGrantedAuthority(permission.getName()))
-            );
+            if (role.getPermissions() != null) {
+                role.getPermissions().forEach(permission -> {
+                    authorities.add(new SimpleGrantedAuthority(permission.getName()));
+                    log.debug("Added permission: {} for user {}", permission.getName(), user.getEmail());
+                });
+            }
         });
 
+        log.debug("Total authorities for user {}: {}", user.getEmail(), authorities.size());
         return authorities;
     }
 }
