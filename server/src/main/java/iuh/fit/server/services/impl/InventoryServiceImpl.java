@@ -3,6 +3,8 @@ package iuh.fit.server.services.impl;
 import iuh.fit.server.dto.response.InventoryResponse;
 import iuh.fit.server.mapper.InventoryMapper;
 import iuh.fit.server.model.entity.Inventory;
+import iuh.fit.server.model.enums.Method;
+import iuh.fit.server.model.enums.PaymentStatus;
 import iuh.fit.server.repository.InventoryRepository;
 import iuh.fit.server.repository.OrderItemRepository;
 import lombok.RequiredArgsConstructor;
@@ -125,6 +127,25 @@ public class InventoryServiceImpl implements iuh.fit.server.services.InventorySe
         
         log.info("Inventory {} updated successfully with quantity: {}", inventoryId, quantity);
         return inventoryMapper.toResponse(updatedInventory);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Integer getAvailableStock(Integer productId) {
+        log.info("Getting available stock for product: {}", productId);
+        
+        Inventory inventory = inventoryRepository.findByProductId(productId);
+        if (inventory == null) {
+            log.warn("Inventory not found for product: {}", productId);
+            return 0;
+        }
+        
+        // Available stock = quantity trong inventory (đã được trừ khi tạo order)
+        int availableStock = inventory.getQuantity();
+        
+        log.info("Product {}: available stock={}", productId, availableStock);
+        
+        return Math.max(0, availableStock); // Đảm bảo không âm
     }
 
 }

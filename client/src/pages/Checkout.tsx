@@ -8,6 +8,7 @@ import { SuccessNotification } from '../components/common';
 import { CouponSelect } from '../components/checkout/CouponSelect';
 import { couponService, type Coupon } from '../services/coupon.service';
 import { userService, type UserInfo } from '../services/user.service';
+import { inventoryService } from '../services/inventory.service';
 import type { CheckoutFormData, OrderRequest, OrderResponse } from '../types';
 import { apiService } from '../services/api';
 
@@ -28,9 +29,13 @@ const initialFormData: CheckoutFormData = {
 
 export const Checkout: React.FC = () => {
   const navigate = useNavigate();
-  const { cart, clearCart, appliedCouponId, discount, setAppliedCouponId, setDiscount } = useCart();
+  const { cart, clearCart, appliedCouponId, discount, setAppliedCouponId, setDiscount, updateQuantity, removeFromCart } = useCart();
   const { user, isAuthenticated } = useAuth();
-  const cartItems = cart.items;
+  
+  // Filter out of stock items ngay từ đầu - chỉ lấy items còn hàng
+  const cartItems = cart.items.filter(item => 
+    item.stockQuantity === undefined || item.stockQuantity > 0
+  );
   const [formData, setFormData] = useState<CheckoutFormData>(initialFormData);
   const [isProcessing, setIsProcessing] = useState(false);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
@@ -289,14 +294,78 @@ export const Checkout: React.FC = () => {
       return;
     }
 
+    // Validate stock và filter out of stock items before submitting
+    let filteredCartItems = [...cartItems];
+    try {
+      const stockValidationErrors: string[] = [];
+      const validCartItems = [];
+      
+      for (const item of cartItems) {
+        const availableStock = await inventoryService.getAvailableStock(item.product.productId);
+        
+        // Nếu hết hàng, bỏ qua item này (KHÔNG xóa khỏi cart, chỉ bỏ qua khi submit order)
+        if (availableStock === 0) {
+          stockValidationErrors.push(
+            `Sản phẩm "${item.product.name}" đã hết hàng và đã được loại bỏ khỏi đơn hàng.`
+          );
+          // KHÔNG xóa khỏi cart - chỉ bỏ qua khi submit order
+          continue;
+        }
+        
+        // Nếu không đủ hàng, điều chỉnh quantity
+        if (availableStock < item.quantity) {
+          stockValidationErrors.push(
+            `Sản phẩm "${item.product.name}" không đủ hàng. Số lượng có sẵn: ${availableStock}, đã điều chỉnh từ ${item.quantity} xuống ${availableStock}`
+          );
+          // Cập nhật quantity trong cart
+          updateQuantity(item.product.productId, availableStock);
+          // Thêm item với quantity đã điều chỉnh
+          validCartItems.push({ ...item, quantity: availableStock });
+        } else {
+          // Đủ hàng, thêm bình thường
+          validCartItems.push(item);
+        }
+      }
+
+      // Nếu có items bị loại bỏ hoặc điều chỉnh
+      if (stockValidationErrors.length > 0 || validCartItems.length !== cartItems.length) {
+        if (validCartItems.length === 0) {
+          setValidationErrors({
+            stock: 'Tất cả sản phẩm trong giỏ hàng đã hết hàng. Vui lòng chọn sản phẩm khác.'
+          });
+          setSuccessMessage({
+            message: 'Không thể đặt hàng',
+            subMessage: 'Tất cả sản phẩm trong giỏ hàng đã hết hàng.'
+          });
+          setShowSuccessNotification(true);
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+          setIsProcessing(false);
+          return;
+        }
+
+        // Hiển thị thông báo về các items bị loại bỏ/điều chỉnh
+        setSuccessMessage({
+          message: 'Đã cập nhật giỏ hàng',
+          subMessage: stockValidationErrors.join('\n')
+        });
+        setShowSuccessNotification(true);
+        
+        // Sử dụng validCartItems cho order
+        filteredCartItems = validCartItems;
+      }
+    } catch (error) {
+      console.error('Error validating stock:', error);
+      // Continue with order creation if stock validation fails (backend will also validate)
+    }
+
     setIsProcessing(true);
 
     try {
       // Prepare order request
       const fullAddress = `${formData.address}, ${formData.ward}, ${formData.district}, ${formData.city}`;
 
-      // Map cartItems to the format expected by backend
-      const mappedCartItems = cartItems.map(item => ({
+      // Map filteredCartItems to the format expected by backend (đã loại bỏ items hết hàng)
+      const mappedCartItems = filteredCartItems.map(item => ({
         productId: item.product.productId,
         productName: item.product.name,
         unitPrice: item.product.unitPrice,
@@ -305,6 +374,13 @@ export const Checkout: React.FC = () => {
           : '',
         quantity: item.quantity,
       }));
+
+      // Tính lại total từ filteredCartItems
+      const filteredTotal = filteredCartItems.reduce(
+        (sum, item) => sum + item.product.unitPrice * item.quantity,
+        0
+      );
+      const finalTotal = filteredTotal - discount;
 
       const orderRequest: OrderRequest = {
         fullName: formData.fullName,
@@ -317,7 +393,7 @@ export const Checkout: React.FC = () => {
         note: formData.note || '',
         paymentMethod: formData.paymentMethod,
         cartItems: mappedCartItems,
-        totalAmount: total - discount, // Trừ đi discount
+        totalAmount: finalTotal, // Tính từ filteredCartItems và trừ discount
         couponId: appliedCouponId || undefined, // Gửi couponId nếu có
       };
 
@@ -338,8 +414,21 @@ export const Checkout: React.FC = () => {
           window.dispatchEvent(new Event('refreshUserInfo'));
         }
 
+        // Lưu thông tin order items để remove sau khi payment thành công (cho QR payment)
+        const orderItemsToRemove = filteredCartItems.map(item => item.product.productId);
+        
+        // Nếu là COD, remove items ngay (vì COD = thanh toán khi nhận hàng, order được tạo = đã chấp nhận)
+        if (formData.paymentMethod === 'cod') {
+          // Remove các items đã submit (chỉ items còn hàng, không remove items hết hàng)
+          filteredCartItems.forEach(item => {
+            removeFromCart(item.product.productId);
+          });
+        } else {
+          // QR payment: lưu để remove sau khi payment PAID
+          localStorage.setItem(`pending_order_${response.orderId}`, JSON.stringify(orderItemsToRemove));
+        }
+
         // Navigate to payment page immediately with order information
-        // Clear cart after navigation to avoid redirect to empty cart
         navigate('/payment', {
           state: {
             order: response,
@@ -348,11 +437,6 @@ export const Checkout: React.FC = () => {
           },
           replace: true, // Replace current history to prevent back button issues
         });
-
-        // Clear cart after navigation
-        setTimeout(() => {
-          clearCart();
-        }, 100);
       }
     } catch (err: any) {
       console.error('Error placing order:', err);

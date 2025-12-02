@@ -56,4 +56,14 @@ export const inventoryService = {
             return null;
         }
     },
+
+    async getAvailableStock(productId: number): Promise<number> {
+        try {
+            const response = await apiService.get<{ availableStock: number }>(`/inventories/product/${productId}/available`);
+            return response.availableStock;
+        } catch (error) {
+            console.error(`Error fetching available stock for product ${productId}:`, error);
+            return 0;
+        }
+    },
 };
