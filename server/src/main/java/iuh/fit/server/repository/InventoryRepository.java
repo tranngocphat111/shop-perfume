@@ -38,6 +38,17 @@ public interface InventoryRepository extends JpaRepository<Inventory, Integer> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT i FROM Inventory i WHERE i.product.productId = :productId")
     Inventory findByProductIdWithLock(@Param("productId") Integer productId);
+    
+    // Search inventories by product name, brand, category, or productId
+    @Query("SELECT i FROM Inventory i WHERE " +
+            "LOWER(i.product.name) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
+            "LOWER(i.product.brand.name) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
+            "LOWER(i.product.category.name) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
+            "CAST(i.product.productId AS string) LIKE CONCAT('%', :searchTerm, '%')")
+    org.springframework.data.domain.Page<Inventory> searchInventories(
+            @Param("searchTerm") String searchTerm, 
+            org.springframework.data.domain.Pageable pageable
+    );
 
     @Query("SELECT COUNT(i.inventoryId) FROM Inventory i WHERE i.quantity < 20")
     Long getLowStockItem();

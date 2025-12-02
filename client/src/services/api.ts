@@ -64,8 +64,7 @@ const getAuthHeaders = (endpoint: string = ""): Record<string, string> => {
 
   // Special handling for order endpoints - always send token if available
   // Backend allows guest access, but if token is present, it will use userId
-  const isOrderEndpoint =
-    endpoint.includes("/orders/create") ||
+  const isOrderEndpoint = endpoint.includes("/orders/create") ||
     endpoint.includes("/orders/my-orders");
 
   if (isOrderEndpoint) {

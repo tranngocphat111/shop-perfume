@@ -14,7 +14,8 @@ export const purchaseInvoiceService = {
         page: number = 0,
         size: number = 25,
         sortBy?: string,
-        direction?: 'ASC' | 'DESC'
+        direction?: 'ASC' | 'DESC',
+        search?: string
     ): Promise<PageResponse<PurchaseInvoice>> => {
         const params = new URLSearchParams({
             page: page.toString(),
@@ -23,6 +24,7 @@ export const purchaseInvoiceService = {
 
         if (sortBy) params.append('sortBy', sortBy);
         if (direction) params.append('direction', direction);
+        if (search && search.trim()) params.append('search', search.trim());
 
         return apiService.get<PageResponse<PurchaseInvoice>>(
             `${PURCHASE_INVOICES_API}/page?${params.toString()}`

@@ -436,7 +436,7 @@ export const Suppliers = () => {
           onView={handleView}
           onEdit={handleEdit}
           // onDelete={handleDelete}
-          searchPlaceholder="Search by ID, name, email, phone, address..."
+          searchPlaceholder="Search by name, email, phone, address... (For ID search: 'ID 101')"
           onSearch={handleSearch}
           serverSide={true}
           totalElements={totalElements}

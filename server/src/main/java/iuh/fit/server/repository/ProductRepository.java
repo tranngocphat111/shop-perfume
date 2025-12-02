@@ -1,6 +1,7 @@
 package iuh.fit.server.repository;
 
 import iuh.fit.server.model.entity.Product;
+import iuh.fit.server.model.enums.ProductStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -58,7 +59,7 @@ public interface ProductRepository extends JpaRepository<Product, Integer> {
     @Query("SELECT p FROM Product p WHERE " +
            "(:brandId IS NULL OR p.brand.brandId = :brandId) AND " +
            "(:categoryId IS NULL OR p.category.categoryId = :categoryId) AND " +
-           "(:status IS NULL OR :status = '' OR CAST(p.status AS string) = :status) AND " +
+           "(:status IS NULL OR p.status = :status) AND " +
            "(:searchTerm IS NULL OR :searchTerm = '' OR " +
            "LOWER(p.name) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
            "LOWER(p.brand.name) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
@@ -66,7 +67,7 @@ public interface ProductRepository extends JpaRepository<Product, Integer> {
     Page<Product> filterProducts(
         @Param("brandId") Integer brandId,
         @Param("categoryId") Integer categoryId,
-        @Param("status") String status,
+        @Param("status") ProductStatus status,
         @Param("searchTerm") String searchTerm,
         Pageable pageable
     );

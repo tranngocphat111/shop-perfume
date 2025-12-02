@@ -67,9 +67,10 @@ public class InventoryController {
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String sort,
             @RequestParam(required = false) String sortBy,
-            @RequestParam(required = false) String direction
+            @RequestParam(required = false) String direction,
+            @RequestParam(required = false) String search
     ) {
-        log.info("REST request to get products with pagination - page: {}, size: {}", page, size);
+        log.info("REST request to get products with pagination - page: {}, size: {}, search: {}", page, size, search);
 
         // Parse sort parameter (format: "field,direction" or just "field")
         String fieldName = "product.productId";
@@ -89,7 +90,15 @@ public class InventoryController {
         }
 
         Pageable pageable = PageRequest.of(page, size, Sort.by(sortDirection, fieldName));
-        Page<InventoryResponse> inventoryResponses =  inventoryService.findAllPaginated(pageable);
+        
+        // Use search if provided, otherwise get all
+        Page<InventoryResponse> inventoryResponses;
+        if (search != null && !search.trim().isEmpty()) {
+            inventoryResponses = inventoryService.searchInventories(search, pageable);
+        } else {
+            inventoryResponses = inventoryService.findAllPaginated(pageable);
+        }
+        
         return ResponseEntity.ok(inventoryResponses);
     }
 

@@ -536,7 +536,7 @@ export const Products = () => {
           onView={handleView}
           onEdit={handleEdit}
           onDelete={handleDelete}
-          searchPlaceholder="Search by ID, name, brand, category, price, volume..."
+          searchPlaceholder="Search by name, brand, category, price, volume... (For ID search: 'ID 101')"
           onSearch={handleSearch}
           serverSide={true}
           totalElements={totalElements}

@@ -17,6 +17,8 @@ public interface PurchaseInvoiceService {
     
     Page<PurchaseInvoiceResponse> findAllPaginated(Pageable pageable);
     
+    Page<PurchaseInvoiceResponse> searchPurchaseInvoices(String searchTerm, Pageable pageable);
+    
     PurchaseInvoiceResponse findById(Integer id);
     
     PurchaseInvoiceResponse create(PurchaseInvoiceRequest request);
