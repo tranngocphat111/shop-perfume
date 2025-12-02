@@ -167,13 +167,29 @@ public class AuthController {
     public ResponseEntity<Map<String, String>> changePassword(
             @Valid @RequestBody ChangePasswordRequest request,
             Authentication authentication) {
-        if (authentication != null && authentication.isAuthenticated()) {
+        try {
+            if (authentication == null || !authentication.isAuthenticated()) {
+                log.warn("Unauthenticated request to POST /auth/change-password");
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(Map.of("message", "Bạn cần đăng nhập để đổi mật khẩu."));
+            }
+
             UserDetails userDetails = (UserDetails) authentication.getPrincipal();
             String email = userDetails.getUsername();
+            log.info("Changing password for email: {}", email);
+            
             authService.changePassword(email, request.getCurrentPassword(), request.getNewPassword());
+            
+            log.info("Password changed successfully for email: {}", email);
             return ResponseEntity.ok(Map.of("message", "Đổi mật khẩu thành công."));
+        } catch (RuntimeException e) {
+            log.error("Error changing password: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("message", e.getMessage()));
+        } catch (Exception e) {
+            log.error("Error changing password", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("message", "Có lỗi xảy ra khi đổi mật khẩu."));
         }
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                .body(Map.of("message", "Bạn cần đăng nhập để đổi mật khẩu."));
     }
 }

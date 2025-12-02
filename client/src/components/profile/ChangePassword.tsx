@@ -18,23 +18,17 @@ export const ChangePassword = () => {
     setSuccess("");
 
     // Validation
-    if (!current) {
+    if (!currentPassword) {
       setError("Vui lòng nhập mật khẩu hiện tại");
       return;
     }
-    if (next.length < 6) {
+    if (newPassword.length < 6) {
       setError("Mật khẩu mới tối thiểu 6 ký tự");
       return;
     }
 
     if (!newPassword.trim()) {
       setError("Vui lòng nhập mật khẩu mới");
-      setTimeout(() => setError(""), 3000);
-      return;
-    }
-
-    if (newPassword.length < 6) {
-      setError("Mật khẩu mới phải có ít nhất 6 ký tự");
       setTimeout(() => setError(""), 3000);
       return;
     }
@@ -47,12 +41,12 @@ export const ChangePassword = () => {
 
     setIsLoading(true);
     try {
-      await authService.changePassword(current, next);
+      await authService.changePassword(currentPassword, newPassword);
       setSuccess("Đổi mật khẩu thành công");
       // Clear form
-      setCurrent("");
-      setNext("");
-      setConfirm("");
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
       setTimeout(() => setSuccess(""), 3000);
     } catch (err: any) {
       const errorMessage =
@@ -91,8 +85,8 @@ export const ChangePassword = () => {
           <input
             id="current-password"
             type="password"
-            value={current}
-            onChange={(e) => setCurrent(e.target.value)}
+            value={currentPassword}
+            onChange={(e) => setCurrentPassword(e.target.value)}
             placeholder="Nhập mật khẩu hiện tại"
             className="w-full px-4 py-3 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
             disabled={isLoading}
@@ -109,8 +103,8 @@ export const ChangePassword = () => {
           <input
             id="new-password"
             type="password"
-            value={next}
-            onChange={(e) => setNext(e.target.value)}
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
             placeholder="Nhập mật khẩu mới (tối thiểu 6 ký tự)"
             className="w-full px-4 py-3 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
             disabled={isLoading}
@@ -127,8 +121,8 @@ export const ChangePassword = () => {
           <input
             id="confirm-password"
             type="password"
-            value={confirm}
-            onChange={(e) => setConfirm(e.target.value)}
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
             placeholder="Nhập lại mật khẩu mới"
             className="w-full px-4 py-3 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
             disabled={isLoading}
