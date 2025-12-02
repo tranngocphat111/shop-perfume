@@ -5,4 +5,5 @@ export { EmptyState } from './EmptyState';
 export { QRPaymentSection } from './QRPaymentSection';
 export { OrderDetails } from './OrderDetails';
 export { OrderCard } from './OrderCard';
+export { ReviewModal } from './ReviewModal';
 

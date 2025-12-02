@@ -5,8 +5,9 @@ import { Receipt, Search, AlertCircle, Loader2, X, CheckCircle, Calendar as Cale
 import { useAuth } from '../../contexts/AuthContext';
 import { apiService } from '../../services/api';
 import type { OrderResponse } from '../../types';
-import { OrderCard, EmptyState } from '../orders';
+import { OrderCard, EmptyState, ReviewModal } from '../orders';
 import { generateOrderQRCode } from '../../services/sepay';
+import { reviewService } from '../../services/review.service';
 import { CustomSelect } from './CustomSelect';
 
 type FilterStatus = 'ALL' | 'PENDING' | 'PAID' | 'FAILED';
@@ -24,6 +25,11 @@ export const Orders = () => {
   const [qrUrls, setQrUrls] = useState<Record<number, string>>({});
   const [timeRemaining, setTimeRemaining] = useState<Record<number, number>>({});
   const [success, setSuccess] = useState<string>('');
+  
+  // Review states
+  const [reviewModalOpen, setReviewModalOpen] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<{ id: number; name: string } | null>(null);
+  const [reviewedProducts, setReviewedProducts] = useState<Set<number>>(new Set());
   
   // Filter states
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('ALL');
@@ -79,6 +85,41 @@ export const Orders = () => {
       setIsLoading(false);
     }
   }, [isAuthenticated]);
+
+  // Load reviewed products for all orders
+  useEffect(() => {
+    if (!isAuthenticated || orders.length === 0) return;
+
+    const loadReviewedProducts = async () => {
+      const reviewedSet = new Set<number>();
+      
+      // Get all unique product IDs from orders with PAID status
+      const productIds = new Set<number>();
+      orders.forEach(order => {
+        if (order.payment?.status === 'PAID') {
+          order.orderItems?.forEach(item => {
+            productIds.add(item.productId);
+          });
+        }
+      });
+
+      // Check each product if it's been reviewed
+      for (const productId of productIds) {
+        try {
+          const hasReviewed = await reviewService.hasUserReviewedProduct(productId);
+          if (hasReviewed) {
+            reviewedSet.add(productId);
+          }
+        } catch (error) {
+          console.error(`Error checking review for product ${productId}:`, error);
+        }
+      }
+
+      setReviewedProducts(reviewedSet);
+    };
+
+    loadReviewedProducts();
+  }, [orders, isAuthenticated]);
 
   const getPaymentMethodLabel = (method: string) => {
     const methodMap: Record<string, string> = {
@@ -220,6 +261,20 @@ export const Orders = () => {
       setError(errorMessage);
       setTimeout(() => setError(''), 4000);
     }
+  };
+
+  const handleReviewProduct = (productId: number, productName: string) => {
+    setSelectedProduct({ id: productId, name: productName });
+    setReviewModalOpen(true);
+  };
+
+  const handleReviewSubmitted = () => {
+    // Add product to reviewed set
+    if (selectedProduct) {
+      setReviewedProducts(prev => new Set([...prev, selectedProduct.id]));
+    }
+    // Refresh orders to get updated data
+    fetchOrders();
   };
 
   if (!isAuthenticated || !user) {
@@ -466,6 +521,8 @@ export const Orders = () => {
                     timeRemaining={timeRemaining[order.orderId]}
                     getPaymentMethodLabel={getPaymentMethodLabel}
                     onCancelOrder={handleCancelOrder}
+                    onReviewProduct={isAuthenticated ? handleReviewProduct : undefined}
+                    reviewedProducts={reviewedProducts}
                   />
                 </motion.div>
               ))}
@@ -530,6 +587,20 @@ export const Orders = () => {
           </>
         )}
       </div>
+
+      {/* Review Modal */}
+      {isAuthenticated && selectedProduct && (
+        <ReviewModal
+          isOpen={reviewModalOpen}
+          onClose={() => {
+            setReviewModalOpen(false);
+            setSelectedProduct(null);
+          }}
+          productId={selectedProduct.id}
+          productName={selectedProduct.name}
+          onReviewSubmitted={handleReviewSubmitted}
+        />
+      )}
     </div>
   );
 };

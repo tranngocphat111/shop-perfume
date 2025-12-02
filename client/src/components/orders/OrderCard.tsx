@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Calendar, DollarSign, Truck, Eye, ChevronDown, X } from 'lucide-react';
+import { Calendar, DollarSign, Truck, Eye, ChevronDown, X, Star } from 'lucide-react';
 import { formatCurrency, formatDate } from '../../utils/helpers';
 import type { OrderResponse } from '../../types';
 import { OrderStatusBadge } from './OrderStatusBadge';
@@ -14,6 +14,8 @@ interface OrderCardProps {
   timeRemaining?: number;
   getPaymentMethodLabel: (method: string) => string;
   onCancelOrder?: (orderId: number) => void;
+  onReviewProduct?: (productId: number, productName: string) => void;
+  reviewedProducts?: Set<number>;
 }
 
 export const OrderCard: React.FC<OrderCardProps> = ({
@@ -24,8 +26,11 @@ export const OrderCard: React.FC<OrderCardProps> = ({
   timeRemaining,
   getPaymentMethodLabel,
   onCancelOrder,
+  onReviewProduct,
+  reviewedProducts,
 }) => {
   const canCancel = order.payment?.status === 'PENDING';
+  const canReview = order.payment?.status === 'PAID';
   return (
     <div className="bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow duration-200">
       <div className="p-4 sm:p-5">
@@ -86,19 +91,37 @@ export const OrderCard: React.FC<OrderCardProps> = ({
             <span className="font-medium">Sản phẩm ({order.orderItems?.length || 0})</span>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {order.orderItems?.slice(0, 3).map((item) => (
-              <div 
-                key={item.orderItemId} 
-                className="flex items-start gap-3 p-3 bg-gray-50 border border-gray-100 rounded-lg hover:bg-gray-100 transition-colors"
-              >
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm sm:text-base font-medium text-gray-800 truncate">{item.productName}</p>
-                  <p className="text-xs sm:text-sm text-gray-500 mt-1">
-                    SL: {item.quantity} × {formatCurrency(item.unitPrice || 0)} ₫
-                  </p>
+            {order.orderItems?.slice(0, 3).map((item) => {
+              const isReviewed = reviewedProducts?.has(item.productId);
+              return (
+                <div 
+                  key={item.orderItemId} 
+                  className="flex items-start justify-between gap-3 p-3 bg-gray-50 border border-gray-100 rounded-lg hover:bg-gray-100 transition-colors"
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm sm:text-base font-medium text-gray-800 truncate">{item.productName}</p>
+                    <p className="text-xs sm:text-sm text-gray-500 mt-1">
+                      SL: {item.quantity} × {formatCurrency(item.unitPrice || 0)} ₫
+                    </p>
+                  </div>
+                  {canReview && onReviewProduct && (
+                    <button
+                      onClick={() => onReviewProduct(item.productId, item.productName)}
+                      disabled={isReviewed}
+                      className={`flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-md transition-colors flex-shrink-0 ${
+                        isReviewed
+                          ? 'text-gray-400 bg-gray-100 cursor-not-allowed'
+                          : 'text-yellow-600 bg-yellow-50 hover:bg-yellow-100 border border-yellow-200'
+                      }`}
+                      title={isReviewed ? 'Đã đánh giá' : 'Đánh giá sản phẩm'}
+                    >
+                      <Star size={14} className={isReviewed ? '' : 'fill-yellow-400 text-yellow-400'} />
+                      <span className="hidden sm:inline">{isReviewed ? 'Đã đánh giá' : 'Đánh giá'}</span>
+                    </button>
+                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
             {order.orderItems && order.orderItems.length > 3 && (
               <div className="flex items-center justify-center p-3 bg-gray-50 border border-gray-100 rounded-lg">
                 <span className="text-sm sm:text-base text-gray-600 font-medium">

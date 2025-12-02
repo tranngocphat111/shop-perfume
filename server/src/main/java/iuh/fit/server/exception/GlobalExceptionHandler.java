@@ -183,6 +183,26 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Xử lý BadRequestException
+     */
+    @ExceptionHandler(BadRequestException.class)
+    public ResponseEntity<ErrorResponse> handleBadRequestException(
+            BadRequestException ex,
+            WebRequest request
+    ) {
+        log.error("BadRequestException: {}", ex.getMessage());
+
+        ErrorResponse errorResponse = new ErrorResponse(
+                HttpStatus.BAD_REQUEST.value(),
+                ex.getMessage(),
+                LocalDateTime.now(),
+                request.getDescription(false).replace("uri=", "")
+        );
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+    }
+
+    /**
      * Xử lý RuntimeException chung (trừ các exception đã được xử lý riêng)
      */
     @ExceptionHandler(RuntimeException.class)
