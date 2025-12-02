@@ -6,6 +6,12 @@ export interface CheckoutData {
   paymentMethod: 'COD' | 'VNPAY';
 }
 
+export interface RevenueStatsResponse {
+  labels: string[];
+  revenues: number[];
+  orderCounts: number[];
+}
+
 export const orderService = {
   async getSizeOfPendingOrders(): Promise<number> {
     return await apiService.get("/orders/pending");
@@ -17,6 +23,14 @@ export const orderService = {
 
   async getTotalRevenue(): Promise<number> {
     return apiService.get<number>("/orders/totalRevenue");
+  },
+
+  async getRevenueStatsByPeriod(period: 'monthly' | 'quarterly' | 'yearly', year?: number): Promise<RevenueStatsResponse> {
+    let url = `/orders/stats/revenue?period=${period}`;
+    if (year) {
+      url += `&year=${year}`;
+    }
+    return apiService.get<RevenueStatsResponse>(url);
   },
 
   // Place order
