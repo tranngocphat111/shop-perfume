@@ -62,7 +62,21 @@ const ensureValidToken = async (): Promise<void> => {
 const getAuthHeaders = (endpoint: string = ""): Record<string, string> => {
   const headers: Record<string, string> = {};
 
-  // Don't send token for public endpoints
+  // Special handling for order endpoints - always send token if available
+  // Backend allows guest access, but if token is present, it will use userId
+  const isOrderEndpoint = endpoint.includes("/orders/create") || 
+                         endpoint.includes("/orders/my-orders");
+  
+  if (isOrderEndpoint) {
+    // Always send token if available (even though endpoint is public)
+    const token = localStorage.getItem("auth_token");
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+    return headers;
+  }
+
+  // Don't send token for other public endpoints
   if (isPublicEndpoint(endpoint)) {
     return headers;
   }
