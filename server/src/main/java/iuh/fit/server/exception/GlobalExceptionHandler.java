@@ -183,6 +183,56 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Xử lý BadRequestException
+     */
+    @ExceptionHandler(BadRequestException.class)
+    public ResponseEntity<ErrorResponse> handleBadRequestException(
+            BadRequestException ex,
+            WebRequest request
+    ) {
+        log.error("BadRequestException: {}", ex.getMessage());
+
+        ErrorResponse errorResponse = new ErrorResponse(
+                HttpStatus.BAD_REQUEST.value(),
+                ex.getMessage(),
+                LocalDateTime.now(),
+                request.getDescription(false).replace("uri=", "")
+        );
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+    }
+
+    /**
+     * Xử lý AccessDeniedException (Spring Security)
+     */
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ErrorResponse> handleAccessDeniedException(
+            AccessDeniedException ex,
+            WebRequest request
+    ) {
+        log.error("AccessDeniedException: {} for request: {}", ex.getMessage(), request.getDescription(false));
+
+        // Determine appropriate error message based on the request path
+        String requestPath = request.getDescription(false).replace("uri=", "");
+        String errorMessage;
+        
+        if (requestPath != null && (requestPath.contains("/admin/") || requestPath.contains("/dashboard/"))) {
+            errorMessage = "Access Denied: You do not have permission to access this resource. Please login as ADMIN.";
+        } else {
+            errorMessage = "Access Denied: You do not have permission to access this resource. Please login first.";
+        }
+
+        ErrorResponse errorResponse = new ErrorResponse(
+                HttpStatus.FORBIDDEN.value(),
+                errorMessage,
+                LocalDateTime.now(),
+                requestPath
+        );
+
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(errorResponse);
+    }
+
+    /**
      * Xử lý RuntimeException chung (trừ các exception đã được xử lý riêng)
      */
     @ExceptionHandler(RuntimeException.class)

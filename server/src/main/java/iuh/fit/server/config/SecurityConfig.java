@@ -85,9 +85,11 @@ public class SecurityConfig {
                     .requestMatchers("/webhooks/sepay/manual", "/webhooks/sepay/test", "/webhooks/sepay/health").permitAll()
                     .requestMatchers("/webhooks/sepay/logs", "/webhooks/sepay/logs/**").permitAll()
                     
-                    // Authentication endpoints - ALL public except /auth/me
+                    // Authentication endpoints - ALL public except /auth/me and /auth/change-password
                     // Note: Order matters - specific paths before wildcards
                     .requestMatchers("/api/auth/me", "/auth/me").authenticated() // /auth/me requires authentication
+                    .requestMatchers("/api/auth/change-password", "/auth/change-password").authenticated() // /auth/change-password requires authentication
+                    .requestMatchers("/api/auth/update", "/auth/update").authenticated() // /auth/update requires authentication
                     .requestMatchers("/api/auth/**", "/auth/**").permitAll() // All other auth endpoints are public
                     
                     // Guest checkout - allow public access
