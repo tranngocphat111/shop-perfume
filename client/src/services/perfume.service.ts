@@ -54,9 +54,10 @@ export const productService = {
     direction?: string,
     search?: string,
     brandId?: number | null,
-    categoryId?: number | null
+    categoryId?: number | null,
+    status: string = 'ACTIVE'
   ): Promise<PageResponse<Product>> {
-    let url = `/products/page?page=${page}&size=${size}`;
+    let url = `/products/page?page=${page}&size=${size}&status=${status}`;
 
     if (sortBy && direction) {
       url += `&sortBy=${sortBy}&direction=${direction}`;

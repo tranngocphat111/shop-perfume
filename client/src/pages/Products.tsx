@@ -313,7 +313,8 @@ export const Products = () => {
         "ASC",
         undefined,
         undefined,
-        undefined
+        undefined,
+        'ACTIVE'
       );
 
       if (sampleResponse.content.length > 0) {
@@ -330,7 +331,8 @@ export const Products = () => {
             "DESC",
             undefined,
             undefined,
-            undefined
+            undefined,
+            'ACTIVE'
           );
           const maxPrices = maxSample.content
             .filter((p) => p.unitPrice > 0)
@@ -676,7 +678,8 @@ export const Products = () => {
           backendSortDirection,
           backendSearchQuery,
           backendBrandId,
-          backendCategoryId
+          backendCategoryId,
+          'ACTIVE'
         );
 
         // Store products
