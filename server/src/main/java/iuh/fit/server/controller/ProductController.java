@@ -70,12 +70,13 @@ public class ProductController {
             @RequestParam(required = false) String sort,
             @RequestParam(required = false) Integer brandId,
             @RequestParam(required = false) Integer categoryId,
+            @RequestParam(required = false) String status,
             @RequestParam(required = false) String sortBy,
             @RequestParam(required = false) String direction,
             @RequestParam(required = false) String search
     ) {
-        log.info("REST request to get products with pagination - page: {}, size: {}, brandId: {}, categoryId: {}, search: {}", 
-                page, size, brandId, categoryId, search);
+        log.info("REST request to get products with pagination - page: {}, size: {}, brandId: {}, categoryId: {}, status: {}, search: {}", 
+                page, size, brandId, categoryId, status, search);
 
         // Parse sort parameter (format: "field,direction" or just "field")
         String fieldName = "productId";
@@ -96,8 +97,8 @@ public class ProductController {
 
         Pageable pageable = PageRequest.of(page, size, Sort.by(sortDirection, fieldName));
         
-        // Use filter method to support brandId, categoryId and search
-        Page<ProductResponse> products = productService.filterProducts(brandId, categoryId, search, pageable);
+        // Use filter method to support brandId, categoryId, status and search
+        Page<ProductResponse> products = productService.filterProducts(brandId, categoryId, status, search, pageable);
         
         return ResponseEntity.ok(products);
     }

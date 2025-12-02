@@ -36,7 +36,8 @@ export const productService = {
         size: number,
         sortBy?: string,
         direction?: string,
-        search?: string
+        search?: string,
+        status?: string
     ): Promise<PageResponse<Product>> {
         let url = `/products/page?page=${page}&size=${size}`;
 
@@ -46,6 +47,10 @@ export const productService = {
 
         if (search && search.trim() !== "") {
             url += `&search=${encodeURIComponent(search.trim())}`;
+        }
+
+        if (status && status.trim() !== "") {
+            url += `&status=${status}`;
         }
 
         return apiService.get<PageResponse<Product>>(url);
