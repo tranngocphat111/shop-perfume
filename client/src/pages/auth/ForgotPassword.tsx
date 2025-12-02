@@ -165,8 +165,9 @@ const ForgotPassword: React.FC = () => {
                   Email đã được gửi!
                 </h3>
                 <p className="text-sm text-gray-600 mb-6">
-                  Nếu email của bạn tồn tại trong hệ thống, một liên kết đặt lại mật khẩu đã được
-                  gửi đến bạn. Vui lòng kiểm tra hộp thư đến (và cả thư mục spam).
+                  Nếu email của bạn tồn tại trong hệ thống, một liên kết đặt lại
+                  mật khẩu đã được gửi đến bạn. Vui lòng kiểm tra hộp thư đến
+                  (và cả thư mục spam).
                 </p>
                 <Link
                   to="/login"
@@ -203,7 +204,9 @@ const ForgotPassword: React.FC = () => {
                             clipRule="evenodd"
                           />
                         </svg>
-                        <span className="text-sm text-red-800 flex-1">{error}</span>
+                        <span className="text-sm text-red-800 flex-1">
+                          {error}
+                        </span>
                       </div>
                     </motion.div>
                   )}
