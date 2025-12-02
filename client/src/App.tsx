@@ -33,6 +33,7 @@ import { Products as AdminProducts } from "./pages/admin/Products";
 import { Footer } from "./components/Footer";
 import { Suppliers } from "./pages/admin/Suppliers";
 import { PurchaseInvoices } from "./pages/admin/PurchaseInvoices";
+import { Orders } from "./pages/admin/Orders";
 import { ScrollToTop } from "./components/ScrollToTop";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { Contact } from "./pages/Contact";
@@ -54,8 +55,7 @@ function AppContent() {
       <main
         className={`min-h-[calc(100vh-80px)] ${
           isHomePage || isAdminRoute || isAuthRoute ? "" : "pt-16 bg-gray-50"
-        }`}
-      >
+        }`}>
         <Routes>
           {/* GUEST ROUTES - Public access, anyone can view */}
           <Route
@@ -237,6 +237,14 @@ function AppContent() {
             element={
               <AdminRoute>
                 <PurchaseInvoices />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/orders"
+            element={
+              <AdminRoute>
+                <Orders />
               </AdminRoute>
             }
           />

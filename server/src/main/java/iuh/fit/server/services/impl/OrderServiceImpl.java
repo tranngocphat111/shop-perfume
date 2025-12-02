@@ -914,6 +914,25 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
         
         return null;
     }
+    
+    @Override
+    @Transactional(readOnly = true)
+    public org.springframework.data.domain.Page<OrderResponse> getOrdersPage(
+            org.springframework.data.domain.Pageable pageable, 
+            String searchTerm) {
+        log.info("Getting orders page - page: {}, size: {}, search: {}", 
+                pageable.getPageNumber(), pageable.getPageSize(), searchTerm);
+        
+        org.springframework.data.domain.Page<Order> orders;
+        
+        if (searchTerm != null && !searchTerm.trim().isEmpty()) {
+            orders = orderRepository.searchOrders(searchTerm, pageable);
+        } else {
+            orders = orderRepository.findAll(pageable);
+        }
+        
+        return orders.map(orderMapper::toResponse);
+    }
 
 }
 
