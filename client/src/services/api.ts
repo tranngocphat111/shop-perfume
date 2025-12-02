@@ -80,10 +80,40 @@ const getAuthHeaders = (endpoint: string = ""): Record<string, string> => {
 // - We want to send token if user is logged in
 // - Backend allows guest access (permitAll), but if token is present, it will use userId
 const isPublicEndpoint = (endpoint: string): boolean => {
-  // /auth/me requires authentication, so it's not public
-  if (endpoint === "/auth/me" || endpoint.includes("/auth/me")) {
-    return false;
+  // Protected endpoints that require authentication - always send token
+  const protectedEndpoints = [
+    "/auth/me",
+    "/auth/change-password",
+    "/auth/update",
+    "/admin/", // All admin endpoints require ADMIN role
+    "/dashboard/", // Dashboard requires ADMIN role
+    "/products/", // Products: POST/PUT/DELETE require ADMIN, GET is public but send token anyway
+    "/inventories/", // Inventories: PUT requires ADMIN, GET is public but send token anyway
+    "/addresses/", // All addresses endpoints require authentication
+    "/carts/", // All cart endpoints require authentication
+    "/orders/", // Most order endpoints require authentication (except /create and /my-orders)
+    "/reviews/", // Review endpoints require authentication
+    "/users/me", // User profile requires authentication
+    "/coupons/", // Coupon endpoints require authentication
+  ];
+
+  // If endpoint matches any protected pattern, it's NOT public
+  if (
+    protectedEndpoints.some((protectedPath) => endpoint.includes(protectedPath))
+  ) {
+    // Special cases: Some endpoints under protected paths are actually public
+    if (
+      endpoint.includes("/orders/create") ||
+      endpoint.includes("/orders/my-orders") ||
+      /\/orders\/\d+\/cancel-timeout/.test(endpoint)
+    ) {
+      // These are public but we still want to send token if available
+      return false; // Send token anyway
+    }
+    return false; // Not public, send token
   }
+
+  // Public endpoints that don't require authentication
   const publicEndpoints = [
     "/auth/login",
     "/auth/register",
@@ -92,17 +122,13 @@ const isPublicEndpoint = (endpoint: string): boolean => {
     "/auth/forgot-password",
     "/auth/reset-password",
     "/payment/check-qr",
-    "/products/",
     "/brands/",
     "/categories/",
     "/webhooks/",
   ];
 
   // Check if endpoint matches any public endpoint pattern
-  return (
-    publicEndpoints.some((publicPath) => endpoint.includes(publicPath)) ||
-    /\/orders\/\d+\/cancel-timeout/.test(endpoint)
-  );
+  return publicEndpoints.some((publicPath) => endpoint.includes(publicPath));
 };
 
 // Handle 401 errors - try refresh token first, then redirect
