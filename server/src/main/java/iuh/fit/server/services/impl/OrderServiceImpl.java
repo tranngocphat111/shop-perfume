@@ -183,9 +183,56 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
         return monthNames[month - 1];
     }
 
-    @Transactional(isolation = org.springframework.transaction.annotation.Isolation.READ_COMMITTED, timeout = 30)
+    // Tách phần lock và update inventory ra transaction riêng, ngắn gọn để release lock sớm
+    @Transactional(isolation = org.springframework.transaction.annotation.Isolation.READ_COMMITTED, timeout = 10, propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
+    public void validateAndDeductInventory(List<iuh.fit.server.dto.request.OrderItemRequest> cartItems) {
+        // Validate stock và trừ inventory cho TẤT CẢ đơn hàng (không phân biệt loại thanh toán)
+        // Sử dụng PESSIMISTIC_WRITE lock để đảm bảo chỉ 1 transaction có thể update tại 1 thời điểm
+        // Người đến sau sẽ phải chờ người đến trước hoàn thành
+        // Transaction này ngắn gọn, chỉ lock và update inventory, sau đó commit ngay để release lock
+        for (iuh.fit.server.dto.request.OrderItemRequest cartItem : cartItems) {
+            Product product = productRepository.findById(cartItem.getProductId())
+                    .orElseThrow(() -> new RuntimeException("Product not found: " + cartItem.getProductId()));
+            
+            // Dùng pessimistic lock - lock row khi đọc, đảm bảo không có transaction khác có thể update
+            // Transaction này sẽ chờ nếu có transaction khác đang lock
+            log.info("🔒 [validateAndDeductInventory] Acquiring lock for productId: {}", cartItem.getProductId());
+            iuh.fit.server.model.entity.Inventory inventory = inventoryRepository.findByProductIdWithLock(cartItem.getProductId());
+            if (inventory == null) {
+                throw new RuntimeException("Inventory not found for product: " + cartItem.getProductId());
+            }
+            
+            log.info("✅ [validateAndDeductInventory] Lock acquired for productId: {}, current quantity: {}", 
+                    cartItem.getProductId(), inventory.getQuantity());
+            
+            // Validate stock - check quantity trong inventory
+            if (inventory.getQuantity() < cartItem.getQuantity()) {
+                String errorMsg = String.format(
+                    "Sản phẩm '%s' không đủ hàng. Số lượng trong kho: %d, yêu cầu: %d", 
+                    product.getName(), inventory.getQuantity(), cartItem.getQuantity()
+                );
+                log.error("❌ [validateAndDeductInventory] Stock validation failed: {}", errorMsg);
+                throw new BadRequestException(errorMsg);
+            }
+            
+            // Trừ số lượng từ inventory ngay lập tức (cho tất cả loại thanh toán)
+            int newQuantity = inventory.getQuantity() - cartItem.getQuantity();
+            inventory.setQuantity(newQuantity);
+            inventoryRepository.saveAndFlush(inventory); // Flush ngay để release lock sớm
+            
+            log.info("✅ [validateAndDeductInventory] Deducted {} units of product {} (new quantity: {}), lock released after commit", 
+                    cartItem.getQuantity(), cartItem.getProductId(), newQuantity);
+        }
+    }
+
+    @Transactional(isolation = org.springframework.transaction.annotation.Isolation.READ_COMMITTED, timeout = 60)
     @Override
     public OrderResponse createOrder(OrderCreateRequest request) {
+
+        // Validate và trừ inventory trong transaction riêng, ngắn gọn để release lock sớm
+        // Transaction này sẽ commit ngay sau khi update inventory, release lock
+        // Cho phép các đơn hàng khác (có sản phẩm khác) có thể tiếp tục
+        validateAndDeductInventory(request.getCartItems());
 
         // Create Order entity
         Order order = new Order();
@@ -231,43 +278,6 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
         } catch (Exception e) {
             log.error("❌ [createOrder] Error setting user for order: {}", e.getMessage(), e);
             // Continue as guest order if cannot get user
-        }
-
-        // Validate stock và trừ inventory cho TẤT CẢ đơn hàng (không phân biệt loại thanh toán)
-        // Sử dụng PESSIMISTIC_WRITE lock để đảm bảo chỉ 1 transaction có thể update tại 1 thời điểm
-        // Người đến sau sẽ phải chờ người đến trước hoàn thành
-        for (iuh.fit.server.dto.request.OrderItemRequest cartItem : request.getCartItems()) {
-            Product product = productRepository.findById(cartItem.getProductId())
-                    .orElseThrow(() -> new RuntimeException("Product not found: " + cartItem.getProductId()));
-            
-            // Dùng pessimistic lock - lock row khi đọc, đảm bảo không có transaction khác có thể update
-            // Transaction này sẽ chờ nếu có transaction khác đang lock
-            log.info("🔒 [createOrder] Acquiring lock for productId: {}", cartItem.getProductId());
-            iuh.fit.server.model.entity.Inventory inventory = inventoryRepository.findByProductIdWithLock(cartItem.getProductId());
-            if (inventory == null) {
-                throw new RuntimeException("Inventory not found for product: " + cartItem.getProductId());
-            }
-            
-            log.info("✅ [createOrder] Lock acquired for productId: {}, current quantity: {}", 
-                    cartItem.getProductId(), inventory.getQuantity());
-            
-            // Validate stock - check quantity trong inventory
-            if (inventory.getQuantity() < cartItem.getQuantity()) {
-                String errorMsg = String.format(
-                    "Sản phẩm '%s' không đủ hàng. Số lượng trong kho: %d, yêu cầu: %d", 
-                    product.getName(), inventory.getQuantity(), cartItem.getQuantity()
-                );
-                log.error("❌ [createOrder] Stock validation failed: {}", errorMsg);
-                throw new BadRequestException(errorMsg);
-            }
-            
-            // Trừ số lượng từ inventory ngay lập tức (cho tất cả loại thanh toán)
-            int newQuantity = inventory.getQuantity() - cartItem.getQuantity();
-            inventory.setQuantity(newQuantity);
-            inventoryRepository.save(inventory);
-            
-            log.info("✅ [createOrder] Deducted {} units of product {} (new quantity: {}), lock released", 
-                    cartItem.getQuantity(), cartItem.getProductId(), newQuantity);
         }
 
         // Create OrderItems

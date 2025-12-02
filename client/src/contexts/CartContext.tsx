@@ -15,6 +15,7 @@ interface CartContextType {
   getCartTotal: () => number;
   getCartCount: () => number;
   mergeCartOnLogin: (userId: number) => Promise<void>;
+  refreshCartStock: () => Promise<void>; // Refresh stock quantities for all cart items
   // Coupon
   appliedCouponId: number | null;
   discount: number;
@@ -472,6 +473,37 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     return cart.items.length;
   };
 
+  // Refresh stock quantities for all cart items
+  const refreshCartStock = async () => {
+    if (cart.items.length === 0) {
+      return;
+    }
+
+    try {
+      // Clear fetched stock cache to force refresh
+      hasFetchedStockRef.current.clear();
+      
+      // Fetch fresh stock for all items
+      const itemsWithStock = await Promise.all(
+        cart.items.map(async (item) => {
+          const availableStock = await getAvailableStock(item.product.productId);
+          hasFetchedStockRef.current.add(item.product.productId);
+          return {
+            ...item,
+            stockQuantity: availableStock,
+          };
+        })
+      );
+
+      setCart((prevCart) => ({
+        ...prevCart,
+        items: itemsWithStock,
+      }));
+    } catch (error) {
+      console.error('Error refreshing cart stock:', error);
+    }
+  };
+
   return (
     <CartContext.Provider
       value={{
@@ -484,6 +516,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         getCartTotal,
         getCartCount,
         mergeCartOnLogin,
+        refreshCartStock,
         appliedCouponId,
         discount,
         setAppliedCouponId,

@@ -5,6 +5,7 @@ import { useCart } from '../contexts/CartContext';
 import { useAuth } from '../contexts/AuthContext';
 import { ShippingForm, PaymentMethodSelector, OrderSummary } from '../components/checkout';
 import { SuccessNotification } from '../components/common';
+import { OutOfStockModal } from '../components/common/OutOfStockModal';
 import { CouponSelect } from '../components/checkout/CouponSelect';
 import { couponService, type Coupon } from '../services/coupon.service';
 import { userService, type UserInfo } from '../services/user.service';
@@ -29,7 +30,7 @@ const initialFormData: CheckoutFormData = {
 
 export const Checkout: React.FC = () => {
   const navigate = useNavigate();
-  const { cart, clearCart, appliedCouponId, discount, setAppliedCouponId, setDiscount, updateQuantity, removeFromCart } = useCart();
+  const { cart, clearCart, appliedCouponId, discount, setAppliedCouponId, setDiscount, updateQuantity, removeFromCart, refreshCartStock } = useCart();
   const { user, isAuthenticated } = useAuth();
   
   // Filter out of stock items ngay từ đầu - chỉ lấy items còn hàng
@@ -41,6 +42,7 @@ export const Checkout: React.FC = () => {
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [showSuccessNotification, setShowSuccessNotification] = useState(false);
   const [successMessage, setSuccessMessage] = useState<{ message: string; subMessage?: string } | null>(null);
+  const [isErrorNotification, setIsErrorNotification] = useState(false);
   
   // Coupon state
   const [coupons, setCoupons] = useState<Coupon[]>([]);
@@ -56,11 +58,11 @@ export const Checkout: React.FC = () => {
   // Redirect if cart is empty (but allow navigation to payment page first)
   useEffect(() => {
     // Only redirect if we're still on checkout page and cart is empty
-    // This prevents redirect when navigating to payment page
-    if (cartItems.length === 0 && window.location.pathname === '/checkout') {
+    // Don't redirect if notification is showing (user might be seeing error message)
+    if (cartItems.length === 0 && window.location.pathname === '/checkout' && !showSuccessNotification) {
       navigate('/cart');
     }
-  }, [cartItems, navigate]);
+  }, [cartItems, navigate, showSuccessNotification]);
 
   // Auto-fill user information if logged in
   useEffect(() => {
@@ -317,6 +319,10 @@ export const Checkout: React.FC = () => {
 
       // Nếu có bất kỳ lỗi nào về stock, reject toàn bộ đơn hàng
       if (stockValidationErrors.length > 0) {
+        // Refresh cart stock to update quantities
+        await refreshCartStock();
+        
+        setIsErrorNotification(true);
         setValidationErrors({
           stock: stockValidationErrors.join(' ')
         });
@@ -334,6 +340,7 @@ export const Checkout: React.FC = () => {
       setValidationErrors({
         stock: 'Không thể kiểm tra tồn kho. Vui lòng thử lại.'
       });
+      setIsErrorNotification(true);
       setSuccessMessage({
         message: 'Lỗi kiểm tra tồn kho',
         subMessage: 'Không thể kiểm tra tồn kho. Vui lòng thử lại.'
@@ -388,6 +395,7 @@ export const Checkout: React.FC = () => {
 
       if (response) {
         // Show success notification
+        setIsErrorNotification(false);
         setSuccessMessage({
           message: 'Đặt hàng thành công!',
           subMessage: `Đơn hàng #${response.orderId} đã được tạo`,
@@ -440,18 +448,16 @@ export const Checkout: React.FC = () => {
                                 errorMessage.includes('Số lượng trong kho');
 
       if (isOutOfStockError) {
-        // Show clear out of stock notification
+        // Refresh cart stock to update quantities
+        await refreshCartStock();
+        
+        // Show out of stock modal (blocks interaction)
+        setIsErrorNotification(true);
         setSuccessMessage({
           message: 'Sản phẩm đã hết hàng',
           subMessage: errorMessage || 'Sản phẩm bạn chọn đã được người khác đặt trước. Vui lòng kiểm tra lại giỏ hàng.',
         });
         setShowSuccessNotification(true);
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-
-        // Redirect to cart after 3 seconds
-        setTimeout(() => {
-          navigate('/cart', { replace: true });
-        }, 3000);
         
         setIsProcessing(false);
         return;
@@ -627,12 +633,37 @@ export const Checkout: React.FC = () => {
         </div>
       </div>
 
-      {/* Success Notification */}
-      {showSuccessNotification && successMessage && (
+      {/* Success Notification - Only for success messages */}
+      {showSuccessNotification && successMessage && !isErrorNotification && (
         <SuccessNotification
           message={successMessage.message}
           subMessage={successMessage.subMessage}
-          onClose={() => setShowSuccessNotification(false)}
+          isError={false}
+          duration={3000}
+          onClose={() => {
+            setShowSuccessNotification(false);
+            setIsErrorNotification(false);
+          }}
+        />
+      )}
+
+      {/* Out of Stock Modal - Blocks interaction for error messages */}
+      {showSuccessNotification && successMessage && isErrorNotification && (
+        <OutOfStockModal
+          isOpen={true}
+          message={successMessage.message}
+          subMessage={successMessage.subMessage}
+          autoRedirectDelay={3}
+          onAutoRedirect={() => {
+            setShowSuccessNotification(false);
+            setIsErrorNotification(false);
+            navigate('/cart', { replace: true });
+          }}
+          onClose={() => {
+            setShowSuccessNotification(false);
+            setIsErrorNotification(false);
+            navigate('/cart', { replace: true });
+          }}
         />
       )}
 
