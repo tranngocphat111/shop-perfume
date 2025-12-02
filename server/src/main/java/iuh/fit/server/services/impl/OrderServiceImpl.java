@@ -183,7 +183,7 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
         return monthNames[month - 1];
     }
 
-    @Transactional
+    @Transactional(isolation = org.springframework.transaction.annotation.Isolation.READ_COMMITTED, timeout = 30)
     @Override
     public OrderResponse createOrder(OrderCreateRequest request) {
 
@@ -234,14 +234,22 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
         }
 
         // Validate stock và trừ inventory cho TẤT CẢ đơn hàng (không phân biệt loại thanh toán)
+        // Sử dụng PESSIMISTIC_WRITE lock để đảm bảo chỉ 1 transaction có thể update tại 1 thời điểm
+        // Người đến sau sẽ phải chờ người đến trước hoàn thành
         for (iuh.fit.server.dto.request.OrderItemRequest cartItem : request.getCartItems()) {
             Product product = productRepository.findById(cartItem.getProductId())
                     .orElseThrow(() -> new RuntimeException("Product not found: " + cartItem.getProductId()));
             
-            iuh.fit.server.model.entity.Inventory inventory = inventoryRepository.findByProductId(cartItem.getProductId());
+            // Dùng pessimistic lock - lock row khi đọc, đảm bảo không có transaction khác có thể update
+            // Transaction này sẽ chờ nếu có transaction khác đang lock
+            log.info("🔒 [createOrder] Acquiring lock for productId: {}", cartItem.getProductId());
+            iuh.fit.server.model.entity.Inventory inventory = inventoryRepository.findByProductIdWithLock(cartItem.getProductId());
             if (inventory == null) {
                 throw new RuntimeException("Inventory not found for product: " + cartItem.getProductId());
             }
+            
+            log.info("✅ [createOrder] Lock acquired for productId: {}, current quantity: {}", 
+                    cartItem.getProductId(), inventory.getQuantity());
             
             // Validate stock - check quantity trong inventory
             if (inventory.getQuantity() < cartItem.getQuantity()) {
@@ -258,7 +266,7 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
             inventory.setQuantity(newQuantity);
             inventoryRepository.save(inventory);
             
-            log.info("✅ [createOrder] Deducted {} units of product {} (new quantity: {})", 
+            log.info("✅ [createOrder] Deducted {} units of product {} (new quantity: {}), lock released", 
                     cartItem.getQuantity(), cartItem.getProductId(), newQuantity);
         }
 
