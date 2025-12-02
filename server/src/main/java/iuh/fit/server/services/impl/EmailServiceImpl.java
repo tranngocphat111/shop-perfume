@@ -43,6 +43,19 @@ public class EmailServiceImpl implements EmailService {
     @Value("${app.frontend.url:http://localhost:3000}")
     private String frontendUrl;
     
+    /**
+     * Lấy URL frontend đầu tiên nếu có nhiều URL được nối với nhau (ví dụ: "url1,url2")
+     * Hỗ trợ chuyển đổi giữa localhost và production dễ dàng
+     */
+    private String getFrontendUrl() {
+        if (frontendUrl == null || frontendUrl.isEmpty()) {
+            return "http://localhost:3000";
+        }
+        // Lấy URL đầu tiên nếu có nhiều URL được nối với nhau
+        String url = frontendUrl.split(",")[0].trim();
+        return url;
+    }
+    
     @Value("${spring.mail.from:noreply@shopperfumestnp.dev}")
     private String mailFrom;
     
@@ -63,9 +76,10 @@ public class EmailServiceImpl implements EmailService {
             Resend resend = new Resend(resendApiKey);
             
             // Build reset URL with frontend domain
+            // Sử dụng getFrontendUrl() để lấy URL đầu tiên (hỗ trợ chuyển đổi localhost/production)
             String fullResetUrl = resetUrl;
             if (!resetUrl.startsWith("http")) {
-                fullResetUrl = frontendUrl + resetUrl;
+                fullResetUrl = getFrontendUrl() + resetUrl;
             }
             
             String subject = passwordResetEmailTemplate.getSubject(fullResetUrl);
