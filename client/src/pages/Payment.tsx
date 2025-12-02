@@ -1,18 +1,20 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { FaInfoCircle, FaClock, FaCheckCircle, FaSpinner, FaSearch, FaMoneyBillWave, FaQrcode, FaUniversity } from 'react-icons/fa';
+import { FaSpinner } from 'react-icons/fa';
 import { apiService } from '../services/api';
-import { useAuth } from '../contexts/AuthContext';
 import type { OrderResponse } from '../types';
-import { formatCurrency } from '../utils/helpers';
 import { generateOrderQRCode } from '../services/sepay';
-
-const BANK_INFO = {
-  accountName: 'TRẦN NGỌC PHÁT',
-  accountNo: '0963360910',
-  bankCode: '970422',
-  bankName: 'MB Bank',
-};
+import {
+  PaymentHeader,
+  PaymentInstructions,
+  OrderItemsList,
+  QRCodeCard,
+  OrderInfoCard,
+  PaymentStatusCard,
+  CODSuccessBanner,
+  CODSuccessActions,
+  OrderSummarySidebar,
+} from '../components/payment';
 
 interface PaymentLocationState {
   order: OrderResponse;
@@ -23,7 +25,6 @@ interface PaymentLocationState {
 export const Payment: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { isAuthenticated } = useAuth();
   const state = location.state as PaymentLocationState;
 
   const [order, setOrder] = useState<OrderResponse | null>(null);
@@ -270,341 +271,50 @@ export const Payment: React.FC = () => {
     );
   }
 
-  const paymentMethodLabels = {
-    'cod': 'Trả tiền mặt khi nhận hàng',
-    'qr-payment': 'Thanh toán QR Code',
-  };
-
-  const paymentMethodIcons = {
-    'cod': FaMoneyBillWave,
-    'qr-payment': FaQrcode,
-  };
-
-  const PaymentIcon = paymentMethodIcons[state.paymentMethod];
-
   return (
     <div className="min-h-screen bg-slate-100 pt-24">
-      <div className="max-w-7xl mx-auto px-4 py-8">
+      <div className="max-w-7xl mx-auto px-4 py-6">
         {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-3">
-            <div>
-              <h1 className="text-3xl font-bold text-slate-800 mb-2">Thanh toán đơn hàng</h1>
-              <p className="text-sm text-slate-600">Mã đơn hàng: <span className="font-mono font-semibold text-slate-800">#{order.orderId}</span></p>
-            </div>
-            <div className={`flex items-center gap-3 px-5 py-3 bg-white rounded-xl border-2 shadow-sm ${
-              state.paymentMethod === 'cod' 
-                ? 'border-green-200 bg-green-50' 
-                : 'border-blue-200 bg-blue-50'
-            }`}>
-              <div className={`p-2 rounded-lg ${
-                state.paymentMethod === 'cod' ? 'bg-green-100' : 'bg-blue-100'
-              }`}>
-                <PaymentIcon className={`text-xl ${
-                  state.paymentMethod === 'cod' ? 'text-green-600' : 'text-blue-600'
-                }`} />
-              </div>
-              <span className="text-sm font-semibold text-slate-800">{paymentMethodLabels[state.paymentMethod]}</span>
-            </div>
-          </div>
-        </div>
+        <PaymentHeader order={order} paymentMethod={state.paymentMethod} />
 
         {/* Main Layout - 2 Columns */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {/* Left Column - Payment Content */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="lg:col-span-2 space-y-4">
 
             {/* Payment Instructions for QR Payment */}
             {state.paymentMethod === 'qr-payment' && (
               <>
-                {/* Instructions */}
-                <div className="bg-white rounded-lg border border-slate-200 p-5 shadow-sm">
-                  <div className="flex items-start gap-4 mb-4">
-                    <div className="p-2 bg-blue-100 rounded-lg">
-                      <FaInfoCircle className="text-blue-600 text-lg" />
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="text-base font-semibold text-slate-800 mb-3">Hướng dẫn thanh toán</h3>
-                      <div className="grid grid-cols-2 gap-3 text-sm text-slate-700">
-                        <div className="flex items-start gap-2">
-                          <span className="text-blue-600 font-bold text-base">1.</span>
-                          <span>Mở app ngân hàng/Ví điện tử</span>
-                        </div>
-                        <div className="flex items-start gap-2">
-                          <span className="text-blue-600 font-bold text-base">2.</span>
-                          <span>Quét mã QR bên cạnh</span>
-                        </div>
-                        <div className="flex items-start gap-2">
-                          <span className="text-blue-600 font-bold text-base">3.</span>
-                          <span>Kiểm tra và xác nhận</span>
-                        </div>
-                        <div className="flex items-start gap-2">
-                          <span className="text-blue-600 font-bold text-base">4.</span>
-                          <span>Hệ thống tự động xác nhận</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* QR Code and Bank Info Card */}
-                <div className="bg-white rounded-lg border border-slate-200 p-6 shadow-sm">
-                  <div className="flex flex-col md:flex-row gap-8">
-                    {/* QR Code */}
-                    <div className="flex-shrink-0">
-                      <div className="w-[280px] mx-auto">
-                        {qrUrl ? (
-                          <div className="relative bg-white p-4 rounded-lg border-2 border-slate-300 shadow-md">
-                            <img
-                              src={qrUrl}
-                              alt="QR Code"
-                              className="w-full h-full object-contain"
-                            />
-                            <div className="absolute -top-2 -left-2 bg-white rounded shadow-md p-1 px-2">
-                              <span className="text-[10px] font-semibold text-blue-600">SEPAY</span>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="w-full aspect-square flex flex-col items-center justify-center bg-slate-50 rounded-lg border-2 border-dashed border-slate-300">
-                            <FaSpinner className="text-4xl text-blue-500 animate-spin mb-2" />
-                            <p className="text-slate-500 text-xs">Đang tạo mã QR...</p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Bank Info */}
-                    <div className="flex-1 space-y-4">
-                      {/* Amount */}
-                      <div className="bg-slate-800 text-white p-4 rounded-lg">
-                        <div className="text-xs text-slate-300 mb-2">Số tiền cần thanh toán</div>
-                        <div className="text-2xl font-bold">{formatCurrency(state.totalAmount)} ₫</div>
-                      </div>
-
-                      {/* Bank Details */}
-                      <div className="space-y-3 text-sm">
-                        <div className="flex justify-between py-2 border-b border-slate-100">
-                          <span className="text-slate-600">Ngân hàng</span>
-                          <span className="font-semibold text-slate-800">{BANK_INFO.bankName}</span>
-                        </div>
-                        <div className="flex justify-between py-2 border-b border-slate-100">
-                          <span className="text-slate-600">Chủ TK</span>
-                          <span className="font-semibold text-slate-800">{BANK_INFO.accountName}</span>
-                        </div>
-                        <div className="flex justify-between py-2 border-b border-slate-100">
-                          <span className="text-slate-600">Số TK</span>
-                          <span className="font-mono font-semibold text-slate-800">{BANK_INFO.accountNo}</span>
-                        </div>
-                        <div className="flex justify-between py-2 bg-blue-50 rounded px-3 -mx-3">
-                          <span className="text-slate-700 font-medium">Nội dung CK</span>
-                          <span className="font-mono font-bold text-blue-600">STNP_{order.orderId}</span>
-                        </div>
-                      </div>
-
-                      {/* Logos */}
-                      <div className="flex items-center justify-center gap-2 pt-3 border-t border-slate-100">
-                        <span className="text-xs font-semibold text-gray-600">SEPAY</span>
-                        <span className="text-xs text-gray-500">•</span>
-                        <span className="text-xs text-gray-500">Powered by Sepay</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Payment Status */}
-                {isCancelled ? (
-                  <div className="bg-white border-l-4 border-red-500 p-5 rounded-lg shadow-sm">
-                    <div className="flex items-start gap-4">
-                      <FaInfoCircle className="text-red-500 text-xl mt-0.5 flex-shrink-0" />
-                      <div className="flex-1">
-                        <h5 className="text-red-800 font-semibold text-base mb-2">Đơn hàng đã bị hủy</h5>
-                        <p className="text-red-700 text-sm mb-4">Quá thời gian thanh toán (30 phút). Vui lòng đặt hàng lại.</p>
-                        <button
-                          onClick={() => navigate('/')}
-                          className="bg-red-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-red-700 transition-colors"
-                        >
-                          Về trang chủ
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ) : !isPaid ? (
-                  <div className="bg-white border-l-4 border-yellow-500 p-5 rounded-lg shadow-sm">
-                    <div className="flex items-start gap-4 mb-4">
-                      <FaClock className="text-yellow-500 text-xl mt-0.5 flex-shrink-0 animate-pulse" />
-                      <div className="flex-1">
-                        <h5 className="text-yellow-800 font-semibold text-base mb-2">Đang chờ thanh toán</h5>
-                        <p className="text-yellow-700 text-sm">Vui lòng quét mã QR và hoàn tất thanh toán</p>
-                      </div>
-                    </div>
-                    {timeRemaining !== null && timeRemaining > 0 && (
-                      <div className="bg-slate-50 rounded-lg px-4 py-3 mb-4 flex items-center justify-between">
-                        <span className="text-sm text-slate-600 font-medium">Thời gian còn lại</span>
-                        <span className={`font-mono font-bold text-lg ${timeRemaining < 300 ? 'text-red-600' : 'text-slate-800'}`}>
-                          {Math.floor(timeRemaining / 60)}:{(timeRemaining % 60).toString().padStart(2, '0')}
-                        </span>
-                      </div>
-                    )}
-                    <div className="flex items-center justify-between">
-                      <div className="text-sm text-slate-600 flex items-center gap-2">
-                        <FaSpinner className="animate-spin text-blue-500" />
-                        <span>Tự động kiểm tra sau: <span className="font-semibold">{countdown}s</span></span>
-                      </div>
-                      <button
-                        onClick={checkPayment}
-                        disabled={isChecking}
-                        className="bg-blue-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2"
-                      >
-                        {isChecking ? (
-                          <>
-                            <FaSpinner className="animate-spin" />
-                            Đang kiểm tra...
-                          </>
-                        ) : (
-                          <>
-                            <FaSearch />
-                            Kiểm tra
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="bg-white border-l-4 border-green-500 p-5 rounded-lg shadow-sm animate-fadeIn">
-                <div className="flex items-start gap-4">
-                  <FaCheckCircle className="text-green-500 text-xl mt-0.5 flex-shrink-0" />
-                  <div className="flex-1">
-                    <h5 className="text-green-800 font-semibold text-base mb-2">Thanh toán thành công! 🎉</h5>
-                    <p className="text-green-700 text-sm mb-3">Đơn hàng của bạn đã được xác nhận</p>
-                    <div className="flex items-center gap-2 mb-4">
-                      <button
-                        onClick={() => {
-                          if (isAuthenticated) {
-                            navigate('/profile');
-                          } else {
-                            navigate('/my-orders', { state: { email: order.guestEmail } });
-                          }
-                        }}
-                        className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
-                      >
-                        Xem đơn hàng
-                      </button>
-                      <button
-                        onClick={() => navigate('/')}
-                        className="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-300 transition-colors"
-                      >
-                        Về trang chủ
-                      </button>
-                    </div>
-                    <div className="flex items-center gap-2 text-green-600 text-xs">
-                      <FaSpinner className="animate-spin" />
-                      <span>Tự động chuyển về trang chủ sau 5 giây...</span>
-                    </div>
-                  </div>
-                </div>
-                  </div>
-                )}
-          </>
-        )}
+                <PaymentInstructions />
+                <OrderItemsList orderItems={order.orderItems} />
+                <QRCodeCard qrUrl={qrUrl} totalAmount={state.totalAmount} orderId={order.orderId} />
+                <OrderInfoCard order={order} />
+                <PaymentStatusCard
+                  isCancelled={isCancelled}
+                  isPaid={isPaid}
+                  isChecking={isChecking}
+                  timeRemaining={timeRemaining}
+                  countdown={countdown}
+                  order={order}
+                  onCheckPayment={checkPayment}
+                />
+              </>
+            )}
 
             {/* COD Payment Success */}
             {state.paymentMethod === 'cod' && (
-              <div className="bg-white rounded-xl shadow-lg border-2 border-green-200 overflow-hidden animate-fadeIn">
-                {/* Success Header with Green Background */}
-                <div className="bg-gradient-to-r from-green-500 to-green-600 px-8 py-6">
-                  <div className="flex items-center gap-4">
-                    <div className="bg-white rounded-full p-3 shadow-lg">
-                      <FaCheckCircle className="text-green-600 text-3xl" />
-                    </div>
-                    <div>
-                      <h2 className="text-2xl font-bold text-white mb-1">Đặt hàng thành công!</h2>
-                      <p className="text-green-50 text-sm">Mã đơn hàng: <span className="font-mono font-semibold">#{order.orderId}</span></p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Success Content */}
-                <div className="p-8">
-                  {/* Success Message */}
-                  <div className="mb-6">
-                    <div className="flex items-start gap-3 mb-4">
-                      <div className="w-1 h-12 bg-green-500 rounded-full"></div>
-                      <div className="flex-1">
-                        <h3 className="text-lg font-semibold text-gray-900 mb-2">Đơn hàng đã được xác nhận</h3>
-                        <p className="text-gray-600 leading-relaxed">
-                          Cảm ơn bạn đã đặt hàng! Đơn hàng của bạn đã được tiếp nhận và đang được xử lý. 
-                          Bạn sẽ thanh toán khi nhận hàng (COD).
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Payment Method Badge */}
-                  <div className="flex items-center justify-center mb-6">
-                    <div className="inline-flex items-center gap-2 px-4 py-2 bg-green-50 border border-green-200 rounded-lg">
-                      <FaMoneyBillWave className="text-green-600" />
-                      <span className="text-sm font-semibold text-green-700">Trả tiền mặt khi nhận hàng</span>
-                    </div>
-                  </div>
-
-                  {/* Action Buttons */}
-                  <div className="flex flex-col sm:flex-row gap-3">
-                    <button
-                      onClick={() => {
-                        if (isAuthenticated) {
-                          navigate('/profile');
-                        } else {
-                          navigate('/my-orders', { state: { email: order.guestEmail } });
-                        }
-                      }}
-                      className="flex-1 bg-black text-white px-6 py-3 rounded-lg font-semibold hover:bg-gray-800 transition-colors shadow-md hover:shadow-lg flex items-center justify-center gap-2"
-                    >
-                      <FaSearch />
-                      Xem đơn hàng
-                    </button>
-                    <button
-                      onClick={() => navigate('/')}
-                      className="flex-1 bg-white text-gray-900 px-6 py-3 rounded-lg font-semibold border-2 border-gray-300 hover:bg-gray-50 transition-colors shadow-sm hover:shadow-md"
-                    >
-                      Về trang chủ
-                    </button>
-                  </div>
-                </div>
-              </div>
+              <>
+                <CODSuccessBanner order={order} />
+                <OrderItemsList orderItems={order.orderItems} />
+                <OrderInfoCard order={order} />
+                <CODSuccessActions order={order} />
+              </>
             )}
           </div>
 
           {/* Right Column - Order Summary Sidebar */}
           <div className="lg:col-span-1">
-            <div className="bg-white rounded-lg border border-slate-200 shadow-sm sticky top-28">
-              <div className="p-5 border-b border-slate-200">
-                <h3 className="text-base font-semibold text-slate-800">Thông tin đơn hàng</h3>
-              </div>
-              <div className="p-5 space-y-4 text-sm">
-                <div>
-                  <div className="text-slate-500 mb-1.5 text-xs">Khách hàng</div>
-                  <div className="font-semibold text-slate-800">{order.guestName}</div>
-                </div>
-                <div>
-                  <div className="text-slate-500 mb-1.5 text-xs">Số điện thoại</div>
-                  <div className="font-mono font-semibold text-slate-800">{order.guestPhone}</div>
-                </div>
-                <div>
-                  <div className="text-slate-500 mb-1.5 text-xs">Email</div>
-                  <div className="font-semibold text-slate-800 break-all text-xs">{order.guestEmail}</div>
-                </div>
-                <div>
-                  <div className="text-slate-500 mb-1.5 text-xs">Địa chỉ</div>
-                  <div className="font-semibold text-slate-800">{order.guestAddress}</div>
-                </div>
-                <div className="pt-4 border-t border-slate-200">
-                  <div className="flex justify-between items-center">
-                    <span className="text-slate-600 font-medium">Tổng tiền</span>
-                    <span className="text-lg font-bold text-slate-800">{formatCurrency(order.totalAmount)} ₫</span>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <OrderSummarySidebar order={order} />
           </div>
         </div>
       </div>

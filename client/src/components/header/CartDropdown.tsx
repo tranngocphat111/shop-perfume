@@ -113,7 +113,7 @@ export const CartDropdown = ({ isVisible, onClose }: CartDropdownProps) => {
               <Link
                 to="/cart"
                 onClick={onClose}
-                className="btn-slide-overlay relative flex-1 px-4 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-full hover:bg-gray-50 transition-colors text-center"
+                className="btn-slide-overlay relative flex-1 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-full hover:bg-gray-50 transition-colors text-center"
               >
                 <span className="relative z-index-10">Xem giỏ hàng</span>
               </Link>
@@ -122,7 +122,7 @@ export const CartDropdown = ({ isVisible, onClose }: CartDropdownProps) => {
                   onClose();
                   navigate("/checkout");
                 }}
-                className="btn-slide-overlay-dark relative flex-1 px-4 py-2.5 text-sm font-medium text-white bg-black rounded-full hover:bg-gray-800 transition-colors overflow-hidden"
+                className="btn-slide-overlay-dark relative flex-1 px-4 py-2 text-sm font-medium text-white bg-black rounded-full hover:bg-gray-800 transition-colors overflow-hidden"
               >
                 <span className="relative z-index-10">Thanh toán</span>
               </button>

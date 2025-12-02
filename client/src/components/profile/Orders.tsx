@@ -224,7 +224,7 @@ export const Orders = () => {
 
   if (!isAuthenticated || !user) {
     return (
-      <div className="bg-white border border-gray-100 rounded-xl shadow-sm overflow-hidden">
+      <div className="bg-white border border-gray-100 rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
         <div className="px-6 py-5 bg-gradient-to-r from-gray-50 to-white border-b border-gray-100 flex justify-between items-center">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
@@ -251,7 +251,7 @@ export const Orders = () => {
 
   if (isLoading) {
     return (
-      <div className="bg-white border border-gray-100 rounded-xl shadow-sm overflow-hidden">
+      <div className="bg-white border border-gray-100 rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
         <div className="px-6 py-5 bg-gradient-to-r from-gray-50 to-white border-b border-gray-100 flex justify-between items-center">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
@@ -275,7 +275,7 @@ export const Orders = () => {
 
   if (error) {
     return (
-      <div className="bg-white border border-gray-100 rounded-xl shadow-sm overflow-hidden">
+      <div className="bg-white border border-gray-100 rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
         <div className="px-6 py-5 bg-gradient-to-r from-gray-50 to-white border-b border-gray-100 flex justify-between items-center">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
@@ -309,7 +309,7 @@ export const Orders = () => {
   }
 
   return (
-    <div className="bg-white border border-gray-100 rounded-xl shadow-sm overflow-hidden">
+    <div className="bg-white border border-gray-100 rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
       {/* Header */}
       <div className="px-6 py-5 bg-gradient-to-r from-gray-50 to-white border-b border-gray-100 flex justify-between items-center">
         <div className="flex items-center gap-3">
@@ -346,8 +346,8 @@ export const Orders = () => {
         )}
 
         {/* Filters */}
-        <div className="mb-6 p-5 bg-gradient-to-r from-gray-50 to-white border border-gray-200 rounded-lg shadow-sm">
-          <div className="flex items-center justify-between mb-4">
+        <div className="mb-6 p-5 pt-0 bg-gradient-to-r from-gray-50 to-white border border-gray-200 rounded-lg shadow-sm">
+          <div className="flex items-center justify-between mb-4 ">
             {(filterStatus !== 'ALL' || filterDate !== 'ALL') && (
               <motion.button
                 onClick={() => {
@@ -358,7 +358,7 @@ export const Orders = () => {
                 }}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-200 rounded-md hover:bg-gray-50 hover:border-gray-300 transition-colors"
+                className="mt-5 flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-200 rounded-md hover:bg-gray-50 hover:border-gray-300 transition-colors"
               >
                 <X size={14} />
                 <span>Xóa bộ lọc</span>

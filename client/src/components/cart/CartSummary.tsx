@@ -159,7 +159,7 @@ export default function CartSummary({ total, itemCount, discount = 0, onCouponAp
 
   return (
     <>
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
         {/* Chỉ hiển thị coupon section nếu user đã đăng nhập VÀ có coupons */}
         {isAuthenticated && coupons.length > 0 && (
           <CouponSection
