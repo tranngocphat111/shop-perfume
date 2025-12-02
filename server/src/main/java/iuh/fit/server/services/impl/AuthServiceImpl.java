@@ -38,6 +38,7 @@ import java.util.Base64;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashSet;
+import java.util.Optional;
 import java.util.Set;
 
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
@@ -444,7 +445,7 @@ public class AuthServiceImpl implements AuthService{
     }
     
     @Override
-    @Transactional(rollbackFor = {Exception.class}, noRollbackFor = {AuthenticationException.class, RegistrationException.class})
+    @Transactional(rollbackFor = {Exception.class}, noRollbackFor = {AuthenticationException.class, RegistrationException.class, DataIntegrityViolationException.class})
     public AuthResponse signInWithGoogle(String googleIdToken) {
         if (googleClientId == null || googleClientId.isEmpty()) {
             throw new AuthenticationException("Google OAuth chưa được cấu hình. Vui lòng liên hệ quản trị viên.");
@@ -551,12 +552,36 @@ public class AuthServiceImpl implements AuthService{
             // Lưu user với error handling cho duplicate key
             try {
                 user = userRepository.save(user);
+                // Flush để đảm bảo user được lưu ngay và có thể detect duplicate key violation sớm
+                userRepository.flush();
             } catch (DataIntegrityViolationException e) {
-                log.error("Data integrity violation when saving user: {}", e.getMessage());
+                log.warn("Data integrity violation when saving user (likely duplicate). Retrying by finding existing user: {}", e.getMessage());
                 // Kiểm tra lại user có thể đã được tạo bởi concurrent request
-                user = userRepository.findByGoogleId(googleId)
-                        .orElseGet(() -> userRepository.findByEmail(email)
-                                .orElseThrow(() -> new AuthenticationException("Không thể tạo hoặc cập nhật tài khoản. Vui lòng thử lại.")));
+                User existingUser = userRepository.findByGoogleId(googleId).orElse(null);
+                if (existingUser != null) {
+                    user = existingUser;
+                    log.info("Found existing user by Google ID: {}", googleId);
+                } else {
+                    existingUser = userRepository.findByEmail(email).orElse(null);
+                    if (existingUser != null) {
+                        user = existingUser;
+                        // Link Google ID nếu chưa có
+                        if (user.getGoogleId() == null) {
+                            user.setGoogleId(googleId);
+                            try {
+                                user = userRepository.save(user);
+                            } catch (DataIntegrityViolationException e2) {
+                                // Nếu vẫn lỗi, có thể Google ID đã được sử dụng bởi user khác
+                                log.error("Cannot link Google ID to user. Google ID: {}, Email: {}", googleId, email);
+                                throw new AuthenticationException("Không thể liên kết tài khoản Google. Vui lòng thử lại.");
+                            }
+                        }
+                        log.info("Found existing user by email: {}", email);
+                    } else {
+                        log.error("Cannot find user after DataIntegrityViolationException. Google ID: {}, Email: {}", googleId, email);
+                        throw new AuthenticationException("Không thể tạo hoặc cập nhật tài khoản. Vui lòng thử lại.");
+                    }
+                }
             }
             
             // Generate JWT tokens
