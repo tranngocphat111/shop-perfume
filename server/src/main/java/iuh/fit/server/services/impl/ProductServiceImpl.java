@@ -2,6 +2,7 @@ package iuh.fit.server.services.impl;
 
 import iuh.fit.server.dto.request.ProductRequest;
 import iuh.fit.server.dto.response.ProductResponse;
+import iuh.fit.server.dto.response.ProductSummaryResponse;
 import iuh.fit.server.exception.ResourceNotFoundException;
 import iuh.fit.server.mapper.ProductMapper;
 import iuh.fit.server.model.entity.Brand;
@@ -418,6 +419,31 @@ public class ProductServiceImpl implements ProductService {
         Long totalSize = productRepository.count();
         log.info("Get total size: {}", totalSize);
         return totalSize;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ProductSummaryResponse> getProductSummaries(String status) {
+        log.info("Getting product summaries with status: {}", status);
+        
+        List<Product> products;
+        if (status != null && !status.trim().isEmpty()) {
+            try {
+                ProductStatus productStatus = ProductStatus.valueOf(status.toUpperCase());
+                products = productRepository.findByStatus(productStatus);
+                log.info("Found {} products with status {}", products.size(), productStatus);
+            } catch (IllegalArgumentException e) {
+                log.warn("Invalid status: {}, returning all products", status);
+                products = productRepository.findAll();
+            }
+        } else {
+            products = productRepository.findAll();
+            log.info("Found {} products (all statuses)", products.size());
+        }
+        
+        return products.stream()
+                .map(product -> new ProductSummaryResponse(product.getProductId(), product.getName()))
+                .collect(Collectors.toList());
     }
 }
 

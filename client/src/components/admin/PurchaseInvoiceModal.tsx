@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import * as XLSX from "xlsx";
-import type { Supplier, Product, PurchaseInvoiceFormData } from "../../types";
+import type { Supplier, PurchaseInvoiceFormData } from "../../types";
+import type { ProductSummary } from "../../services/product.service";
 
 interface PurchaseInvoiceModalProps {
   isOpen: boolean;
@@ -9,7 +10,7 @@ interface PurchaseInvoiceModalProps {
   initialData?: PurchaseInvoiceFormData;
   mode: "add" | "edit" | "view";
   suppliers: Supplier[];
-  products: Product[];
+  products: ProductSummary[];
   isSubmitting?: boolean;
 }
 
@@ -364,42 +365,42 @@ export const PurchaseInvoiceModal = ({
           {/* Excel Import Section */}
           {!isReadOnly && (
             <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
-            <div className="flex items-center justify-between mb-3">
-              <h4 className="font-semibold text-gray-700">
-                <i className="fas fa-file-excel text-green-600 mr-2"></i>
-                Excel Import
-              </h4>
-              <button
-                type="button"
-                onClick={handleDownloadTemplate}
-                disabled={isSubmitting}
-                className="text-sm text-blue-600 hover:text-blue-700 underline disabled:opacity-50 disabled:cursor-not-allowed">
-                <i className="fas fa-download mr-1"></i>
-                Download Template
-              </button>
-            </div>
-            <div className="flex gap-3">
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".xlsx,.xls"
-                onChange={handleExcelImport}
-                disabled={isSubmitting}
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
-              />
-              <button
-                type="button"
-                onClick={handleAddDetail}
-                disabled={isSubmitting}
-                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-                <i className="fas fa-plus mr-2"></i>
-                Add Row
-              </button>
-            </div>
-            <p className="text-xs text-gray-500 mt-2">
-              Upload an Excel file with columns: ProductID, Quantity,
-              ImportPrice
-            </p>
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="font-semibold text-gray-700">
+                  <i className="fas fa-file-excel text-green-600 mr-2"></i>
+                  Excel Import
+                </h4>
+                <button
+                  type="button"
+                  onClick={handleDownloadTemplate}
+                  disabled={isSubmitting}
+                  className="text-sm text-blue-600 hover:text-blue-700 underline disabled:opacity-50 disabled:cursor-not-allowed">
+                  <i className="fas fa-download mr-1"></i>
+                  Download Template
+                </button>
+              </div>
+              <div className="flex gap-3">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".xlsx,.xls"
+                  onChange={handleExcelImport}
+                  disabled={isSubmitting}
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+                />
+                <button
+                  type="button"
+                  onClick={handleAddDetail}
+                  disabled={isSubmitting}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                  <i className="fas fa-plus mr-2"></i>
+                  Add Row
+                </button>
+              </div>
+              <p className="text-xs text-gray-500 mt-2">
+                Upload an Excel file with columns: ProductID, Quantity,
+                ImportPrice
+              </p>
             </div>
           )}
 
@@ -548,14 +549,14 @@ export const PurchaseInvoiceModal = ({
                         </td>
                         {!isReadOnly && (
                           <td className="px-4 py-3 text-center">
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveDetail(index)}
-                            disabled={isSubmitting}
-                            className="text-red-600 hover:text-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                            title="Remove">
-                            <i className="fas fa-trash"></i>
-                          </button>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveDetail(index)}
+                              disabled={isSubmitting}
+                              className="text-red-600 hover:text-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                              title="Remove">
+                              <i className="fas fa-trash"></i>
+                            </button>
                           </td>
                         )}
                       </tr>

@@ -2,6 +2,7 @@ package iuh.fit.server.services;
 
 import iuh.fit.server.dto.request.ProductRequest;
 import iuh.fit.server.dto.response.ProductResponse;
+import iuh.fit.server.dto.response.ProductSummaryResponse;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.web.multipart.MultipartFile;
@@ -81,5 +82,12 @@ public interface ProductService {
     List<ProductResponse> findByCategoryId(int categoryId);
 
     Long getTotalSize();
+
+    /**
+     * Lấy danh sách tóm tắt sản phẩm (chỉ id và tên) để tối ưu hóa performance
+     * @param status Trạng thái sản phẩm (ACTIVE, INACTIVE, hoặc null cho tất cả)
+     * @return Danh sách ProductSummaryResponse
+     */
+    List<ProductSummaryResponse> getProductSummaries(String status);
 }
 
