@@ -34,6 +34,7 @@ import { Footer } from "./components/Footer";
 import { Suppliers } from "./pages/admin/Suppliers";
 import { PurchaseInvoices } from "./pages/admin/PurchaseInvoices";
 import { Orders } from "./pages/admin/Orders";
+import { Customers } from "./pages/admin/Customers";
 import { ScrollToTop } from "./components/ScrollToTop";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { Contact } from "./pages/Contact";
@@ -245,6 +246,14 @@ function AppContent() {
             element={
               <AdminRoute>
                 <Orders />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/customers"
+            element={
+              <AdminRoute>
+                <Customers />
               </AdminRoute>
             }
           />

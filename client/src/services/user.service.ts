@@ -17,6 +17,8 @@ export interface ChangePasswordRequest {
   newPassword: string;
 }
 
+import type { UserDetailResponse, PageResponse } from '../types';
+
 export const userService = {
   /**
    * Get current user info including loyalty points
@@ -36,6 +38,36 @@ export const userService = {
   },
 
   /**
+   * Get users with pagination (Admin)
+   */
+  getUsersPage: async (
+    page: number,
+    size: number,
+    sortBy?: string,
+    direction?: string,
+    search?: string
+  ): Promise<PageResponse<UserDetailResponse>> => {
+    let url = `/admin/users/page?page=${page}&size=${size}`;
+
+    if (sortBy && direction) {
+      url += `&sortBy=${sortBy}&direction=${direction}`;
+    }
+
+    if (search && search.trim() !== "") {
+      url += `&search=${encodeURIComponent(search.trim())}`;
+    }
+
+    return apiService.get<PageResponse<UserDetailResponse>>(url);
+  },
+
+  /**
+   * Get user by ID (Admin)
+   */
+  getUserById: async (userId: number): Promise<UserDetailResponse> => {
+    return apiService.get<UserDetailResponse>(`/admin/users/${userId}`);
+  },
+
+  /**
    * Update user profile (name)
    */
   updateProfile: async (request: UpdateUserRequest): Promise<UserInfo> => {
@@ -46,7 +78,7 @@ export const userService = {
       console.error('Error updating profile:', error);
       // Handle different error formats
       let errorMessage = 'Không thể cập nhật thông tin';
-      
+
       if (error instanceof Error) {
         errorMessage = error.message;
       } else if (error?.response?.data?.message) {
@@ -56,7 +88,7 @@ export const userService = {
       } else if (typeof error === 'string') {
         errorMessage = error;
       }
-      
+
       throw new Error(errorMessage);
     }
   },
@@ -70,7 +102,7 @@ export const userService = {
     } catch (error: any) {
       console.error('Error changing password:', error);
       let errorMessage = 'Không thể đổi mật khẩu';
-      
+
       if (error instanceof Error) {
         errorMessage = error.message;
       } else if (error?.response?.data?.message) {
@@ -80,7 +112,7 @@ export const userService = {
       } else if (typeof error === 'string') {
         errorMessage = error;
       }
-      
+
       throw new Error(errorMessage);
     }
   },
