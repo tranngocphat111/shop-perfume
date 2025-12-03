@@ -15,6 +15,7 @@ import {
   CODSuccessActions,
   OrderSummarySidebar,
 } from '../components/payment';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 interface PaymentLocationState {
   order: OrderResponse;
@@ -117,6 +118,12 @@ export const Payment: React.FC = () => {
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [order, state]);
+
+  usePageTitle({
+    title: "Xác nhận thanh toán - STPN Perfume",
+    description: "Xác nhận và hoàn tất thanh toán cho đơn hàng của bạn. Quét mã QR hoặc thanh toán khi nhận hàng.",
+    image: "https://res.cloudinary.com/piin/image/upload/v1762171215/banner.zip-2_gdvc0y.jpg"
+  });
 
   // Redirect if no state
   useEffect(() => {

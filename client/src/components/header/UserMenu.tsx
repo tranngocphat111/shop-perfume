@@ -203,9 +203,9 @@ export const UserMenu = ({
                   <Link
                     to="/login"
                     onClick={() => setShowUserMenu(false)}
-                    className="block w-full px-4 py-2 text-sm font-medium text-white bg-black rounded-full hover:bg-gray-800 transition-colors text-center"
+                    className="btn-slide-overlay-dark relative overflow-hidden block w-full px-4 py-2 text-sm font-medium text-white bg-black rounded-full hover:bg-gray-800 transition-colors text-center"
                   >
-                    Đăng nhập ngay
+                    <span className="relative z-index-10">Đăng nhập ngay</span>
                   </Link>
                 </div>
               </motion.div>

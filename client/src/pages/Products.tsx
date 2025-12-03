@@ -50,9 +50,17 @@ const setCachedData = <T,>(key: string, data: T): void => {
   }
 };
 
+import { usePageTitle } from "../hooks/usePageTitle";
+
 export const Products = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+
+  usePageTitle({
+    title: "Sản phẩm - STPN Perfume",
+    description: "Khám phá bộ sưu tập nước hoa đa dạng với nhiều thương hiệu và mức giá khác nhau. Tìm kiếm sản phẩm phù hợp với sở thích của bạn.",
+    image: "https://res.cloudinary.com/piin/image/upload/v1762171215/banner.zip-2_gdvc0y.jpg"
+  });
 
   // Use filter context
   const {

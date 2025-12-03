@@ -5,6 +5,7 @@ import { GoogleLogin } from "@react-oauth/google";
 import { authService } from "../../services/auth.service";
 import { useAuth } from "../../contexts/AuthContext";
 import { useCart } from "../../contexts/CartContext";
+import { usePageTitle } from "../../hooks/usePageTitle";
 
 const getErrorMessage = (error: unknown): string => {
   if (error && typeof error === "object" && "message" in error) {
@@ -34,6 +35,12 @@ const Login: React.FC = () => {
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
+
+  usePageTitle({
+    title: "Đăng nhập - STPN Perfume",
+    description: "Đăng nhập vào tài khoản của bạn để mua sắm và quản lý đơn hàng.",
+    image: "https://res.cloudinary.com/piin/image/upload/v1762171215/banner.zip-2_gdvc0y.jpg"
+  });
 
   // Redirect if already logged in
   if (isAuthenticated) {

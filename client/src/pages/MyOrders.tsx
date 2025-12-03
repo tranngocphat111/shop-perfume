@@ -17,6 +17,7 @@ import { reviewService } from '../services/review.service';
 import { FaSpinner } from 'react-icons/fa';
 import { X, Calendar as CalendarIcon, Tag, ChevronLeft, ChevronRight } from 'lucide-react';
 import { CustomSelect } from '../components/profile/CustomSelect';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 type FilterStatus = 'ALL' | 'PENDING' | 'PAID' | 'FAILED';
 type FilterDate = 'ALL' | 'TODAY' | 'WEEK' | 'MONTH' | 'CUSTOM';
@@ -26,6 +27,12 @@ const ITEMS_PER_PAGE = 2;
 export const MyOrders: React.FC = () => {
   const location = useLocation();
   const { user, isAuthenticated } = useAuth();
+
+  usePageTitle({
+    title: "Tra cứu đơn hàng - STPN Perfume",
+    description: "Tra cứu và xem chi tiết các đơn hàng của bạn bằng email đã sử dụng khi đặt hàng.",
+    image: "https://res.cloudinary.com/piin/image/upload/v1762171215/banner.zip-2_gdvc0y.jpg"
+  });
   const [orders, setOrders] = useState<OrderResponse[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

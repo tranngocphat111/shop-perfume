@@ -6,9 +6,16 @@ import {
   AboutStory,
   AboutCommitment,
 } from "../components/about";
+import { usePageTitle } from "../hooks/usePageTitle";
 
 export const About = () => {
   const [isLoading, setIsLoading] = useState(true);
+
+  usePageTitle({
+    title: "Về chúng tôi - STPN Perfume",
+    description: "Tìm hiểu về STPN Perfume - Cửa hàng nước hoa chính hãng với cam kết chất lượng và dịch vụ tốt nhất.",
+    image: "https://res.cloudinary.com/piin/image/upload/v1762171215/banner.zip-2_gdvc0y.jpg"
+  });
 
   // Scroll to top when component mounts
   useEffect(() => {

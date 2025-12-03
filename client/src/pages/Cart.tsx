@@ -7,6 +7,7 @@ import { EmptyCart } from "../components/cart/EmptyCart";
 import { CartTable } from "../components/cart/CartTable";
 import CartSummary from "../components/cart/CartSummary";
 import { formatCurrency } from "../utils/helpers";
+import { usePageTitle } from "../hooks/usePageTitle";
 
 export const Cart = () => {
   const {
@@ -46,6 +47,12 @@ export const Cart = () => {
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
+
+  usePageTitle({
+    title: "Giỏ hàng - STPN Perfume",
+    description: "Xem và quản lý các sản phẩm trong giỏ hàng của bạn. Tiến hành thanh toán để hoàn tất đơn hàng.",
+    image: "https://res.cloudinary.com/piin/image/upload/v1762171215/banner.zip-2_gdvc0y.jpg"
+  });
 
   // Loading effect - wait for cart to finish loading
   useEffect(() => {

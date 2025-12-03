@@ -1,7 +1,14 @@
 import { useEffect } from "react";
 import { Link } from "react-router-dom";
+import { usePageTitle } from "../hooks/usePageTitle";
 
 export const PrivacyPolicy = () => {
+  usePageTitle({
+    title: "Chính sách bảo mật - STPN Perfume",
+    description: "Chính sách bảo mật thông tin cá nhân và quyền riêng tư của khách hàng tại STPN Perfume.",
+    image: "https://res.cloudinary.com/piin/image/upload/v1762171215/banner.zip-2_gdvc0y.jpg"
+  });
+
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, []);

@@ -9,6 +9,8 @@ import { ProductBreadcrumb } from "../components/productDetail/ProductBreadcrumb
 import { ProductImages } from "../components/productDetail/ProductImages";
 import { ProductInfo } from "../components/productDetail/ProductInfo";
 import { ProductTabs } from "../components/productDetail/ProductTabs";
+import { usePageTitle } from "../hooks/usePageTitle";
+import { getPrimaryImageUrl } from "../utils/helpers";
 import { RelatedProducts } from "../components/productDetail/RelatedProducts";
 
 export const ProductDetail = () => {
@@ -34,6 +36,15 @@ export const ProductDetail = () => {
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, [id]);
+
+  // Set page title and meta tags
+  usePageTitle({
+    title: product ? `${product.name} - STPN Perfume` : "Chi tiết sản phẩm - STPN Perfume",
+    description: product 
+      ? `${product.name} - ${product.brand?.name || ''} ${product.category?.name || ''}. ${product.description || 'Nước hoa chính hãng chất lượng cao.'}`
+      : "Chi tiết sản phẩm nước hoa chính hãng",
+    image: product ? getPrimaryImageUrl(product) : "https://res.cloudinary.com/piin/image/upload/v1762171215/banner.zip-2_gdvc0y.jpg"
+  });
 
   // Fetch main product data (critical - hiển thị ngay)
   useEffect(() => {

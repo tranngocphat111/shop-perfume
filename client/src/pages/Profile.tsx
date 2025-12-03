@@ -7,6 +7,7 @@ import { AccountInfo } from "@components/profile/AccountInfo";
 import { Addresses } from "@components/profile/Addresses";
 import { Orders } from "@components/profile/Orders";
 import { ChangePassword } from "@components/profile/ChangePassword";
+import { usePageTitle } from "../hooks/usePageTitle";
 
 const Profile: React.FC = () => {
   const location = useLocation();
@@ -18,6 +19,12 @@ const Profile: React.FC = () => {
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [location.pathname]);
+
+  usePageTitle({
+    title: "Tài khoản - STPN Perfume",
+    description: "Quản lý thông tin tài khoản, địa chỉ giao hàng, đơn hàng và thay đổi mật khẩu.",
+    image: "https://res.cloudinary.com/piin/image/upload/v1762171215/banner.zip-2_gdvc0y.jpg"
+  });
   
   // Check if navigating with activeTab state
   useEffect(() => {

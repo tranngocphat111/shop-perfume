@@ -3,6 +3,7 @@ import { Link, useNavigate, Navigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { authService } from "../../services/auth.service";
 import { useAuth } from "../../contexts/AuthContext";
+import { usePageTitle } from "../../hooks/usePageTitle";
 
 const getErrorMessage = (error: unknown): string => {
   if (error && typeof error === "object" && "message" in error) {
@@ -64,6 +65,12 @@ const Register: React.FC = () => {
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
+
+  usePageTitle({
+    title: "Đăng ký - STPN Perfume",
+    description: "Tạo tài khoản mới để trải nghiệm mua sắm nước hoa chính hãng và nhận nhiều ưu đãi.",
+    image: "https://res.cloudinary.com/piin/image/upload/v1762171215/banner.zip-2_gdvc0y.jpg"
+  });
 
   if (isAuthenticated) {
     return <Navigate to="/" replace />;

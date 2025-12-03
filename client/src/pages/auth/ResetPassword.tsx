@@ -3,6 +3,7 @@ import { Link, useParams, useNavigate, Navigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { authService } from "../../services/auth.service";
 import { useAuth } from "../../contexts/AuthContext";
+import { usePageTitle } from "../../hooks/usePageTitle";
 
 const getErrorMessage = (error: unknown): string => {
   if (error && typeof error === "object" && "message" in error) {
@@ -52,6 +53,12 @@ const ResetPassword: React.FC = () => {
   const [error, setError] = useState<string>("");
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  usePageTitle({
+    title: "Đặt lại mật khẩu - STPN Perfume",
+    description: "Đặt lại mật khẩu mới cho tài khoản của bạn.",
+    image: "https://res.cloudinary.com/piin/image/upload/v1762171215/banner.zip-2_gdvc0y.jpg"
+  });
 
   // Redirect if no token - must be before any early returns
   useEffect(() => {

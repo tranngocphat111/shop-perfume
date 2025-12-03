@@ -1,9 +1,16 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { ContactForm, ContactInfo, ContactMap } from '../components/contact';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 export const Contact = () => {
   const [isLoading, setIsLoading] = useState(true);
+
+  usePageTitle({
+    title: "Liên hệ - STPN Perfume",
+    description: "Liên hệ với chúng tôi để được tư vấn về sản phẩm nước hoa hoặc giải đáp thắc mắc.",
+    image: "https://res.cloudinary.com/piin/image/upload/v1762171215/banner.zip-2_gdvc0y.jpg"
+  });
 
   // Scroll to top when component mounts
   useEffect(() => {

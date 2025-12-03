@@ -3,6 +3,7 @@ import { Link, Navigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { authService } from "../../services/auth.service";
 import { useAuth } from "../../contexts/AuthContext";
+import { usePageTitle } from "../../hooks/usePageTitle";
 
 const getErrorMessage = (error: unknown): string => {
   if (error && typeof error === "object" && "message" in error) {
@@ -21,6 +22,12 @@ const ForgotPassword: React.FC = () => {
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
   const { isAuthenticated } = useAuth();
+
+  usePageTitle({
+    title: "Quên mật khẩu - STPN Perfume",
+    description: "Khôi phục mật khẩu tài khoản của bạn bằng email đã đăng ký.",
+    image: "https://res.cloudinary.com/piin/image/upload/v1762171215/banner.zip-2_gdvc0y.jpg"
+  });
 
   // Redirect if already logged in
   if (isAuthenticated) {

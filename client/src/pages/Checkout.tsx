@@ -15,6 +15,7 @@ import { couponService, type Coupon } from '../services/coupon.service';
 import { userService, type UserInfo } from '../services/user.service';
 import { useCheckoutOrder } from '../hooks/useCheckoutOrder';
 import type { CheckoutFormData } from '../types';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 const initialFormData: CheckoutFormData = {
   fullName: '',
@@ -65,6 +66,12 @@ export const Checkout: React.FC = () => {
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
+
+  usePageTitle({
+    title: "Thanh toán - STPN Perfume",
+    description: "Hoàn tất thông tin giao hàng và chọn phương thức thanh toán để đặt hàng.",
+    image: "https://res.cloudinary.com/piin/image/upload/v1762171215/banner.zip-2_gdvc0y.jpg"
+  });
 
   // Redirect if cart is empty (but allow navigation to payment page first)
   useEffect(() => {

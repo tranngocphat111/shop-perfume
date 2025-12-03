@@ -49,9 +49,9 @@ export const CartDropdown = ({ isVisible, onClose }: CartDropdownProps) => {
                 <Link
                   to="/products"
                   onClick={onClose}
-                  className="inline-block px-4 py-2 text-sm font-medium text-white bg-black rounded-full hover:bg-gray-800 transition-colors"
+                  className="btn-slide-overlay-dark relative overflow-hidden inline-block px-5 py-2 text-sm font-medium text-white bg-black rounded-full hover:bg-gray-800 transition-colors"
                 >
-                  Mua sắm ngay
+                  <span className="relative z-index-10">Mua sắm ngay</span>
                 </Link>
               </div>
             </div>

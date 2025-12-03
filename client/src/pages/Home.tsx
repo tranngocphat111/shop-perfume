@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import {
   HeroCarousel,
   CategoriesSection,
@@ -5,8 +6,14 @@ import {
   AboutSection,
 } from "../components/home";
 import type { HeroSlide, HomeCategory } from "../types/home";
+import { usePageTitle } from "../hooks/usePageTitle";
 
 export const Home = () => {
+  usePageTitle({
+    title: "STPN Perfume - Trang chủ",
+    description: "Khám phá bộ sưu tập nước hoa chính hãng đa dạng với các thương hiệu cao cấp. Tìm kiếm hương thơm phù hợp với phong cách của bạn.",
+    image: "https://res.cloudinary.com/piin/image/upload/v1762171215/banner.zip-2_gdvc0y.jpg"
+  });
 
   const heroSlides: HeroSlide[] = [
     {
