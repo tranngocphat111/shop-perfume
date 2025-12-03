@@ -134,17 +134,40 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
         
         // Skip JWT filter for public auth endpoints (login, register, refresh, forgot-password, reset-password)
-        // But NOT for /auth/me (requires authentication)
-        if ((pathToCheck != null && pathToCheck.startsWith("/auth/")) || 
+        // But NOT for /auth/me and /auth/change-password (requires authentication)
+        if ((pathToCheck != null && pathToCheck.startsWith("/auth/")) ||
             (requestURI != null && requestURI.startsWith("/api/auth/"))) {
+
             // Don't skip /auth/me - it needs authentication
             if ((pathToCheck != null && (pathToCheck.equals("/auth/me") || pathToCheck.endsWith("/auth/me"))) ||
                 (requestURI != null && (requestURI.endsWith("/auth/me") || requestURI.contains("/auth/me")))) {
                 logger.debug("JWT filter will process /auth/me - requires authentication");
                 return false; // Process JWT filter for /auth/me
             }
+
+            // Don't skip /auth/change-password - it needs authentication
+            if ((pathToCheck != null && (pathToCheck.equals("/auth/change-password") || pathToCheck.endsWith("/auth/change-password"))) ||
+                (requestURI != null && (requestURI.endsWith("/auth/change-password") || requestURI.contains("/auth/change-password")))) {
+                logger.debug("JWT filter will process /auth/change-password - requires authentication");
+                return false; // Process JWT filter for /auth/change-password
+            }
+
+            // Don't skip /auth/logout - it needs authentication
+            if ((pathToCheck != null && (pathToCheck.equals("/auth/logout") || pathToCheck.endsWith("/auth/logout"))) ||
+                (requestURI != null && (requestURI.endsWith("/auth/logout") || requestURI.contains("/auth/logout")))) {
+                logger.debug("JWT filter will process /auth/logout - requires authentication");
+                return false; // Process JWT filter for /auth/logout
+            }
+
+            // Don't skip /auth/debug/auth-status - it needs authentication
+            if ((pathToCheck != null && pathToCheck.contains("/auth/debug/auth-status")) ||
+                (requestURI != null && requestURI.contains("/auth/debug/auth-status"))) {
+                logger.debug("JWT filter will process /auth/debug/auth-status - requires authentication");
+                return false; // Process JWT filter for debug endpoint
+            }
+
             logger.debug("Skipping JWT filter for public auth endpoint: servletPath=" + servletPath + ", requestURI=" + requestURI + ", pathToCheck=" + pathToCheck);
-            return true; // Skip for other auth endpoints
+            return true; // Skip for other auth endpoints (login, register, etc.)
         }
         
         // Skip JWT filter for swagger/docs
