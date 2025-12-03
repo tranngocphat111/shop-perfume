@@ -10,6 +10,7 @@ interface CartContextType {
   isCartLoading: boolean; // Track if cart is still loading
   addToCart: (product: Product, quantity: number) => Promise<void>;
   removeFromCart: (productId: number) => void;
+  removeMultipleFromCart: (productIds: number[]) => void; // Remove multiple items at once
   updateQuantity: (productId: number, quantity: number) => void;
   clearCart: () => void;
   getCartTotal: () => number;
@@ -424,6 +425,21 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     });
   };
 
+  // Remove multiple items at once to avoid race condition with sync
+  const removeMultipleFromCart = (productIds: number[]) => {
+    setCart((prevCart) => {
+      const newItems = prevCart.items.filter(
+        (item) => !productIds.includes(item.product.productId)
+      );
+      
+      return {
+        items: newItems,
+        total: calculateTotal(newItems),
+        totalItems: calculateTotalItems(newItems),
+      };
+    });
+  };
+
   const updateQuantity = (productId: number, quantity: number) => {
     if (quantity <= 0) {
       removeFromCart(productId);
@@ -511,6 +527,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         isCartLoading,
         addToCart,
         removeFromCart,
+        removeMultipleFromCart,
         updateQuantity,
         clearCart,
         getCartTotal,

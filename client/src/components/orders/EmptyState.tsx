@@ -23,9 +23,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
         <FaSearch className="text-6xl text-gray-300 mx-auto mb-4" />
         <h3 className="text-xl font-semibold text-gray-700 mb-2">Nhập email để tra cứu đơn hàng</h3>
         <p className="text-gray-500">
-          {isAuthenticated
-            ? 'Email của bạn đã được điền sẵn. Nhấn "Tìm kiếm" để xem đơn hàng.'
-            : 'Vui lòng nhập email bạn đã sử dụng khi đặt hàng để xem các đơn hàng của bạn.'}
+          Vui lòng nhập email bạn đã sử dụng khi đặt hàng để xem các đơn hàng của bạn.
         </p>
       </div>
     );

@@ -13,7 +13,53 @@ export const CartDropdown = ({ isVisible, onClose }: CartDropdownProps) => {
   const { cart, getCartTotal, removeFromCart } = useCart();
   const navigate = useNavigate();
 
-  if (cart.items.length === 0) return null;
+  // Hiển thị giỏ hàng trống thay vì return null
+  if (cart.items.length === 0) {
+    return (
+      <AnimatePresence>
+        {isVisible && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 8 }}
+            transition={{ duration: 0.15 }}
+            className="absolute top-full right-[-250px] z-50 w-[340px]"
+          >
+            <div className="relative bg-white rounded-lg shadow-xl border border-gray-200 z-10 overflow-hidden">
+              <div className="py-8 px-4 text-center">
+                <svg
+                  className="w-16 h-16 mx-auto mb-4 text-gray-300"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1.5}
+                    d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"
+                  />
+                </svg>
+                <p className="text-sm font-medium text-gray-700 mb-2">
+                  Giỏ hàng trống
+                </p>
+                <p className="text-xs text-gray-500 mb-4">
+                  Thêm sản phẩm vào giỏ hàng để xem tại đây
+                </p>
+                <Link
+                  to="/products"
+                  onClick={onClose}
+                  className="inline-block px-4 py-2 text-sm font-medium text-white bg-black rounded-full hover:bg-gray-800 transition-colors"
+                >
+                  Mua sắm ngay
+                </Link>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    );
+  }
 
   // Filter items còn hàng để tính tổng
   const availableItems = cart.items.filter(item => 

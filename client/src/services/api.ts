@@ -122,6 +122,30 @@ const isPublicEndpoint = (endpoint: string): boolean => {
     return true;
   }
 
+  // GET requests for products and inventories are public (viewing products doesn't require auth)
+  // Pattern: /products/{id} or /products? or /inventories/product/{id} or /inventories? (GET only)
+  // We check if it's a GET request by checking if it's NOT a POST/PUT/DELETE pattern
+  // Since we can't know the method here, we'll treat all GET-like patterns as potentially public
+  // and handle 401 errors gracefully in handle401Error
+  const publicProductPatterns = [
+    /^\/products\/\d+$/, // GET /products/{id}
+    /^\/products\/category\/\d+$/, // GET /products/category/{id}
+    /^\/products\/brand\/\d+$/, // GET /products/brand/{id}
+    /^\/products\/search/, // GET /products/search
+    /^\/products\/page/, // GET /products/page
+    /^\/products$/, // GET /products
+    /^\/inventories\/product\/\d+$/, // GET /inventories/product/{id}
+    /^\/inventories\/product\/\d+\/available$/, // GET /inventories/product/{id}/available
+    /^\/inventories\/best-sellers/, // GET /inventories/best-sellers
+    /^\/inventories\/lowStock$/, // GET /inventories/lowStock
+    /^\/inventories\/page/, // GET /inventories/page
+    /^\/inventories$/, // GET /inventories
+  ];
+
+  if (publicProductPatterns.some((pattern) => pattern.test(endpoint))) {
+    return true; // Public - guest can view products and inventories
+  }
+
   // Protected endpoints that require authentication - always send token
   const protectedEndpoints = [
     "/auth/me",
@@ -129,8 +153,6 @@ const isPublicEndpoint = (endpoint: string): boolean => {
     "/auth/update",
     "/admin/", // All admin endpoints require ADMIN role
     "/dashboard/", // Dashboard requires ADMIN role
-    "/products/", // Products: POST/PUT/DELETE require ADMIN, GET is public but send token anyway
-    "/inventories/", // Inventories: PUT requires ADMIN, GET is public but send token anyway
     "/addresses/", // All addresses endpoints require authentication
     "/carts/", // All cart endpoints require authentication
     "/reviews/", // Review endpoints require authentication
@@ -177,6 +199,15 @@ const handle401Error = async <T>(
     return Promise.reject(new Error("Unauthorized"));
   }
 
+  // Check if user has a refresh token (i.e., was previously authenticated)
+  // If no refresh token exists, this is likely a guest user trying to access a protected endpoint
+  // Don't redirect to login for guests - just reject the error
+  const refreshToken = localStorage.getItem("refresh_token");
+  if (!refreshToken) {
+    console.warn(`401 on endpoint ${endpoint} but no refresh token - user is guest, not redirecting`);
+    return Promise.reject(new Error("Unauthorized"));
+  }
+
   // If already retried once, don't retry again to prevent infinite loop
   if (retryCount > 0) {
     console.error("Request failed after retry, logging out");
@@ -206,7 +237,7 @@ const handle401Error = async <T>(
     }
   }
 
-  // If refresh failed, clear auth and redirect
+  // If refresh failed, clear auth and redirect (only if user was previously authenticated)
   clearAuthData();
   const isAdminEndpoint = endpoint.includes("/admin/");
   window.location.href = isAdminEndpoint ? "/admin/login" : "/login";

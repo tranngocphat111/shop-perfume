@@ -153,11 +153,20 @@ public class OrderController {
         try {
             List<OrderResponse> orders;
             
-            // Nếu user đã đăng nhập, dùng userId
-            log.info("🔵 [getMyOrders] Authentication check: authentication={}, isAuthenticated={}", 
+            log.info("🔵 [getMyOrders] Authentication check: authentication={}, isAuthenticated={}, email param={}", 
                     authentication != null ? "present" : "null",
-                    authentication != null ? authentication.isAuthenticated() : false);
+                    authentication != null ? authentication.isAuthenticated() : false,
+                    email);
             
+            // ƯU TIÊN: Nếu có email parameter, luôn search theo email (cho cả authenticated và guest)
+            if (email != null && !email.trim().isEmpty()) {
+                log.info("✅ [getMyOrders] Email parameter provided, searching by email: {}", email);
+                orders = orderService.getOrdersByEmail(email.trim());
+                log.info("✅ [getMyOrders] Found {} orders for email: {}", orders.size(), email);
+                return ResponseEntity.ok(orders);
+            }
+            
+            // Nếu không có email parameter và user đã đăng nhập, dùng userId
             if (authentication != null && authentication.isAuthenticated() && 
                 !authentication.getPrincipal().equals("anonymousUser")) {
                 try {
@@ -181,29 +190,14 @@ public class OrderController {
                     }
                 } catch (Exception e) {
                     log.error("❌ [getMyOrders] Error getting orders by userId: {}", e.getMessage(), e);
-                    // Fallback về email search
+                    // Trả về empty list thay vì lỗi
+                    return ResponseEntity.ok(new java.util.ArrayList<>());
                 }
             } else {
-                log.info("ℹ️ [getMyOrders] No authentication or anonymous user - will use email search");
-            }
-            
-            // Nếu có email parameter hoặc không đăng nhập, dùng email
-            String searchEmail = null;
-            if (email != null && !email.isEmpty()) {
-                searchEmail = email;
-            } else if (authentication != null && authentication.isAuthenticated()) {
-                UserDetails userDetails = (UserDetails) authentication.getPrincipal();
-                searchEmail = userDetails.getUsername();
-            } else {
-                // Guest không có email param → trả về empty list
+                // Không có email parameter và không đăng nhập → trả về empty list
+                log.info("ℹ️ [getMyOrders] No email parameter and not authenticated - returning empty list");
                 return ResponseEntity.ok(new java.util.ArrayList<>());
             }
-            
-            // Get orders by email (for guest or fallback)
-            log.info("Getting orders by email: {}", searchEmail);
-            orders = orderService.getOrdersByEmail(searchEmail);
-            
-            return ResponseEntity.ok(orders);
         } catch (Exception e) {
             log.error("Error getting orders", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)

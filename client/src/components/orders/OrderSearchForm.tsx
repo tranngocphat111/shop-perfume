@@ -32,7 +32,7 @@ export const OrderSearchForm: React.FC<OrderSearchFormProps> = ({
             id="email"
             value={email}
             onChange={(e) => onEmailChange(e.target.value)}
-            placeholder={isAuthenticated ? "Email của bạn đã được điền sẵn. Nhập email khác để tra cứu đơn hàng khác." : "Nhập email bạn đã dùng khi đặt hàng"}
+            placeholder="Nhập email bạn đã dùng khi đặt hàng"
             className="w-full px-6 py-2 border border-gray-300 rounded-full  focus:border-black outline-none"
             required
           />

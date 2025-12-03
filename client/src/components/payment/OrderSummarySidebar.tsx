@@ -29,12 +29,6 @@ export const OrderSummarySidebar: React.FC<OrderSummarySidebarProps> = ({ order 
           <div className="text-slate-500 mb-2 text-sm">Địa chỉ</div>
           <div className="font-semibold text-slate-800">{order.guestAddress}</div>
         </div>
-        <div className="pt-4 border-t-2 border-slate-300">
-          <div className="flex justify-between items-center">
-            <span className="text-slate-700 font-semibold">Tổng tiền</span>
-            <span className="text-xl font-bold text-slate-800">{formatCurrency(order.totalAmount)} ₫</span>
-          </div>
-        </div>
       </div>
     </div>
   );

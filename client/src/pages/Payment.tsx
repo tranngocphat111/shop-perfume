@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { FaSpinner } from 'react-icons/fa';
 import { apiService } from '../services/api';
-import { useCart } from '../contexts/CartContext';
 import type { OrderResponse } from '../types';
 import { generateOrderQRCode } from '../services/sepay';
 import {
@@ -27,8 +26,7 @@ export const Payment: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const state = location.state as PaymentLocationState;
-  const { removeFromCart } = useCart();
-
+  
   const [order, setOrder] = useState<OrderResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isChecking, setIsChecking] = useState(false);
@@ -139,10 +137,10 @@ export const Payment: React.FC = () => {
     setOrder(state.order);
     setIsLoading(false);
 
-    // Generate QR code if needed
+    // Generate QR code if needed - sử dụng order.totalAmount (giá cuối cùng sau discount)
     if (state.paymentMethod === 'qr-payment') {
       console.log('[Payment] 🔵 QR payment detected, generating QR code');
-      generateQRCode(state.order.orderId.toString(), state.totalAmount);
+      generateQRCode(state.order.orderId.toString(), state.order.totalAmount);
     }
     
     // Check timeout immediately
@@ -191,22 +189,8 @@ export const Payment: React.FC = () => {
         console.log('[Payment] Webhook đã xử lý thành công!');
         setIsPaid(true);
         
-        // Chỉ remove các items đã thanh toán thành công khỏi cart
-        const pendingOrderKey = `pending_order_${order.orderId}`;
-        const orderItemsToRemove = localStorage.getItem(pendingOrderKey);
-        if (orderItemsToRemove) {
-          try {
-            const productIds: number[] = JSON.parse(orderItemsToRemove);
-            productIds.forEach(productId => {
-              removeFromCart(productId);
-            });
-            // Xóa key sau khi đã remove
-            localStorage.removeItem(pendingOrderKey);
-            console.log('[Payment] ✅ Removed paid items from cart:', productIds);
-          } catch (error) {
-            console.error('[Payment] ❌ Error removing items from cart:', error);
-          }
-        }
+        // Lưu ý: Items đã được xóa khỏi cart khi tạo đơn thành công (trong useCheckoutOrder)
+        // Không cần xóa lại ở đây
         
         // Redirect to home after 3 seconds
         setTimeout(() => {
@@ -307,7 +291,7 @@ export const Payment: React.FC = () => {
               <>
                 <PaymentInstructions />
                 <OrderItemsList orderItems={order.orderItems} />
-                <QRCodeCard qrUrl={qrUrl} totalAmount={state.totalAmount} orderId={order.orderId} />
+                <QRCodeCard qrUrl={qrUrl} totalAmount={order.totalAmount} orderId={order.orderId} />
                 <OrderInfoCard order={order} />
                 <PaymentStatusCard
                   isCancelled={isCancelled}

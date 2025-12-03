@@ -49,19 +49,17 @@ export const MyOrders: React.FC = () => {
   // Pagination state
   const [currentPage, setCurrentPage] = useState(0);
 
-  // Auto-load orders if user is authenticated or email is passed from navigation
+  // Chỉ auto-load orders nếu có email từ navigation state (guest search)
+  // Không tự động load khi user đã đăng nhập - phải nhập email và submit
   useEffect(() => {
     const state = location.state as { email?: string } | null;
     if (state?.email) {
-      // Guest search by email
+      // Guest search by email từ navigation
       setSearchEmail(state.email);
       fetchOrders(state.email);
-    } else if (isAuthenticated) {
-      // Authenticated user - fetch by userId (no email param)
-      fetchOrders();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated, user, location]);
+  }, [location]);
 
   // Load reviewed products for all orders
   useEffect(() => {
@@ -207,7 +205,12 @@ export const MyOrders: React.FC = () => {
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    fetchOrders();
+    if (!searchEmail.trim()) {
+      setError('Vui lòng nhập email để tra cứu đơn hàng');
+      return;
+    }
+    // Luôn search bằng email từ input (cho cả authenticated và guest)
+    fetchOrders(searchEmail.trim());
   };
 
   const getPaymentMethodLabel = (method: string) => {
@@ -390,9 +393,7 @@ export const MyOrders: React.FC = () => {
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Tra cứu đơn hàng</h1>
           <p className="text-gray-600 text-lg">
-            {isAuthenticated 
-              ? 'Xem lịch sử và trạng thái các đơn hàng của bạn' 
-              : 'Nhập email để tra cứu đơn hàng của bạn'}
+            Xem lịch sử và trạng thái các đơn hàng của bạn
           </p>
         </div>
 

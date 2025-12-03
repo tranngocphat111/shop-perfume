@@ -4,6 +4,7 @@ import { useCart } from '../contexts/CartContext';
 import { useAuth } from '../contexts/AuthContext';
 import { inventoryService } from '../services/inventory.service';
 import { apiService } from '../services/api';
+import { cartService } from '../services/cart.service';
 import type { CheckoutFormData, OrderRequest, OrderResponse } from '../types';
 
 interface UseCheckoutOrderReturn {
@@ -20,7 +21,7 @@ interface UseCheckoutOrderReturn {
 
 export const useCheckoutOrder = (): UseCheckoutOrderReturn => {
   const navigate = useNavigate();
-  const { removeFromCart, refreshCartStock } = useCart();
+  const { removeMultipleFromCart, refreshCartStock, cart } = useCart();
   const { user, isAuthenticated } = useAuth();
   
   const [isProcessing, setIsProcessing] = useState(false);
@@ -156,19 +157,35 @@ export const useCheckoutOrder = (): UseCheckoutOrderReturn => {
           window.dispatchEvent(new Event('refreshUserInfo'));
         }
 
-        // Lưu thông tin order items để remove sau khi payment thành công (cho QR payment)
-        const orderItemsToRemove = cartItems.map(item => item.product.productId);
+        // Remove items khỏi cart ngay khi tạo đơn thành công (cho cả COD và QR)
+        // Vì đơn hàng đã được tạo thành công, items đã được "reserve" cho đơn hàng này
+        const productIdsToRemove = cartItems.map(item => item.product.productId);
         
-        // Nếu là COD, remove items ngay (vì COD = thanh toán khi nhận hàng, order được tạo = đã chấp nhận)
-        if (formData.paymentMethod === 'cod') {
-          // Remove các items đã submit
-          cartItems.forEach(item => {
-            removeFromCart(item.product.productId);
-          });
-        } else {
-          // QR payment: lưu để remove sau khi payment PAID
-          localStorage.setItem(`pending_order_${response.orderId}`, JSON.stringify(orderItemsToRemove));
+        // Tính toán cart items còn lại trước khi remove (để sync với DB)
+        const remainingCartItems = cart.items.filter(
+          item => !productIdsToRemove.includes(item.product.productId)
+        );
+        
+        // Nếu user đã đăng nhập, sync cart với DB TRƯỚC để đảm bảo DB được cập nhật đúng
+        if (isAuthenticated && user?.userId) {
+          const cartItemsToSync = remainingCartItems.map(item => ({
+            productId: item.product.productId,
+            quantity: item.quantity,
+          }));
+          
+          // Sync với DB trước
+          try {
+            await cartService.syncCart(user.userId, cartItemsToSync);
+            console.log('[useCheckoutOrder] ✅ Cart synced with DB after order creation');
+          } catch (syncError) {
+            console.error('[useCheckoutOrder] ❌ Error syncing cart with DB:', syncError);
+            // Không fail order creation nếu sync lỗi - items sẽ được remove khỏi state
+          }
         }
+        
+        // Sau đó mới remove items khỏi state (để UI được cập nhật)
+        removeMultipleFromCart(productIdsToRemove);
+        console.log('[useCheckoutOrder] ✅ Removed items from cart:', productIdsToRemove);
 
         // Navigate to payment page immediately with order information
         navigate('/payment', {
@@ -332,15 +349,31 @@ export const useCheckoutOrder = (): UseCheckoutOrderReturn => {
                   window.dispatchEvent(new Event('refreshUserInfo'));
                 }
                 
-                // Remove items from cart
-                const orderItemsToRemove = cartItems.map(item => item.product.productId);
-                if (savedFormData.paymentMethod === 'cod') {
-                  cartItems.forEach(item => {
-                    removeFromCart(item.product.productId);
-                  });
-                } else {
-                  localStorage.setItem(`pending_order_${matchingOrder.orderId}`, JSON.stringify(orderItemsToRemove));
+                // Remove items from cart (cho cả COD và QR)
+                const productIdsToRemove = cartItems.map(item => item.product.productId);
+                
+                // Tính toán cart items còn lại
+                const remainingCartItems = cart.items.filter(
+                  item => !productIdsToRemove.includes(item.product.productId)
+                );
+                
+                // Nếu user đã đăng nhập, sync cart với DB TRƯỚC
+                if (isAuthenticated && user?.userId) {
+                  const cartItemsToSync = remainingCartItems.map(item => ({
+                    productId: item.product.productId,
+                    quantity: item.quantity,
+                  }));
+                  
+                  try {
+                    await cartService.syncCart(user.userId, cartItemsToSync);
+                    console.log('[useCheckoutOrder] ✅ Cart synced with DB after timeout order creation');
+                  } catch (syncError) {
+                    console.error('[useCheckoutOrder] ❌ Error syncing cart with DB:', syncError);
+                  }
                 }
+                
+                // Sau đó remove items khỏi state
+                removeMultipleFromCart(productIdsToRemove);
                 
                 // Navigate to payment page
                 navigate('/payment', {
@@ -405,7 +438,7 @@ export const useCheckoutOrder = (): UseCheckoutOrderReturn => {
         setIsProcessing(false);
       }
     }
-  }, [navigate, removeFromCart, refreshCartStock]);
+  }, [navigate, removeMultipleFromCart, refreshCartStock, cart, isAuthenticated, user]);
 
   return {
     isProcessing,

@@ -161,9 +161,10 @@ export const UserMenu = ({
           </AnimatePresence>
         </>
       ) : (
-        <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }}>
-          <Link
-            to="/login"
+        <>
+          <motion.button
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.95 }}
             className={`transition-colors p-2 rounded-full ${textColor} ${hoverTextColor}`}
           >
             <svg
@@ -179,8 +180,38 @@ export const UserMenu = ({
                 d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
               />
             </svg>
-          </Link>
-        </motion.div>
+          </motion.button>
+
+          {/* Dropdown Menu for Not Authenticated */}
+          <AnimatePresence>
+            {showUserMenu && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.15 }}
+                className="absolute right-0 z-50 w-56 mt-2 overflow-hidden bg-white border border-gray-100 rounded-lg shadow-xl"
+              >
+                {/* Not Authenticated Message */}
+                <div className="px-4 py-4 text-center border-b border-gray-100">
+                  <p className="text-sm font-medium text-gray-700 mb-2">
+                    Chưa đăng nhập
+                  </p>
+                  <p className="text-xs text-gray-500 mb-4">
+                    Đăng nhập để xem thông tin tài khoản và đơn hàng của bạn
+                  </p>
+                  <Link
+                    to="/login"
+                    onClick={() => setShowUserMenu(false)}
+                    className="block w-full px-4 py-2 text-sm font-medium text-white bg-black rounded-full hover:bg-gray-800 transition-colors text-center"
+                  >
+                    Đăng nhập ngay
+                  </Link>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </>
       )}
     </div>
   );
