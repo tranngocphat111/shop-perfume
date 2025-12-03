@@ -745,21 +745,30 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
                 return false;
             }
             
-            log.info("📊 Order found: ID={}, Payment Status={}, Payment Amount={}", 
-                    orderId, payment.getStatus(), payment.getAmount());
+            log.info("📊 Order found: ID={}, Payment Status={}, Payment Amount={}, Order Total Amount={}", 
+                    orderId, payment.getStatus(), payment.getAmount(), order.getTotalAmount());
             log.info("💰 Webhook Amount: {}", webhookRequest.getTransferAmount());
             
             // NOTE: For testing purposes, QR code amount is divided by 100
-            // So webhook will receive the actual transferred amount (which is 1/100 of order amount)
-            // We need to compare webhook amount with order amount / 100
-            double expectedWebhookAmount = payment.getAmount() / 100.0;
+            // Flow:
+            // 1. Frontend: generateQRCode(orderId, order.totalAmount) - uses order.totalAmount (final amount after discount)
+            // 2. Sepay service: Math.floor(order.totalAmount / 100) - divides by 100 and floors
+            // 3. QR code contains: Math.floor(order.totalAmount / 100)
+            // 4. Webhook receives: actual transferred amount = Math.floor(order.totalAmount / 100)
+            // 5. We compare: Math.floor(order.totalAmount / 100) with webhook amount
+            // 
+            // IMPORTANT: Use Math.floor to match exactly what QR code contains
+            double expectedWebhookAmount = Math.floor(order.getTotalAmount() / 100.0);
             double amountDifference = Math.abs(expectedWebhookAmount - webhookRequest.getTransferAmount());
-            log.info("💵 Expected webhook amount (order amount / 100): {} VND", expectedWebhookAmount);
+            log.info("💵 Order total amount: {} VND", order.getTotalAmount());
+            log.info("💵 Expected webhook amount (Math.floor(order.totalAmount / 100)): {} VND", expectedWebhookAmount);
+            log.info("💵 Actual webhook amount: {} VND", webhookRequest.getTransferAmount());
             log.info("💵 Amount difference: {} VND", amountDifference);
             
-            if (amountDifference > 100) { // Allow 100 VND difference (since amounts are smaller now)
-                log.error("❌ Amount mismatch! Order amount: {}, Expected webhook amount: {}, Actual webhook amount: {}, Difference: {}", 
-                        payment.getAmount(), expectedWebhookAmount, webhookRequest.getTransferAmount(), amountDifference);
+            // Allow 1 VND difference for rounding (should be 0, but allow small tolerance)
+            if (amountDifference > 1) {
+                log.error("❌ Amount mismatch! Order total amount: {}, Payment amount: {}, Expected webhook amount (floored): {}, Actual webhook amount: {}, Difference: {}", 
+                        order.getTotalAmount(), payment.getAmount(), expectedWebhookAmount, webhookRequest.getTransferAmount(), amountDifference);
                 return false;
             }
             
