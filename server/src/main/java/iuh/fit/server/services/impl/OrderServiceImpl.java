@@ -749,13 +749,17 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
                     orderId, payment.getStatus(), payment.getAmount());
             log.info("💰 Webhook Amount: {}", webhookRequest.getTransferAmount());
             
-            // Verify amount matches (allow small difference for rounding)
-            double amountDifference = Math.abs(payment.getAmount() - webhookRequest.getTransferAmount());
+            // NOTE: For testing purposes, QR code amount is divided by 100
+            // So webhook will receive the actual transferred amount (which is 1/100 of order amount)
+            // We need to compare webhook amount with order amount / 100
+            double expectedWebhookAmount = payment.getAmount() / 100.0;
+            double amountDifference = Math.abs(expectedWebhookAmount - webhookRequest.getTransferAmount());
+            log.info("💵 Expected webhook amount (order amount / 100): {} VND", expectedWebhookAmount);
             log.info("💵 Amount difference: {} VND", amountDifference);
             
-            if (amountDifference > 1000) { // Allow 1000 VND difference
-                log.error("❌ Amount mismatch! Order amount: {}, Webhook amount: {}, Difference: {}", 
-                        payment.getAmount(), webhookRequest.getTransferAmount(), amountDifference);
+            if (amountDifference > 100) { // Allow 100 VND difference (since amounts are smaller now)
+                log.error("❌ Amount mismatch! Order amount: {}, Expected webhook amount: {}, Actual webhook amount: {}, Difference: {}", 
+                        payment.getAmount(), expectedWebhookAmount, webhookRequest.getTransferAmount(), amountDifference);
                 return false;
             }
             

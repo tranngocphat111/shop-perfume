@@ -42,15 +42,19 @@ export const DEFAULT_SEPAY_CONFIG: Omit<SepayQRConfig, 'amount' | 'description'>
 
 /**
  * Generate QR code for order payment
+ * NOTE: For testing purposes, the amount is divided by 100 to allow testing with smaller amounts
  */
 export const generateOrderQRCode = (
   orderId: number | string,
   amount: number,
   customConfig?: Partial<SepayQRConfig>
 ): string => {
+  // Divide amount by 100 for testing (student demo purposes)
+  const testAmount = Math.floor(amount / 100);
+  
   const config: SepayQRConfig = {
     ...DEFAULT_SEPAY_CONFIG,
-    amount,
+    amount: testAmount,
     description: `STNP_${orderId}`,
     ...customConfig,
   };
