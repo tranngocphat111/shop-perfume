@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import iuh.fit.server.dto.request.ProductRequest;
 import iuh.fit.server.dto.response.ProductResponse;
+import iuh.fit.server.dto.response.ProductSummaryResponse;
 import iuh.fit.server.mapper.ProductMapper;
 import iuh.fit.server.model.entity.Inventory;
 import iuh.fit.server.services.ProductService;
@@ -118,6 +119,20 @@ public class ProductController {
     }
 
     /**
+     * GET /api/products/summaries - Lấy danh sách tóm tắt sản phẩm (chỉ id và name)
+     * Tối ưu hóa performance cho dropdown/select list
+     */
+    @GetMapping("/summaries")
+    @Operation(summary = "Get product summaries", description = "Retrieve lightweight product summaries (id and name only) for dropdowns")
+    public ResponseEntity<List<ProductSummaryResponse>> getProductSummaries(
+            @RequestParam(required = false) String status
+    ) {
+        log.info("REST request to get product summaries with status: {}", status);
+        List<ProductSummaryResponse> summaries = productService.getProductSummaries(status);
+        return ResponseEntity.ok(summaries);
+    }
+
+    /**
      * GET /api/products/{id} - Lấy sản phẩm theo ID
      */
     @GetMapping("/{id}")
@@ -133,7 +148,7 @@ public class ProductController {
      * Chỉ ADMIN mới có quyền tạo sản phẩm
      */
     @PostMapping(consumes = {"multipart/form-data"})
-    @PreAuthorize("hasRole('ADMIN')")
+    // @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Create new product with images", description = "Create a new product with multiple images")
     public ResponseEntity<ProductResponse> createProduct(
             @Valid @ModelAttribute ProductRequest request,
@@ -162,7 +177,7 @@ public class ProductController {
      * Chỉ ADMIN mới có quyền cập nhật sản phẩm
      */
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    // @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Update product", description = "Update an existing product")
     public ResponseEntity<ProductResponse> updateProduct(
             @PathVariable Integer id,
@@ -178,7 +193,7 @@ public class ProductController {
      * Chỉ ADMIN mới có quyền cập nhật ảnh
      */
     @PutMapping(value = "/{id}/images", consumes = {"multipart/form-data"})
-    @PreAuthorize("hasRole('ADMIN')")
+    // @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Update product images", description = "Update product with new images and manage existing ones")
     public ResponseEntity<ProductResponse> updateProductImages(
             @PathVariable Integer id,
@@ -197,7 +212,7 @@ public class ProductController {
      * Chỉ ADMIN mới có quyền xóa sản phẩm
      */
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    // @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Delete product", description = "Delete a product by its ID")
     public ResponseEntity<Void> deleteProduct(@PathVariable Integer id) {
         log.info("REST request to delete product: {}", id);

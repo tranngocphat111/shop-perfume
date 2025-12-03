@@ -1,13 +1,12 @@
 import { useState, useEffect } from "react";
 import { AdminLayout, DataTable, type Column } from "../../components/admin";
 import { purchaseInvoiceService } from "../../services/purchaseInvoice.service";
-import { productService as productAdminService } from "../../services/product.service";
+import {
+  productService as productAdminService,
+  type ProductSummary,
+} from "../../services/product.service";
 import { useSuppliers } from "../../hooks/useSuppliers";
-import type {
-  PurchaseInvoice,
-  PurchaseInvoiceFormData,
-  Product,
-} from "../../types";
+import type { PurchaseInvoice, PurchaseInvoiceFormData } from "../../types";
 import { PurchaseInvoiceAddModal } from "../../components/admin/PurchaseInvoiceAddModal";
 import { PurchaseInvoiceViewModal } from "../../components/admin/PurchaseInvoiceViewModal";
 
@@ -43,42 +42,32 @@ export const PurchaseInvoices = () => {
 
   // Fetch suppliers and products
   const { suppliers } = useSuppliers();
-  const [products, setProducts] = useState<Product[]>([]);
+  const [products, setProducts] = useState<ProductSummary[]>([]);
   const [productsLoading, setProductsLoading] = useState(true);
 
-  // Fetch ACTIVE products using productAdminService
+  // Fetch ACTIVE product summaries (optimized for performance)
   useEffect(() => {
     const fetchActiveProducts = async () => {
       try {
         setProductsLoading(true);
-        console.log("🔍 Fetching products with status=ACTIVE...");
+        console.log("🔍 Fetching product summaries with status=ACTIVE...");
 
-        // Fetch products with status filter
-        const pageResponse = await productAdminService.getProductPage(
-          0,
-          1000,
-          undefined,
-          undefined,
-          undefined,
-          "ACTIVE" // Filter by ACTIVE status
+        // Fetch lightweight product summaries (only id and name)
+        const summaries = await productAdminService.getProductSummaries(
+          "ACTIVE"
         );
 
-        console.log("✅ Products response:", pageResponse);
-        console.log(
-          "📦 ACTIVE products count:",
-          pageResponse.content?.length || 0
-        );
+        console.log("✅ Product summaries response:", summaries);
+        console.log("📦 ACTIVE products count:", summaries.length);
 
-        const activeProducts = pageResponse.content || [];
-
-        if (activeProducts.length > 0) {
-          console.log("📋 First product:", activeProducts[0]);
-          console.log("📋 Sample products:", activeProducts.slice(0, 3));
+        if (summaries.length > 0) {
+          console.log("📋 First product:", summaries[0]);
+          console.log("📋 Sample products:", summaries.slice(0, 3));
         } else {
           console.warn("⚠️ No ACTIVE products found!");
         }
 
-        setProducts(activeProducts);
+        setProducts(summaries);
       } catch (err) {
         console.error("❌ Error fetching products:", err);
         if (err instanceof Error) {

@@ -1,6 +1,11 @@
 import { apiService } from "./api";
 import type { PageResponse, Product } from "../types";
 
+export interface ProductSummary {
+    productId: number;
+    name: string;
+}
+
 export interface CreateProductRequest {
     name: string;
     description: string;
@@ -138,5 +143,13 @@ export const productService = {
 
     async deleteProduct(id: number): Promise<void> {
         return apiService.delete<void>(`/products/${id}`);
+    },
+
+    async getProductSummaries(status?: string): Promise<ProductSummary[]> {
+        let url = '/products/summaries';
+        if (status && status.trim() !== "") {
+            url += `?status=${status}`;
+        }
+        return apiService.get<ProductSummary[]>(url);
     },
 };

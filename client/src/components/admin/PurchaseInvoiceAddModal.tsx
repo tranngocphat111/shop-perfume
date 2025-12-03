@@ -1,13 +1,14 @@
 import { useState, useRef } from "react";
 import * as XLSX from "xlsx";
-import type { Supplier, Product, PurchaseInvoiceFormData } from "../../types";
+import type { Supplier, PurchaseInvoiceFormData } from "../../types";
+import type { ProductSummary } from "../../services/product.service";
 
 interface PurchaseInvoiceAddModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (data: PurchaseInvoiceFormData) => Promise<void>;
   suppliers: Supplier[];
-  products: Product[];
+  products: ProductSummary[];
 }
 
 interface InvoiceDetail {
