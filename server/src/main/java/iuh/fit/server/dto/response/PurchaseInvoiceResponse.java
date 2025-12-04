@@ -21,5 +21,5 @@ public class PurchaseInvoiceResponse {
     private String createdBy;
     private String lastUpdatedBy;
     private SupplierResponse supplier;
-//    private List<PurchaseInvoiceDetailResponse> details;
+    private List<PurchaseInvoiceDetailResponse> details;
 }

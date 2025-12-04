@@ -9,6 +9,7 @@ import iuh.fit.server.mapper.PurchaseInvoiceDetailMapper;
 import iuh.fit.server.mapper.PurchaseInvoiceMapper;
 import iuh.fit.server.model.entity.*;
 import iuh.fit.server.model.enums.ProductStatus;
+import iuh.fit.server.model.enums.PurchaseInvoiceStatus;
 import iuh.fit.server.repository.*;
 import iuh.fit.server.services.PurchaseInvoiceService;
 import lombok.RequiredArgsConstructor;
@@ -87,8 +88,10 @@ public class PurchaseInvoiceServiceImpl implements PurchaseInvoiceService {
     @Transactional(readOnly = true)
     public PurchaseInvoiceResponse findById(Integer id) {
         log.info("Finding purchase invoice by id: {}", id);
-        PurchaseInvoice invoice = purchaseInvoiceRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Purchase invoice not found with id: " + id));
+        PurchaseInvoice invoice = purchaseInvoiceRepository.findByIdWithDetails(id);
+        if (invoice == null) {
+            throw new ResourceNotFoundException("Purchase invoice not found with id: " + id);
+        }
         return purchaseInvoiceMapper.toResponse(invoice);
     }
     
@@ -133,23 +136,28 @@ public class PurchaseInvoiceServiceImpl implements PurchaseInvoiceService {
             details.add(detail);
             totalAmount += detail.getSubTotal();
             
-            // Update inventory quantity
-            Inventory inventory = inventoryRepository.findByProductId(product.getProductId());
-            if (inventory != null) {
-                inventory.setQuantity(inventory.getQuantity() + detailReq.getQuantity());
-                inventoryRepository.save(inventory);
-                log.info("Updated inventory for product {} from {} to {}", 
-                        product.getProductId(), 
-                        inventory.getQuantity() - detailReq.getQuantity(), 
-                        inventory.getQuantity());
+            // Only update inventory if status is COMPLETED
+            if (request.getStatus() == PurchaseInvoiceStatus.COMPLETED) {
+                Inventory inventory = inventoryRepository.findByProductId(product.getProductId());
+                if (inventory != null) {
+                    inventory.setQuantity(inventory.getQuantity() + detailReq.getQuantity());
+                    inventoryRepository.save(inventory);
+                    log.info("Updated inventory for product {} from {} to {}", 
+                            product.getProductId(), 
+                            inventory.getQuantity() - detailReq.getQuantity(), 
+                            inventory.getQuantity());
+                } else {
+                    // Create new inventory if not exists
+                    Inventory newInventory = new Inventory();
+                    newInventory.setProduct(product);
+                    newInventory.setQuantity(detailReq.getQuantity());
+                    inventoryRepository.save(newInventory);
+                    log.info("Created new inventory for product {} with quantity {}", 
+                            product.getProductId(), detailReq.getQuantity());
+                }
             } else {
-                // Create new inventory if not exists
-                Inventory newInventory = new Inventory();
-                newInventory.setProduct(product);
-                newInventory.setQuantity(detailReq.getQuantity());
-                inventoryRepository.save(newInventory);
-                log.info("Created new inventory for product {} with quantity {}", 
-                        product.getProductId(), detailReq.getQuantity());
+                log.info("Invoice status is {}, inventory not updated for product {}", 
+                        request.getStatus(), product.getProductId());
             }
         }
         
@@ -178,16 +186,53 @@ public class PurchaseInvoiceServiceImpl implements PurchaseInvoiceService {
         Supplier supplier = supplierRepository.findById(request.getSupplierId())
                 .orElseThrow(() -> new ResourceNotFoundException("Supplier not found with id: " + request.getSupplierId()));
         
+        // Handle inventory changes based on status transition
+        PurchaseInvoiceStatus oldStatus = existing.getStatus();
+        PurchaseInvoiceStatus newStatus = request.getStatus();
+        
+        if (oldStatus != newStatus) {
+            log.info("Status changing from {} to {}", oldStatus, newStatus);
+            
+            // Get existing details to update inventory
+            List<PurchaseInvoiceDetail> existingDetails = existing.getDetails();
+            
+            for (PurchaseInvoiceDetail detail : existingDetails) {
+                Inventory inventory = inventoryRepository.findByProductId(detail.getProduct().getProductId());
+                
+                if (inventory != null) {
+                    // Rollback old status effect
+                    if (oldStatus == PurchaseInvoiceStatus.COMPLETED) {
+                        // Was completed, subtract the quantity
+                        inventory.setQuantity(inventory.getQuantity() - detail.getQuantity());
+                        log.info("Rolled back inventory for product {} by -{}", 
+                                detail.getProduct().getProductId(), detail.getQuantity());
+                    }
+                    
+                    // Apply new status effect
+                    if (newStatus == PurchaseInvoiceStatus.COMPLETED) {
+                        // Now completed, add the quantity
+                        inventory.setQuantity(inventory.getQuantity() + detail.getQuantity());
+                        log.info("Applied inventory for product {} by +{}", 
+                                detail.getProduct().getProductId(), detail.getQuantity());
+                    }
+                    
+                    inventoryRepository.save(inventory);
+                } else if (newStatus == PurchaseInvoiceStatus.COMPLETED) {
+                    // Create new inventory if it doesn't exist and status is COMPLETED
+                    Inventory newInventory = new Inventory();
+                    newInventory.setProduct(detail.getProduct());
+                    newInventory.setQuantity(detail.getQuantity());
+                    inventoryRepository.save(newInventory);
+                    log.info("Created new inventory for product {} with quantity {}", 
+                            detail.getProduct().getProductId(), detail.getQuantity());
+                }
+            }
+        }
+        
         // Update basic info
         existing.setSupplier(supplier);
         existing.setEmail(request.getEmail());
         existing.setStatus(request.getStatus());
-        
-        // Note: This is simplified. A full implementation should handle:
-        // - Reverting old inventory changes
-        // - Applying new inventory changes
-        // - Deleting old details
-        // - Creating new details
         
         PurchaseInvoice updated = purchaseInvoiceRepository.save(existing);
         return purchaseInvoiceMapper.toResponse(updated);

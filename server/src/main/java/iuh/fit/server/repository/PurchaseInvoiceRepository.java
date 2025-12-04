@@ -10,6 +10,10 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface PurchaseInvoiceRepository extends JpaRepository<PurchaseInvoice, Integer> {
+    
+    @Query("SELECT pi FROM PurchaseInvoice pi LEFT JOIN FETCH pi.details WHERE pi.purchaseInvoiceId = :id")
+    PurchaseInvoice findByIdWithDetails(@Param("id") Integer id);
+    
     @Query("SELECT pi FROM PurchaseInvoice pi WHERE " +
            "(:isNumeric = false AND (" +
            "CAST(pi.purchaseInvoiceId AS string) LIKE CONCAT('%', :searchTerm, '%') OR " +

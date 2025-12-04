@@ -40,6 +40,10 @@ export const PurchaseInvoices = () => {
   const [viewInvoiceData, setViewInvoiceData] =
     useState<PurchaseInvoice | null>(null);
 
+  // Inline edit status states
+  const [editingStatusId, setEditingStatusId] = useState<number | null>(null);
+  const [editingStatusValue, setEditingStatusValue] = useState<string>("");
+
   // Fetch suppliers and products
   const { suppliers } = useSuppliers();
   const [products, setProducts] = useState<ProductSummary[]>([]);
@@ -216,17 +220,36 @@ export const PurchaseInvoices = () => {
       label: "Status",
       sortable: true,
       onSort: handleSort,
-      render: (value: string) => {
+      render: (value: string, row: PurchaseInvoiceData) => {
         const statusColors: Record<string, string> = {
           PENDING: "bg-yellow-100 text-yellow-800",
           COMPLETED: "bg-green-100 text-green-800",
           CANCELLED: "bg-red-100 text-red-800",
         };
+
+        if (editingStatusId === row.id) {
+          return (
+            <select
+              value={editingStatusValue}
+              onChange={(e) => handleStatusChange(e.target.value)}
+              onBlur={handleStatusBlur}
+              onKeyDown={handleStatusKeyDown}
+              autoFocus
+              className="border border-blue-500 rounded px-2 py-1 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="PENDING">PENDING</option>
+              <option value="COMPLETED">COMPLETED</option>
+              <option value="CANCELLED">CANCELLED</option>
+            </select>
+          );
+        }
+
         return (
           <span
-            className={`inline-block whitespace-nowrap px-2 py-1 text-xs rounded font-semibold ${
+            onDoubleClick={() => handleStatusDoubleClick(row)}
+            className={`inline-block whitespace-nowrap px-2 py-1 text-xs rounded font-semibold cursor-pointer hover:opacity-80 ${
               statusColors[value] || "bg-gray-100 text-gray-800"
-            }`}>
+            }`}
+            title="Double-click to edit">
             {value}
           </span>
         );
@@ -245,6 +268,67 @@ export const PurchaseInvoices = () => {
       onSort: handleSort,
     },
   ];
+
+  const handleStatusDoubleClick = (item: PurchaseInvoiceData) => {
+    setEditingStatusId(item.id);
+    setEditingStatusValue(item.status);
+  };
+
+  const handleStatusChange = (value: string) => {
+    setEditingStatusValue(value);
+  };
+
+  const handleStatusBlur = async () => {
+    if (editingStatusId && editingStatusValue) {
+      try {
+        // Get full invoice data first
+        const invoice = await purchaseInvoiceService.getInvoiceById(
+          editingStatusId
+        );
+
+        // Check if details exists
+        if (!invoice.details || invoice.details.length === 0) {
+          alert("❌ Invoice details not found. Cannot update status.");
+          setEditingStatusId(null);
+          setEditingStatusValue("");
+          return;
+        }
+
+        // Update only the status
+        const updateData = {
+          supplierId: invoice.supplier.supplierId,
+          email: invoice.email,
+          status: editingStatusValue as "PENDING" | "COMPLETED" | "CANCELLED",
+          details: invoice.details.map((detail) => ({
+            productId: detail.product.productId,
+            quantity: detail.quantity,
+            importPrice: detail.importPrice,
+          })),
+        };
+
+        await purchaseInvoiceService.updateInvoice(editingStatusId, updateData);
+
+        // Refresh the list
+        await fetchInvoices(currentPage, pageSize, sortField, sortDirection);
+
+        alert("✅ Status updated successfully!");
+      } catch (err) {
+        console.error("Error updating status:", err);
+        alert("❌ Failed to update status. Please try again.");
+      }
+    }
+    setEditingStatusId(null);
+    setEditingStatusValue("");
+  };
+
+  const handleStatusKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      handleStatusBlur();
+    } else if (e.key === "Escape") {
+      setEditingStatusId(null);
+      setEditingStatusValue("");
+    }
+  };
 
   const handleView = async (item: PurchaseInvoiceData) => {
     try {
