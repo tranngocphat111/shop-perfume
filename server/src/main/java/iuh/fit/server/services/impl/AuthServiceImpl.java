@@ -270,10 +270,14 @@ public class AuthServiceImpl implements AuthService{
             refreshToken.setRevoked(false);
             
             refreshTokenRepository.save(refreshToken);
+            log.info("✅ Saved refresh token for user: {} (expires at: {})", user.getEmail(), expiresAt);
         } catch (Exception e) {
-            // Log error nhưng không throw để không ảnh hưởng đến login flow
-            // Token vẫn được trả về cho client
-            System.err.println("Error saving refresh token: " + e.getMessage());
+            // Log chi tiết để debug
+            log.error("❌ Error saving refresh token for user: {}", user.getEmail(), e);
+            log.error("Token string length: {}", tokenString != null ? tokenString.length() : "null");
+            log.error("User ID: {}, Email: {}", user.getUserId(), user.getEmail());
+            // Throw exception để biết rõ vấn đề
+            throw new RuntimeException("Failed to save refresh token: " + e.getMessage(), e);
         }
     }
     
