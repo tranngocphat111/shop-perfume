@@ -30,7 +30,7 @@ export const OrderDetailModal = ({
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto p-4">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-5xl mx-4 my-8">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b bg-gradient-to-r from-blue-600 to-blue-700 rounded-t-lg">
+        <div className="flex items-center justify-between px-6 py-4 border-b bg-blue-600 rounded-t-lg">
           <div>
             <h3 className="text-xl font-bold text-white">Order Details</h3>
             <p className="text-blue-100 text-sm mt-1">Order #{order.orderId}</p>
@@ -38,7 +38,7 @@ export const OrderDetailModal = ({
           <button
             onClick={onClose}
             className="text-white hover:text-blue-100 text-2xl transition-colors">
-            <i className="fas fa-times"></i>
+            ✕
           </button>
         </div>
 
@@ -52,30 +52,26 @@ export const OrderDetailModal = ({
               </h4>
               <div className="bg-gray-50 p-4 rounded-lg space-y-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-600">
-                    Name
-                  </label>
-                  <p className="text-base font-semibold text-gray-900">
+                  <label className="block text-sm text-gray-500">Name</label>
+                  <p className="text-base font-normal text-gray-900">
                     {order.guestName}
                   </p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-600">
-                    Email
-                  </label>
-                  <p className="text-base text-gray-900">{order.guestEmail}</p>
+                  <label className="block text-sm text-gray-500">Email</label>
+                  <p className="text-base font-normal text-gray-900">
+                    {order.guestEmail}
+                  </p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-600">
-                    Phone
-                  </label>
-                  <p className="text-base text-gray-900">{order.guestPhone}</p>
+                  <label className="block text-sm text-gray-500">Phone</label>
+                  <p className="text-base font-normal text-gray-900">
+                    {order.guestPhone}
+                  </p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-600">
-                    Address
-                  </label>
-                  <p className="text-base text-gray-900">
+                  <label className="block text-sm text-gray-500">Address</label>
+                  <p className="text-base font-normal text-gray-900">
                     {order.guestAddress}
                   </p>
                 </div>
@@ -88,7 +84,7 @@ export const OrderDetailModal = ({
               </h4>
               <div className="bg-gray-50 p-4 rounded-lg space-y-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-600 mb-2">
+                  <label className="block text-sm text-gray-500 mb-2">
                     Payment Method
                   </label>
                   <span
@@ -100,7 +96,7 @@ export const OrderDetailModal = ({
                   </span>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-600 mb-2">
+                  <label className="block text-sm text-gray-500 mb-2">
                     Payment Status
                   </label>
                   <span
@@ -111,7 +107,7 @@ export const OrderDetailModal = ({
                   </span>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-600">
+                  <label className="block text-sm text-gray-500">
                     Payment Amount
                   </label>
                   <p className="text-lg font-bold text-green-600">
@@ -151,7 +147,7 @@ export const OrderDetailModal = ({
               </h4>
               <div className="bg-gray-50 p-4 rounded-lg space-y-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-600 mb-2">
+                  <label className="block text-sm text-gray-500 mb-2">
                     Shipment Status
                   </label>
                   <span
@@ -171,30 +167,30 @@ export const OrderDetailModal = ({
                 </div>
                 {order.shipment?.trackingNumber && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-600">
+                    <label className="block text-sm text-gray-500">
                       Tracking Number
                     </label>
-                    <p className="text-base font-mono text-gray-900">
+                    <p className="text-base font-mono font-normal text-gray-900">
                       {order.shipment.trackingNumber}
                     </p>
                   </div>
                 )}
                 {order.shipment?.carrier && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-600">
+                    <label className="block text-sm text-gray-500">
                       Carrier
                     </label>
-                    <p className="text-base text-gray-900">
+                    <p className="text-base font-normal text-gray-900">
                       {order.shipment.carrier}
                     </p>
                   </div>
                 )}
                 {order.shipment?.shippedDate && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-600">
+                    <label className="block text-sm text-gray-500">
                       Shipped Date
                     </label>
-                    <p className="text-base text-gray-900">
+                    <p className="text-base font-normal text-gray-900">
                       {new Date(order.shipment.shippedDate).toLocaleString(
                         "vi-VN"
                       )}
@@ -203,10 +199,10 @@ export const OrderDetailModal = ({
                 )}
                 {order.shipment?.deliveredDate && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-600">
+                    <label className="block text-sm text-gray-500">
                       Delivered Date
                     </label>
-                    <p className="text-base text-green-600 font-semibold">
+                    <p className="text-base font-semibold text-green-600">
                       {new Date(order.shipment.deliveredDate).toLocaleString(
                         "vi-VN"
                       )}
@@ -293,11 +289,11 @@ export const OrderDetailModal = ({
         </div>
 
         {/* Footer */}
-        <div className="flex justify-end gap-3 px-6 py-4 border-t bg-gray-50 rounded-b-lg">
+        <div className="flex justify-end gap-3 px-6 py-4 border-t bg-white rounded-b-lg">
           <button
             onClick={onClose}
-            className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors font-medium">
-            <i className="fas fa-times mr-2"></i>Close
+            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium">
+            Close
           </button>
         </div>
       </div>

@@ -105,15 +105,15 @@ export const SupplierModal = ({
         )}
 
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b sticky top-0 bg-white rounded-t-lg">
-          <h3 className="text-xl font-bold text-gray-800">
+        <div className="flex items-center justify-between px-6 py-4 border-b sticky top-0 bg-blue-600 rounded-t-lg">
+          <h3 className="text-xl font-bold text-white">
             {mode === "add" ? "Add New Supplier" : "Edit Supplier"}
           </h3>
           <button
             onClick={onClose}
             disabled={isSubmitting}
-            className="text-gray-400 hover:text-gray-600 text-2xl disabled:opacity-50 disabled:cursor-not-allowed">
-            <i className="fas fa-times"></i>
+            className="text-white hover:text-blue-100 text-2xl disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+            ✕
           </button>
         </div>
 
@@ -122,7 +122,7 @@ export const SupplierModal = ({
           <div className="grid grid-cols-1 gap-4">
             {/* Supplier Name */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm text-gray-500 mb-2">
                 Supplier Name <span className="text-red-500">*</span>
               </label>
               <input
@@ -144,7 +144,7 @@ export const SupplierModal = ({
 
             {/* Email */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm text-gray-500 mb-2">
                 Email <span className="text-red-500">*</span>
               </label>
               <input
@@ -166,7 +166,7 @@ export const SupplierModal = ({
 
             {/* Phone */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm text-gray-500 mb-2">
                 Phone Number <span className="text-red-500">*</span>
               </label>
               <input
@@ -188,7 +188,7 @@ export const SupplierModal = ({
 
             {/* Address */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm text-gray-500 mb-2">
                 Address <span className="text-red-500">*</span>
               </label>
               <textarea
@@ -215,13 +215,13 @@ export const SupplierModal = ({
               type="button"
               onClick={onClose}
               disabled={isSubmitting}
-              className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+              className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium">
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium flex items-center gap-2">
               {isSubmitting && <i className="fas fa-spinner fa-spin"></i>}
               {isSubmitting
                 ? "Processing..."

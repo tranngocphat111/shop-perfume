@@ -72,8 +72,8 @@ export const StockAdjustmentModal = ({
             className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
             <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
               {/* Header */}
-              <div className="px-6 py-4 border-b border-gray-200">
-                <h2 className="text-xl font-semibold text-gray-800">
+              <div className="px-6 py-4 border-b border-gray-200 bg-blue-600 rounded-t-lg">
+                <h2 className="text-xl font-semibold text-white">
                   Điều chỉnh số lượng tồn kho
                 </h2>
               </div>
@@ -82,8 +82,10 @@ export const StockAdjustmentModal = ({
               <form onSubmit={handleSubmit} className="p-6 space-y-6">
                 {/* Product Info */}
                 <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                  <p className="text-sm text-gray-600 mb-1">Sản phẩm</p>
-                  <p className="font-semibold text-gray-900">{productName}</p>
+                  <p className="text-sm text-gray-500 mb-1">Sản phẩm</p>
+                  <p className="text-base font-normal text-gray-900">
+                    {productName}
+                  </p>
                   <p className="text-sm text-gray-500 mt-2">
                     Số lượng hiện tại:{" "}
                     <span className="font-semibold text-gray-700">
@@ -94,7 +96,7 @@ export const StockAdjustmentModal = ({
 
                 {/* Quantity Input */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm text-gray-500 mb-2">
                     Số lượng mới <span className="text-red-500">*</span>
                   </label>
                   <div className="flex items-center gap-3">
@@ -157,7 +159,7 @@ export const StockAdjustmentModal = ({
                   <button
                     type="button"
                     onClick={onClose}
-                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors">
+                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium">
                     Hủy
                   </button>
                   <button

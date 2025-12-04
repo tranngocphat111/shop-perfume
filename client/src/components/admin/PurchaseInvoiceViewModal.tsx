@@ -33,7 +33,7 @@ export const PurchaseInvoiceViewModal = ({
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto p-4">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-5xl mx-4 my-8">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b bg-gradient-to-r from-blue-600 to-blue-700 rounded-t-lg">
+        <div className="flex items-center justify-between px-6 py-4 border-b bg-blue-600 rounded-t-lg">
           <div>
             <h3 className="text-xl font-bold text-white">
               Purchase Invoice Details
@@ -45,7 +45,7 @@ export const PurchaseInvoiceViewModal = ({
           <button
             onClick={onClose}
             className="text-white hover:text-blue-100 text-2xl transition-colors">
-            <i className="fas fa-times"></i>
+            ✕
           </button>
         </div>
 
@@ -54,25 +54,25 @@ export const PurchaseInvoiceViewModal = ({
           {/* Supplier & Email Info */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
             <div className="bg-gray-50 p-4 rounded-lg">
-              <label className="block text-sm font-medium text-gray-600 mb-2">
+              <label className="block text-sm text-gray-500 mb-2">
                 <i className="fas fa-building mr-2"></i>Supplier
               </label>
-              <p className="text-lg font-semibold text-gray-900">
+              <p className="text-base font-normal text-gray-900">
                 {invoice.supplier.name}
               </p>
             </div>
 
             <div className="bg-gray-50 p-4 rounded-lg">
-              <label className="block text-sm font-medium text-gray-600 mb-2">
+              <label className="block text-sm text-gray-500 mb-2">
                 <i className="fas fa-envelope mr-2"></i>Email
               </label>
-              <p className="text-lg font-semibold text-gray-900">
+              <p className="text-base font-normal text-gray-900">
                 {invoice.email}
               </p>
             </div>
 
             <div className="bg-gray-50 p-4 rounded-lg">
-              <label className="block text-sm font-medium text-gray-600 mb-2">
+              <label className="block text-sm text-gray-500 mb-2">
                 <i className="fas fa-info-circle mr-2"></i>Status
               </label>
               <span
@@ -155,11 +155,11 @@ export const PurchaseInvoiceViewModal = ({
         </div>
 
         {/* Footer */}
-        <div className="flex justify-end gap-3 px-6 py-4 border-t bg-gray-50 rounded-b-lg">
+        <div className="flex justify-end gap-3 px-6 py-4 border-t bg-white rounded-b-lg">
           <button
             onClick={onClose}
-            className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors font-medium">
-            <i className="fas fa-times mr-2"></i>Close
+            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium">
+            Close
           </button>
         </div>
       </div>

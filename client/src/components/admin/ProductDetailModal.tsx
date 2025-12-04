@@ -18,56 +18,58 @@ export const ProductDetailModal = ({
     <div
       className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto p-4"
       style={{ margin: 0 }}>
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl mx-4 my-8">
+      <div className="bg-white rounded-lg shadow-2xl w-full max-w-3xl mx-4 my-8">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-t-lg">
-          <h3 className="text-xl font-bold">Product Details</h3>
+        <div className="flex items-center justify-between px-6 py-4 bg-blue-600 text-white rounded-t-lg">
+          <h3 className="text-xl font-semibold">Product Details</h3>
           <button
             onClick={onClose}
-            className="text-white hover:text-gray-200 text-2xl transition-colors">
-            <i className="fas fa-times"></i>
+            className="text-white hover:bg-blue-700 rounded-full w-8 h-8 flex items-center justify-center transition-colors">
+            ✕
           </button>
         </div>
 
         {/* Body */}
-        <div className="p-6 max-h-[calc(100vh-200px)] overflow-y-auto">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="p-6 max-h-[calc(100vh-200px)] overflow-y-auto bg-white">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
             {/* Left Column */}
             <div className="space-y-4">
               {/* Product ID */}
               <div>
-                <label className="block text-sm font-medium text-gray-500 mb-1">
+                <label className="block text-sm text-gray-500 mb-1">
                   Product ID
                 </label>
-                <p className="text-lg font-semibold text-gray-900">
+                <p className="text-base font-normal text-gray-900">
                   #{product.productId}
                 </p>
               </div>
 
               {/* Product Name */}
               <div>
-                <label className="block text-sm font-medium text-gray-500 mb-1">
+                <label className="block text-sm text-gray-500 mb-1">
                   Product Name
                 </label>
-                <p className="text-lg font-semibold text-gray-900">
+                <p className="text-base font-normal text-gray-900">
                   {product.name}
                 </p>
               </div>
 
               {/* Brand */}
               <div>
-                <label className="block text-sm font-medium text-gray-500 mb-1">
+                <label className="block text-sm text-gray-500 mb-1">
                   Brand
                 </label>
-                <p className="text-base text-gray-900">{product.brand.name}</p>
+                <p className="text-base font-normal text-gray-900">
+                  {product.brand.name}
+                </p>
               </div>
 
               {/* Category */}
               <div>
-                <label className="block text-sm font-medium text-gray-500 mb-1">
+                <label className="block text-sm text-gray-500 mb-1">
                   Category
                 </label>
-                <p className="text-base text-gray-900">
+                <p className="text-base font-normal text-gray-900">
                   {product.category.name}
                 </p>
               </div>
@@ -89,10 +91,10 @@ export const ProductDetailModal = ({
 
               {/* Price */}
               <div>
-                <label className="block text-sm font-medium text-gray-500 mb-1">
+                <label className="block text-sm text-gray-500 mb-1">
                   Unit Price
                 </label>
-                <p className="text-xl font-bold text-blue-600">
+                <p className="text-base font-normal text-blue-600">
                   {product.unitPrice.toLocaleString()} đ
                 </p>
               </div>
@@ -102,19 +104,21 @@ export const ProductDetailModal = ({
             <div className="space-y-4">
               {/* Volume */}
               <div>
-                <label className="block text-sm font-medium text-gray-500 mb-1">
+                <label className="block text-sm text-gray-500 mb-1">
                   Volume
                 </label>
-                <p className="text-base text-gray-900">{product.columeMl} ml</p>
+                <p className="text-base font-normal text-gray-900">
+                  {product.columeMl} ml
+                </p>
               </div>
 
               {/* Longevity */}
               {product.perfumeLongevity && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-500 mb-1">
+                  <label className="block text-sm text-gray-500 mb-1">
                     Longevity
                   </label>
-                  <p className="text-base text-gray-900">
+                  <p className="text-base font-normal text-gray-900">
                     {product.perfumeLongevity}
                   </p>
                 </div>
@@ -123,10 +127,10 @@ export const ProductDetailModal = ({
               {/* Concentration */}
               {product.perfumeConcentration && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-500 mb-1">
+                  <label className="block text-sm text-gray-500 mb-1">
                     Concentration
                   </label>
-                  <p className="text-base text-gray-900">
+                  <p className="text-base font-normal text-gray-900">
                     {product.perfumeConcentration}
                   </p>
                 </div>
@@ -135,10 +139,10 @@ export const ProductDetailModal = ({
               {/* Release Year */}
               {product.releaseYear && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-500 mb-1">
+                  <label className="block text-sm text-gray-500 mb-1">
                     Release Year
                   </label>
-                  <p className="text-base text-gray-900">
+                  <p className="text-base font-normal text-gray-900">
                     {product.releaseYear}
                   </p>
                 </div>
@@ -146,20 +150,20 @@ export const ProductDetailModal = ({
 
               {/* Created By */}
               <div>
-                <label className="block text-sm font-medium text-gray-500 mb-1">
+                <label className="block text-sm text-gray-500 mb-1">
                   Created By
                 </label>
-                <p className="text-base text-gray-900">
+                <p className="text-base font-normal text-gray-900">
                   {product.createdBy || "System"}
                 </p>
               </div>
 
               {/* Last Updated By */}
               <div>
-                <label className="block text-sm font-medium text-gray-500 mb-1">
+                <label className="block text-sm text-gray-500 mb-1">
                   Last Updated By
                 </label>
-                <p className="text-base text-gray-900">
+                <p className="text-base font-normal text-gray-900">
                   {product.lastUpdatedBy || "System"}
                 </p>
               </div>
@@ -167,10 +171,10 @@ export const ProductDetailModal = ({
 
             {/* Description - Full Width */}
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-500 mb-1">
+              <label className="block text-sm text-gray-500 mb-1">
                 Description
               </label>
-              <p className="text-base text-gray-900 leading-relaxed">
+              <p className="text-base font-normal text-gray-900 leading-relaxed">
                 {product.description}
               </p>
             </div>
@@ -179,18 +183,18 @@ export const ProductDetailModal = ({
             <div className="md:col-span-2 pt-4 border-t">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-500 mb-1">
+                  <label className="block text-sm text-gray-500 mb-1">
                     Created At
                   </label>
-                  <p className="text-sm text-gray-700">
+                  <p className="text-base font-normal text-gray-900">
                     {new Date(product.createdAt).toLocaleString()}
                   </p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-500 mb-1">
+                  <label className="block text-sm text-gray-500 mb-1">
                     Last Updated
                   </label>
-                  <p className="text-sm text-gray-700">
+                  <p className="text-base font-normal text-gray-900">
                     {new Date(product.lastUpdated).toLocaleString()}
                   </p>
                 </div>
@@ -236,10 +240,10 @@ export const ProductDetailModal = ({
         </div>
 
         {/* Footer */}
-        <div className="flex justify-end gap-3 px-6 py-4 border-t bg-gray-50 rounded-b-lg">
+        <div className="flex justify-end gap-3 px-6 py-4 border-t bg-white rounded-b-lg">
           <button
             onClick={onClose}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+            className="px-6 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors">
             Close
           </button>
         </div>
