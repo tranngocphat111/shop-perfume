@@ -1,5 +1,10 @@
 import { useState, useEffect } from "react";
-import { AdminLayout, DataTable, type Column } from "../../components/admin";
+import {
+  AdminLayout,
+  DataTable,
+  type Column,
+  ToastContainer,
+} from "../../components/admin";
 import { purchaseInvoiceService } from "../../services/purchaseInvoice.service";
 import {
   productService as productAdminService,
@@ -9,6 +14,7 @@ import { useSuppliers } from "../../hooks/useSuppliers";
 import type { PurchaseInvoice, PurchaseInvoiceFormData } from "../../types";
 import { PurchaseInvoiceAddModal } from "../../components/admin/PurchaseInvoiceAddModal";
 import { PurchaseInvoiceViewModal } from "../../components/admin/PurchaseInvoiceViewModal";
+import { useToast } from "../../hooks/useToast";
 
 interface PurchaseInvoiceData extends Record<string, unknown> {
   id: number;
@@ -22,6 +28,14 @@ interface PurchaseInvoiceData extends Record<string, unknown> {
 }
 
 export const PurchaseInvoices = () => {
+  const {
+    toasts,
+    removeToast,
+    success,
+    error: showError,
+    warning,
+  } = useToast();
+
   const [invoices, setInvoices] = useState<PurchaseInvoiceData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -246,7 +260,10 @@ export const PurchaseInvoices = () => {
 
         return (
           <span
-            onDoubleClick={() => handleStatusDoubleClick(row)}
+            onDoubleClick={(e) => {
+              e.stopPropagation();
+              handleStatusDoubleClick(row);
+            }}
             className={`inline-block whitespace-nowrap px-2 py-1 text-xs rounded font-semibold ${
               isEditable
                 ? "cursor-pointer hover:opacity-80"
@@ -279,7 +296,7 @@ export const PurchaseInvoices = () => {
   const handleStatusDoubleClick = (item: PurchaseInvoiceData) => {
     // Only allow editing if status is PENDING
     if (item.status !== "PENDING") {
-      alert("⚠️ Only PENDING invoices can be edited!");
+      warning("Only PENDING invoices can be edited!");
       return;
     }
     setEditingStatusId(item.id);
@@ -300,7 +317,7 @@ export const PurchaseInvoices = () => {
 
         // Check if details exists
         if (!invoice.details || invoice.details.length === 0) {
-          alert("❌ Invoice details not found. Cannot update status.");
+          showError("Invoice details not found. Cannot update status.");
           setEditingStatusId(null);
           setEditingStatusValue("");
           return;
@@ -323,10 +340,10 @@ export const PurchaseInvoices = () => {
         // Refresh the list
         await fetchInvoices(currentPage, pageSize, sortField, sortDirection);
 
-        alert("✅ Status updated successfully!");
+        success("Status updated successfully!");
       } catch (err) {
         console.error("Error updating status:", err);
-        alert("❌ Failed to update status. Please try again.");
+        showError("Failed to update status. Please try again.");
       }
     }
     setEditingStatusId(null);
@@ -354,17 +371,17 @@ export const PurchaseInvoices = () => {
       setIsViewModalOpen(true);
     } catch (err) {
       console.error("Error fetching invoice details:", err);
-      alert("❌ Failed to load invoice details. Please try again.");
+      showError("Failed to load invoice details. Please try again.");
     }
   };
 
   const handleAdd = () => {
     if (productsLoading) {
-      alert("⏳ Please wait, products are still loading...");
+      warning("Please wait, products are still loading...");
       return;
     }
     if (products.length === 0) {
-      alert("⚠️ No active products available. Please add products first.");
+      warning("No active products available. Please add products first.");
       return;
     }
     console.log("✅ Opening Add Modal with", products.length, "products");
@@ -376,12 +393,12 @@ export const PurchaseInvoices = () => {
       const { purchaseInvoiceId, ...payload } = data;
       void purchaseInvoiceId; // Explicitly mark as intentionally unused
       const created = await purchaseInvoiceService.createInvoice(payload);
-      alert(
-        `✅ Purchase invoice created successfully!\n\nInvoice ID: ${
+      success(
+        `Purchase invoice #${
           created.purchaseInvoiceId
-        }\nTotal: ${created.totalAmount.toLocaleString(
+        } created successfully! Total: ${created.totalAmount.toLocaleString(
           "vi-VN"
-        )} đ\n\n💡 Inventory has been updated for all products.`
+        )} đ. Inventory updated.`
       );
 
       setIsAddModalOpen(false);
@@ -390,16 +407,13 @@ export const PurchaseInvoices = () => {
       console.error("Error creating invoice:", err);
       const errorMessage = err instanceof Error ? err.message : "Unknown error";
 
-      let userMessage = `❌ Failed to create invoice!\n\n`;
-
       if (errorMessage.includes("INACTIVE")) {
-        userMessage += `Error: One or more products are INACTIVE\n`;
-        userMessage += `Please ensure all products have ACTIVE status.`;
+        showError(
+          "One or more products are INACTIVE. Please ensure all products have ACTIVE status."
+        );
       } else {
-        userMessage += `Details: ${errorMessage}`;
+        showError(`Failed to create invoice: ${errorMessage}`);
       }
-
-      alert(userMessage);
     }
   };
 
@@ -480,6 +494,9 @@ export const PurchaseInvoices = () => {
           suppliers={suppliers}
           products={products}
         />
+
+        {/* Toast Container */}
+        <ToastContainer toasts={toasts} onRemove={removeToast} />
       </div>
     </AdminLayout>
   );

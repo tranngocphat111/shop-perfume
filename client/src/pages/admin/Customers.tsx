@@ -4,9 +4,11 @@ import {
   CustomerDetailModal,
   DataTable,
   type Column,
+  ToastContainer,
 } from "../../components/admin";
 import { userService } from "../../services/user.service";
 import type { UserDetailResponse } from "../../types";
+import { useToast } from "../../hooks/useToast";
 
 interface CustomerData extends Record<string, unknown> {
   id: number;
@@ -22,6 +24,8 @@ interface CustomerData extends Record<string, unknown> {
 }
 
 export const Customers = () => {
+  const { toasts, removeToast, success, error: showError } = useToast();
+
   const [customers, setCustomers] = useState<CustomerData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -224,7 +228,10 @@ export const Customers = () => {
 
         return (
           <span
-            onDoubleClick={() => handleStatusDoubleClick(row)}
+            onDoubleClick={(e) => {
+              e.stopPropagation();
+              handleStatusDoubleClick(row);
+            }}
             className={`inline-block whitespace-nowrap px-2 py-1 text-xs rounded font-semibold ${
               isEditable
                 ? "cursor-pointer hover:opacity-80"
@@ -303,10 +310,10 @@ export const Customers = () => {
           searchQuery
         );
 
-        alert("✅ User status updated successfully!");
+        success("User status updated successfully!");
       } catch (err) {
         console.error("Error updating user status:", err);
-        alert("❌ Failed to update user status. Please try again.");
+        showError("Failed to update user status. Please try again.");
       }
     }
     setEditingStatusId(null);
@@ -331,21 +338,15 @@ export const Customers = () => {
       console.error("Error fetching customer details:", err);
       const errorMessage = err instanceof Error ? err.message : "Unknown error";
 
-      let userMessage = `❌ Không thể tải thông tin khách hàng!\n\n`;
-
       if (
         errorMessage.includes("404") ||
         errorMessage.includes("not found") ||
         errorMessage.includes("không tìm thấy")
       ) {
-        userMessage += `Lỗi: Không tìm thấy khách hàng với ID ${item.id}\n`;
-        userMessage += `Khách hàng này có thể đã bị xóa.`;
+        showError(`Customer #${item.id} not found. It may have been deleted.`);
       } else {
-        userMessage += `Chi tiết lỗi: ${errorMessage}\n`;
-        userMessage += `Vui lòng thử lại sau.`;
+        showError(`Failed to load customer details: ${errorMessage}`);
       }
-
-      alert(userMessage);
     }
   };
 
@@ -415,6 +416,9 @@ export const Customers = () => {
           }}
           customer={detailCustomer}
         />
+
+        {/* Toast Container */}
+        <ToastContainer toasts={toasts} onRemove={removeToast} />
       </div>
     </AdminLayout>
   );

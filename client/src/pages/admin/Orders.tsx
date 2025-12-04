@@ -1,8 +1,14 @@
 import { useState, useEffect } from "react";
-import { AdminLayout, DataTable, type Column } from "../../components/admin";
+import {
+  AdminLayout,
+  DataTable,
+  type Column,
+  ToastContainer,
+} from "../../components/admin";
 import { orderService } from "../../services/order.service";
 import type { OrderResponse } from "../../types";
 import { OrderDetailModal } from "../../components/admin/OrderDetailModal";
+import { useToast } from "../../hooks/useToast";
 
 interface OrderData extends Record<string, unknown> {
   id: number;
@@ -17,6 +23,14 @@ interface OrderData extends Record<string, unknown> {
 }
 
 export const Orders = () => {
+  const {
+    toasts,
+    removeToast,
+    success,
+    error: showError,
+    warning,
+  } = useToast();
+
   const [orders, setOrders] = useState<OrderData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -235,7 +249,10 @@ export const Orders = () => {
 
         return (
           <span
-            onDoubleClick={() => handlePaymentDoubleClick(row)}
+            onDoubleClick={(e) => {
+              e.stopPropagation();
+              handlePaymentDoubleClick(row);
+            }}
             className={`inline-block whitespace-nowrap px-2 py-1 text-xs rounded font-semibold ${
               isEditable
                 ? "cursor-pointer hover:opacity-80"
@@ -301,7 +318,10 @@ export const Orders = () => {
 
         return (
           <span
-            onDoubleClick={() => handleShipmentDoubleClick(row)}
+            onDoubleClick={(e) => {
+              e.stopPropagation();
+              handleShipmentDoubleClick(row);
+            }}
             className={`inline-block whitespace-nowrap px-2 py-1 text-xs rounded font-semibold ${
               isEditable
                 ? "cursor-pointer hover:opacity-80"
@@ -326,11 +346,11 @@ export const Orders = () => {
   const handlePaymentDoubleClick = (item: OrderData) => {
     // Only allow editing if status is PAID
     if (item.paymentStatus !== "PAID") {
-      alert("⚠️ Only PAID payments can be refunded!");
+      warning("Only PAID payments can be refunded!");
       return;
     }
     setEditingPaymentId(item.id);
-    setEditingPaymentValue(item.paymentStatus);
+    setEditingPaymentValue("REFUNDED"); // Set to REFUNDED since that's the only valid transition
   };
 
   const handlePaymentChange = (value: string) => {
@@ -354,10 +374,10 @@ export const Orders = () => {
           searchQuery
         );
 
-        alert("✅ Payment status updated successfully!");
+        success("Payment status updated successfully!");
       } catch (err) {
         console.error("Error updating payment status:", err);
-        alert("❌ Failed to update payment status. Please try again.");
+        showError("Failed to update payment status. Please try again.");
       }
     }
     setEditingPaymentId(null);
@@ -380,11 +400,19 @@ export const Orders = () => {
       item.shipmentStatus === "DELIVERED" ||
       item.shipmentStatus === "CANCELLED"
     ) {
-      alert("⚠️ Cannot edit DELIVERED or CANCELLED status!");
+      warning("Cannot edit DELIVERED or CANCELLED status!");
       return;
     }
     setEditingShipmentId(item.id);
-    setEditingShipmentValue(item.shipmentStatus);
+    
+    // Set default value to the first valid next status
+    let defaultValue = item.shipmentStatus;
+    if (item.shipmentStatus === "PENDING") {
+      defaultValue = "IN_TRANSIT"; // Default to IN_TRANSIT for PENDING
+    } else if (item.shipmentStatus === "IN_TRANSIT") {
+      defaultValue = "DELIVERED"; // Default to DELIVERED for IN_TRANSIT
+    }
+    setEditingShipmentValue(defaultValue);
   };
 
   const handleShipmentChange = (value: string) => {
@@ -408,10 +436,10 @@ export const Orders = () => {
           searchQuery
         );
 
-        alert("✅ Shipment status updated successfully!");
+        success("Shipment status updated successfully!");
       } catch (err) {
         console.error("Error updating shipment status:", err);
-        alert("❌ Failed to update shipment status. Please try again.");
+        showError("Failed to update shipment status. Please try again.");
       }
     }
     setEditingShipmentId(null);
@@ -436,21 +464,15 @@ export const Orders = () => {
       console.error("Error fetching order details:", err);
       const errorMessage = err instanceof Error ? err.message : "Unknown error";
 
-      let userMessage = `❌ Không thể tải thông tin đơn hàng!\n\n`;
-
       if (
         errorMessage.includes("404") ||
         errorMessage.includes("not found") ||
         errorMessage.includes("không tìm thấy")
       ) {
-        userMessage += `Lỗi: Không tìm thấy đơn hàng với ID ${item.id}\n`;
-        userMessage += `Đơn hàng này có thể đã bị xóa.`;
+        showError(`Order #${item.id} not found. It may have been deleted.`);
       } else {
-        userMessage += `Chi tiết lỗi: ${errorMessage}\n`;
-        userMessage += `Vui lòng thử lại sau.`;
+        showError(`Failed to load order details: ${errorMessage}`);
       }
-
-      alert(userMessage);
     }
   };
 
@@ -520,6 +542,9 @@ export const Orders = () => {
           }}
           order={detailOrder}
         />
+
+        {/* Toast Container */}
+        <ToastContainer toasts={toasts} onRemove={removeToast} />
       </div>
     </AdminLayout>
   );
