@@ -82,18 +82,13 @@ public class AuthController {
      * GET /api/auth/me - Lấy thông tin user hiện tại (bao gồm điểm tích lũy)
      */
     @GetMapping("/me")
+    @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Get current user info", description = "Get current authenticated user information including loyalty points")
     public ResponseEntity<UserInfoResponse> getCurrentUser(Authentication authentication) {
         try {
-            if (authentication == null || !authentication.isAuthenticated() ||
-                    authentication.getPrincipal().equals("anonymousUser")) {
-                log.warn("Unauthenticated request to /auth/me");
-                return ResponseEntity.status(401).build();
-            }
-
             UserDetails userDetails = (UserDetails) authentication.getPrincipal();
             String email = userDetails.getUsername();
-            log.info("Getting user info for email: {}", email);
+            log.info("✅ Getting user info for email: {} (isAuthenticated=true)", email);
 
             // Use service method to get user info (eliminates code duplication)
             UserInfoResponse response = authService.getUserInfo(email);
@@ -120,15 +115,9 @@ public class AuthController {
             @Valid @RequestBody UpdateUserRequest request,
             Authentication authentication) {
         try {
-            if (authentication == null || !authentication.isAuthenticated() ||
-                    authentication.getPrincipal().equals("anonymousUser")) {
-                log.warn("Unauthenticated request to PUT /auth/me");
-                return ResponseEntity.status(401).build();
-            }
-
             UserDetails userDetails = (UserDetails) authentication.getPrincipal();
             String email = userDetails.getUsername();
-            log.info("Updating profile for email: {}", email);
+            log.info("✅ Updating profile for email: {} (isAuthenticated=true)", email);
 
             UserInfoResponse response = authService.updateProfile(email, request);
             log.info("Successfully updated profile for userId: {}", response.getUserId());
@@ -168,18 +157,12 @@ public class AuthController {
             @Valid @RequestBody ChangePasswordRequest request,
             Authentication authentication) {
         try {
-            if (authentication == null || !authentication.isAuthenticated()) {
-                log.warn("Unauthenticated request to POST /auth/change-password");
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                        .body(Map.of("message", "Bạn cần đăng nhập để đổi mật khẩu."));
-            }
-
             UserDetails userDetails = (UserDetails) authentication.getPrincipal();
             String email = userDetails.getUsername();
-            log.info("Changing password for email: {}", email);
-            
+            log.info("✅ Changing password for email: {} (isAuthenticated=true)", email);
+
             authService.changePassword(email, request.getCurrentPassword(), request.getNewPassword());
-            
+
             log.info("Password changed successfully for email: {}", email);
             return ResponseEntity.ok(Map.of("message", "Đổi mật khẩu thành công."));
         } catch (RuntimeException e) {

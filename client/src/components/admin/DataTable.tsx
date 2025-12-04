@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import * as XLSX from "xlsx";
 import "jspdf-autotable";
 
@@ -58,7 +58,31 @@ export function DataTable<T extends Record<string, unknown>>({
     key: string;
     direction: "asc" | "desc";
   } | null>(null);
-  const visibleColumns = columns.map((col) => col.key);
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(
+    columns.map((col) => col.key)
+  );
+  const [showColumnSelector, setShowColumnSelector] = useState(false);
+  const columnSelectorRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        columnSelectorRef.current &&
+        !columnSelectorRef.current.contains(event.target as Node)
+      ) {
+        setShowColumnSelector(false);
+      }
+    };
+
+    if (showColumnSelector) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showColumnSelector]);
 
   // Use external currentPage if provided (server-side), otherwise use internal state
   const currentPage =
@@ -307,6 +331,68 @@ export function DataTable<T extends Record<string, unknown>>({
             className="px-3 py-1 bg-gray-600 text-white rounded text-sm hover:bg-gray-700">
             <i className="fas fa-print mr-1"></i> Print
           </button>
+
+          {/* Column Selector */}
+          <div className="relative" ref={columnSelectorRef}>
+            <button
+              onClick={() => setShowColumnSelector(!showColumnSelector)}
+              className="px-3 py-1 bg-purple-600 text-white rounded text-sm hover:bg-purple-700 transition-colors">
+              <i className="fas fa-columns mr-1"></i> Columns
+            </button>
+            {showColumnSelector && (
+              <div className="absolute right-0 mt-2 bg-white border border-gray-300 rounded shadow-lg z-50 w-56">
+                <div className="p-3">
+                  <div className="flex justify-between items-center mb-2 pb-2 border-b">
+                    <span className="text-sm font-semibold">
+                      Select Columns
+                    </span>
+                    <button
+                      onClick={() => setShowColumnSelector(false)}
+                      className="text-gray-500 hover:text-gray-700">
+                      <i className="fas fa-times"></i>
+                    </button>
+                  </div>
+                  <div className="max-h-64 overflow-y-auto">
+                    {columns.map((col) => (
+                      <label
+                        key={col.key}
+                        className="flex items-center gap-2 py-1 px-2 hover:bg-gray-50 cursor-pointer rounded">
+                        <input
+                          type="checkbox"
+                          checked={visibleColumns.includes(col.key)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setVisibleColumns([...visibleColumns, col.key]);
+                            } else {
+                              setVisibleColumns(
+                                visibleColumns.filter((k) => k !== col.key)
+                              );
+                            }
+                          }}
+                          className="rounded border-gray-300"
+                        />
+                        <span className="text-sm">{col.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                  <div className="flex gap-2 mt-2 pt-2 border-t">
+                    <button
+                      onClick={() =>
+                        setVisibleColumns(columns.map((col) => col.key))
+                      }
+                      className="flex-1 px-2 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700">
+                      Select All
+                    </button>
+                    <button
+                      onClick={() => setVisibleColumns([])}
+                      className="flex-1 px-2 py-1 bg-gray-600 text-white rounded text-xs hover:bg-gray-700">
+                      Clear All
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* Add Button */}
           {onAdd && (

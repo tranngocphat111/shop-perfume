@@ -12,3 +12,4 @@ export { PurchaseInvoiceModal } from "./PurchaseInvoiceModal";
 export { PurchaseInvoiceViewModal } from "./PurchaseInvoiceViewModal";
 export { PurchaseInvoiceAddModal } from "./PurchaseInvoiceAddModal";
 export { OrderDetailModal } from "./OrderDetailModal";
+export { CustomerDetailModal } from "./CustomerDetailModal";
