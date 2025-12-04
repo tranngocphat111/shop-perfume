@@ -1,5 +1,10 @@
 import { useState, useEffect } from "react";
-import { AdminLayout, DataTable, type Column } from "../../components/admin";
+import {
+  AdminLayout,
+  DataTable,
+  type Column,
+  ToastContainer,
+} from "../../components/admin";
 import { productService as productAdminService } from "../../services/product.service";
 // import { productService } from "../../services/perfume.service";
 import type { Product } from "../../types";
@@ -8,6 +13,7 @@ import {
   type ProductFormData,
 } from "../../components/admin/ProductModal";
 import { ProductDetailModal } from "../../components/admin/ProductDetailModal";
+import { useToast } from "../../hooks/useToast";
 
 interface ProductData extends Record<string, unknown> {
   id: number;
@@ -22,6 +28,14 @@ interface ProductData extends Record<string, unknown> {
 }
 
 export const Products = () => {
+  const {
+    toasts,
+    removeToast,
+    success,
+    error: showError,
+    warning,
+  } = useToast();
+
   const [products, setProducts] = useState<ProductData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -209,21 +223,15 @@ export const Products = () => {
       console.error("Error fetching product details:", err);
       const errorMessage = err instanceof Error ? err.message : "Unknown error";
 
-      let userMessage = `❌ Không thể tải thông tin sản phẩm!\n\n`;
-
       if (
         errorMessage.includes("404") ||
         errorMessage.includes("not found") ||
         errorMessage.includes("không tìm thấy")
       ) {
-        userMessage += `Lỗi: Không tìm thấy sản phẩm với ID ${item.id}\n`;
-        userMessage += `Sản phẩm này có thể đã bị xóa.`;
+        showError(`Product #${item.id} not found. It may have been deleted.`);
       } else {
-        userMessage += `Chi tiết lỗi: ${errorMessage}\n`;
-        userMessage += `Vui lòng thử lại sau.`;
+        showError(`Failed to load product details: ${errorMessage}`);
       }
-
-      alert(userMessage);
     }
   };
 
@@ -260,21 +268,15 @@ export const Products = () => {
       console.error("Error fetching product for edit:", err);
       const errorMessage = err instanceof Error ? err.message : "Unknown error";
 
-      let userMessage = `❌ Không thể tải thông tin sản phẩm để sửa!\n\n`;
-
       if (
         errorMessage.includes("404") ||
         errorMessage.includes("not found") ||
         errorMessage.includes("không tìm thấy")
       ) {
-        userMessage += `Lỗi: Không tìm thấy sản phẩm với ID ${item.id}\n`;
-        userMessage += `Sản phẩm này có thể đã bị xóa.`;
+        showError(`Product #${item.id} not found. It may have been deleted.`);
       } else {
-        userMessage += `Chi tiết lỗi: ${errorMessage}\n`;
-        userMessage += `Vui lòng thử lại sau.`;
+        showError(`Failed to load product for editing: ${errorMessage}`);
       }
-
-      alert(userMessage);
     }
   };
 
@@ -293,8 +295,8 @@ export const Products = () => {
 
     try {
       await productAdminService.deleteProduct(item.id);
-      alert(
-        `✅ Đã xóa sản phẩm thành công!\n\nSản phẩm "${item.name}" đã được chuyển sang trạng thái INACTIVE.`
+      success(
+        `Product "${item.name}" has been set to INACTIVE status successfully!`
       );
       // Refresh the product list to get only ACTIVE products
       await fetchProducts(
@@ -307,9 +309,7 @@ export const Products = () => {
     } catch (err) {
       console.error("Error deleting product:", err);
       const errorMessage = err instanceof Error ? err.message : "Unknown error";
-      alert(
-        `❌ Lỗi khi xóa sản phẩm!\n\nChi tiết: ${errorMessage}\nVui lòng thử lại sau.`
-      );
+      showError(`Failed to delete product: ${errorMessage}`);
     }
   };
 
@@ -326,15 +326,15 @@ export const Products = () => {
       if (modalMode === "add") {
         // Validate
         if (data.brandId === 0) {
-          alert("⚠️ Vui lòng chọn thương hiệu!");
+          warning("Please select a brand!");
           return;
         }
         if (data.categoryId === 0) {
-          alert("⚠️ Vui lòng chọn danh mục!");
+          warning("Please select a category!");
           return;
         }
         if (!data.images || data.images.length === 0) {
-          alert("⚠️ Vui lòng chọn ít nhất 1 ảnh sản phẩm!");
+          warning("Please select at least 1 product image!");
           return;
         }
 
@@ -363,14 +363,14 @@ export const Products = () => {
           data.images,
           data.primaryImageIndex || 0
         );
-        alert(
-          `✅ Thêm sản phẩm thành công!\n\nTên sản phẩm: ${
+        success(
+          `Product "${
             data.name
-          }\nGiá: ${data.unitPrice.toLocaleString()} đ`
+          }" created successfully! Price: ${data.unitPrice.toLocaleString()} đ`
         );
       } else {
         if (!selectedProduct || !selectedProduct.productId) {
-          alert("⚠️ Không có sản phẩm nào được chọn để sửa!");
+          warning("No product selected for editing!");
           return;
         }
 
@@ -427,8 +427,8 @@ export const Products = () => {
           );
         }
 
-        alert(
-          `✅ Cập nhật sản phẩm thành công!\n\nProduct ID: ${selectedProduct.productId}\nTên: ${data.name}`
+        success(
+          `Product "${data.name}" (ID: ${selectedProduct.productId}) updated successfully!`
         );
       }
 
@@ -483,7 +483,7 @@ export const Products = () => {
         userMessage += `Chi tiết lỗi: ${errorMessage}`;
       }
 
-      alert(userMessage);
+      showError(userMessage);
     }
   };
 
@@ -504,7 +504,7 @@ export const Products = () => {
     <AdminLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 p-6">
           <div>
             <h1 className="text-2xl font-bold text-gray-800">Products</h1>
             <p className="text-gray-600 mt-1">
@@ -570,6 +570,9 @@ export const Products = () => {
           }}
           product={detailProduct}
         />
+
+        {/* Toast Container */}
+        <ToastContainer toasts={toasts} onRemove={removeToast} />
       </div>
     </AdminLayout>
   );

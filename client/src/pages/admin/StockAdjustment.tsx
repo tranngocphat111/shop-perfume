@@ -333,7 +333,7 @@ export const StockAdjustments = () => {
     <AdminLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 p-6">
           <div>
             <h1 className="text-2xl font-bold text-gray-800">
               Stock Adjustments

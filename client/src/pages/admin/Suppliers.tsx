@@ -1,5 +1,10 @@
 import { useState, useEffect } from "react";
-import { AdminLayout, DataTable, type Column } from "../../components/admin";
+import {
+  AdminLayout,
+  DataTable,
+  type Column,
+  ToastContainer,
+} from "../../components/admin";
 import { supplierService } from "../../services/supplier.service";
 import type { Supplier } from "../../types";
 import {
@@ -7,6 +12,7 @@ import {
   type SupplierFormData,
 } from "../../components/admin/SupplierModal";
 import { SupplierDetailModal } from "../../components/admin/SupplierDetailModal";
+import { useToast } from "../../hooks/useToast";
 
 interface SupplierData extends Record<string, unknown> {
   id: number;
@@ -19,6 +25,8 @@ interface SupplierData extends Record<string, unknown> {
 }
 
 export const Suppliers = () => {
+  const { toasts, showToast, success, showError, warning, removeToast } =
+    useToast();
   const [suppliers, setSuppliers] = useState<SupplierData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -200,21 +208,15 @@ export const Suppliers = () => {
       console.error("Error fetching supplier details:", err);
       const errorMessage = err instanceof Error ? err.message : "Unknown error";
 
-      let userMessage = `❌ Không thể tải thông tin nhà cung cấp!\n\n`;
-
       if (
         errorMessage.includes("404") ||
         errorMessage.includes("not found") ||
         errorMessage.includes("không tìm thấy")
       ) {
-        userMessage += `Lỗi: Không tìm thấy nhà cung cấp với ID ${item.id}\n`;
-        userMessage += `Nhà cung cấp này có thể đã bị xóa.`;
+        showError(`Supplier #${item.id} not found. It may have been deleted.`);
       } else {
-        userMessage += `Chi tiết lỗi: ${errorMessage}\n`;
-        userMessage += `Vui lòng thử lại sau.`;
+        showError(`Failed to load supplier details: ${errorMessage}`);
       }
-
-      alert(userMessage);
     }
   };
 
@@ -238,21 +240,15 @@ export const Suppliers = () => {
       console.error("Error fetching supplier for edit:", err);
       const errorMessage = err instanceof Error ? err.message : "Unknown error";
 
-      let userMessage = `❌ Không thể tải thông tin nhà cung cấp để sửa!\n\n`;
-
       if (
         errorMessage.includes("404") ||
         errorMessage.includes("not found") ||
         errorMessage.includes("không tìm thấy")
       ) {
-        userMessage += `Lỗi: Không tìm thấy nhà cung cấp với ID ${item.id}\n`;
-        userMessage += `Nhà cung cấp này có thể đã bị xóa.`;
+        showError(`Supplier #${item.id} not found. It may have been deleted.`);
       } else {
-        userMessage += `Chi tiết lỗi: ${errorMessage}\n`;
-        userMessage += `Vui lòng thử lại sau.`;
+        showError(`Failed to load supplier for editing: ${errorMessage}`);
       }
-
-      alert(userMessage);
     }
   };
 
@@ -316,12 +312,12 @@ export const Suppliers = () => {
           phone: data.phone,
           address: data.address,
         });
-        alert(
-          `✅ Thêm nhà cung cấp thành công!\n\nTên: ${data.name}\nEmail: ${data.email}`
+        success(
+          `Supplier "${data.name}" created successfully! Email: ${data.email}`
         );
       } else {
         if (!selectedSupplier || !selectedSupplier.supplierId) {
-          alert("⚠️ Không có nhà cung cấp nào được chọn để sửa!");
+          warning("No supplier selected for editing!");
           return;
         }
 
@@ -332,8 +328,8 @@ export const Suppliers = () => {
           address: data.address,
         });
 
-        alert(
-          `✅ Cập nhật nhà cung cấp thành công!\n\nSupplier ID: ${selectedSupplier.supplierId}\nTên: ${data.name}`
+        success(
+          `Supplier "${data.name}" (ID: ${selectedSupplier.supplierId}) updated successfully!`
         );
       }
 
@@ -350,11 +346,6 @@ export const Suppliers = () => {
       console.error("Error saving supplier:", err);
       const errorMessage = err instanceof Error ? err.message : "Unknown error";
 
-      let userMessage =
-        modalMode === "add"
-          ? `❌ Không thể thêm nhà cung cấp!\n\n`
-          : `❌ Không thể cập nhật nhà cung cấp!\n\n`;
-
       if (
         errorMessage.includes("400") ||
         errorMessage.includes("Bad Request")
@@ -364,26 +355,28 @@ export const Suppliers = () => {
           errorMessage.includes("đã tồn tại") ||
           errorMessage.includes("duplicate")
         ) {
-          userMessage += `Lỗi: Nhà cung cấp với email hoặc tên này đã tồn tại\n`;
-          userMessage += `Vui lòng sử dụng thông tin khác.`;
+          showError(
+            "Supplier with this email or name already exists. Please use different information."
+          );
         } else {
-          userMessage += `Lỗi: Dữ liệu không hợp lệ\n`;
-          userMessage += `Chi tiết: ${errorMessage}`;
+          showError(`Invalid data: ${errorMessage}`);
         }
       } else if (errorMessage.includes("404")) {
-        userMessage += `Lỗi: Không tìm thấy nhà cung cấp\n`;
-        userMessage += `Có thể đã bị xóa trước đó.`;
+        showError("Supplier not found. It may have been deleted.");
       } else if (
         errorMessage.includes("500") ||
         errorMessage.includes("Internal Server Error")
       ) {
-        userMessage += `Lỗi: Lỗi server nội bộ\n`;
-        userMessage += `Vui lòng thử lại sau hoặc liên hệ quản trị viên.`;
+        showError(
+          "Internal server error. Please try again or contact administrator."
+        );
       } else {
-        userMessage += `Chi tiết lỗi: ${errorMessage}`;
+        showError(
+          modalMode === "add"
+            ? `Failed to create supplier: ${errorMessage}`
+            : `Failed to update supplier: ${errorMessage}`
+        );
       }
-
-      alert(userMessage);
     }
   };
 
@@ -404,7 +397,7 @@ export const Suppliers = () => {
     <AdminLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 p-6">
           <div>
             <h1 className="text-2xl font-bold text-gray-800">Suppliers</h1>
             <p className="text-gray-600 mt-1">
@@ -468,6 +461,9 @@ export const Suppliers = () => {
           }}
           supplier={detailSupplier}
         />
+
+        {/* Toast Container */}
+        <ToastContainer toasts={toasts} onRemove={removeToast} />
       </div>
     </AdminLayout>
   );
