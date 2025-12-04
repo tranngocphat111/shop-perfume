@@ -1,4 +1,4 @@
-import { Toast, ToastType } from "./Toast";
+import { Toast, type ToastType } from "./Toast";
 
 interface ToastNotification {
   id: string;
