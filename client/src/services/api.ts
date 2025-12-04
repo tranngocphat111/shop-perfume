@@ -112,6 +112,7 @@ const isPublicEndpoint = (endpoint: string): boolean => {
     "/auth/logout",
     "/auth/forgot-password",
     "/auth/reset-password",
+    "/auth/google-signin",
     "/payment/check-qr",
     "/brands/",
     "/categories/",
