@@ -47,6 +47,13 @@ public interface OrderService {
     Integer extractOrderIdFromWebhook(SepayWebhookRequest webhookRequest);
     
     /**
+     * Get order by ID
+     * @param orderId The order ID
+     * @return OrderResponse
+     */
+    OrderResponse getOrderById(Integer orderId);
+    
+    /**
      * Get orders with pagination and search
      * @param pageable Pagination information
      * @param searchTerm Search term for filtering orders

@@ -931,6 +931,17 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
     
     @Override
     @Transactional(readOnly = true)
+    public OrderResponse getOrderById(Integer orderId) {
+        log.info("Getting order by ID: {}", orderId);
+        
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Order not found with id: " + orderId));
+        
+        return orderMapper.toResponse(order);
+    }
+    
+    @Override
+    @Transactional(readOnly = true)
     public org.springframework.data.domain.Page<OrderResponse> getOrdersPage(
             org.springframework.data.domain.Pageable pageable, 
             String searchTerm) {

@@ -206,6 +206,28 @@ public class OrderController {
     }
     
     /**
+     * GET /api/orders/{orderId} - Get order by ID (Admin only)
+     */
+    @GetMapping("/{orderId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Get order by ID", description = "Retrieve order details by ID (Admin only)")
+    public ResponseEntity<?> getOrderById(@PathVariable Integer orderId) {
+        try {
+            log.info("REST request to get order by ID: {}", orderId);
+            OrderResponse order = orderService.getOrderById(orderId);
+            return ResponseEntity.ok(order);
+        } catch (RuntimeException e) {
+            log.error("Error getting order by ID: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(new ErrorResponse(e.getMessage()));
+        } catch (Exception e) {
+            log.error("Error getting order by ID", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ErrorResponse("Có lỗi xảy ra khi lấy thông tin đơn hàng: " + e.getMessage()));
+        }
+    }
+
+    /**
      * GET /api/orders/page - Get orders with pagination and search (Admin only)
      */
     @GetMapping({"/page", "/paginated"})
