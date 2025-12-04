@@ -263,7 +263,12 @@ public class ProductServiceImpl implements ProductService {
             
             // Delete from database immediately
             imageRepository.deleteAllById(imageIdsToDelete);
+            imageRepository.flush(); // Flush to ensure deletion is committed
             log.info("Deleted {} images from product {}", imageIdsToDelete.size(), productId);
+            
+            // Reload product to refresh the images collection after deletion
+            savedProduct = productRepository.findById(productId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Product not found with id: " + productId));
         }
         
         // Upload new images in parallel
@@ -294,10 +299,16 @@ public class ProductServiceImpl implements ProductService {
         
         // Update primary image if specified
         if (primaryImageId != null) {
+            // Reload product again to get fresh images collection
+            Product freshProduct = productRepository.findById(productId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Product not found with id: " + productId));
+            
             // Reset all images to non-primary
-            List<Image> allImages = savedProduct.getImages();
-            allImages.forEach(img -> img.setPrimary(false));
-            imageRepository.saveAll(allImages);
+            List<Image> allImages = freshProduct.getImages();
+            if (allImages != null && !allImages.isEmpty()) {
+                allImages.forEach(img -> img.setPrimary(false));
+                imageRepository.saveAll(allImages);
+            }
             
             // Set new primary image
             Image primaryImage = imageRepository.findById(primaryImageId).orElse(null);
