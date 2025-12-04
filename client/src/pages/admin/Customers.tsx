@@ -39,6 +39,10 @@ export const Customers = () => {
   const [detailCustomer, setDetailCustomer] =
     useState<UserDetailResponse | null>(null);
 
+  // Inline edit status states
+  const [editingStatusId, setEditingStatusId] = useState<number | null>(null);
+  const [editingStatusValue, setEditingStatusValue] = useState<string>("");
+
   const fetchCustomers = async (
     page: number,
     size: number,
@@ -193,17 +197,42 @@ export const Customers = () => {
       label: "Status",
       sortable: true,
       onSort: handleSort,
-      render: (value: string) => {
+      render: (value: string, row: CustomerData) => {
         const statusColors: Record<string, string> = {
           ACTIVE: "bg-green-100 text-green-800",
           INACTIVE: "bg-red-100 text-red-800",
           BANNED: "bg-red-100 text-red-800",
+          DELETED: "bg-gray-100 text-gray-800",
         };
+
+        if (editingStatusId === row.id) {
+          return (
+            <select
+              value={editingStatusValue}
+              onChange={(e) => handleStatusChange(e.target.value)}
+              onBlur={handleStatusBlur}
+              onKeyDown={handleStatusKeyDown}
+              autoFocus
+              className="border border-blue-500 rounded px-2 py-1 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="ACTIVE">ACTIVE</option>
+              <option value="DELETED">DELETED</option>
+            </select>
+          );
+        }
+
+        const isEditable = value === "ACTIVE" || value === "DELETED";
+
         return (
           <span
+            onDoubleClick={() => handleStatusDoubleClick(row)}
             className={`inline-block whitespace-nowrap px-2 py-1 text-xs rounded font-semibold ${
-              statusColors[value] || "bg-gray-100 text-gray-800"
-            }`}>
+              isEditable
+                ? "cursor-pointer hover:opacity-80"
+                : "cursor-not-allowed"
+            } ${statusColors[value] || "bg-gray-100 text-gray-800"}`}
+            title={
+              isEditable ? "Double-click to edit" : "Cannot edit this status"
+            }>
             {value}
           </span>
         );
@@ -250,6 +279,48 @@ export const Customers = () => {
       onSort: handleSort,
     },
   ];
+
+  const handleStatusDoubleClick = (item: CustomerData) => {
+    setEditingStatusId(item.id);
+    setEditingStatusValue(item.status);
+  };
+
+  const handleStatusChange = (value: string) => {
+    setEditingStatusValue(value);
+  };
+
+  const handleStatusBlur = async () => {
+    if (editingStatusId && editingStatusValue) {
+      try {
+        await userService.updateUserStatus(editingStatusId, editingStatusValue);
+
+        // Refresh the list
+        await fetchCustomers(
+          currentPage,
+          pageSize,
+          sortField,
+          sortDirection,
+          searchQuery
+        );
+
+        alert("✅ User status updated successfully!");
+      } catch (err) {
+        console.error("Error updating user status:", err);
+        alert("❌ Failed to update user status. Please try again.");
+      }
+    }
+    setEditingStatusId(null);
+    setEditingStatusValue("");
+  };
+
+  const handleStatusKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      handleStatusBlur();
+    } else if (e.key === "Escape") {
+      setEditingStatusId(null);
+      setEditingStatusValue("");
+    }
+  };
 
   const handleView = async (item: CustomerData) => {
     try {

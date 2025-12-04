@@ -53,5 +53,19 @@ public interface OrderService {
      * @return Page of OrderResponse
      */
     org.springframework.data.domain.Page<OrderResponse> getOrdersPage(org.springframework.data.domain.Pageable pageable, String searchTerm);
+    
+    /**
+     * Update shipment status for an order
+     * @param orderId The order ID
+     * @param status The new shipment status
+     */
+    void updateShipmentStatus(Integer orderId, String status);
+    
+    /**
+     * Update payment status for an order
+     * @param orderId The order ID
+     * @param status The new payment status
+     */
+    void updatePaymentStatus(Integer orderId, String status);
 }
 

@@ -33,6 +33,16 @@ export const Orders = () => {
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [detailOrder, setDetailOrder] = useState<OrderResponse | null>(null);
 
+  // Inline edit shipment status states
+  const [editingShipmentId, setEditingShipmentId] = useState<number | null>(
+    null
+  );
+  const [editingShipmentValue, setEditingShipmentValue] = useState<string>("");
+
+  // Inline edit payment status states
+  const [editingPaymentId, setEditingPaymentId] = useState<number | null>(null);
+  const [editingPaymentValue, setEditingPaymentValue] = useState<string>("");
+
   const fetchOrders = async (
     page: number,
     size: number,
@@ -199,18 +209,41 @@ export const Orders = () => {
       label: "Payment Status",
       sortable: true,
       onSort: handleSort,
-      render: (value: string) => {
+      render: (value: string, row: OrderData) => {
         const statusColors: Record<string, string> = {
           PENDING: "bg-yellow-100 text-yellow-800",
-          COMPLETED: "bg-green-100 text-green-800",
-          CANCELLED: "bg-red-100 text-red-800",
+          PAID: "bg-green-100 text-green-800",
+          REFUNDED: "bg-purple-100 text-purple-800",
           FAILED: "bg-red-100 text-red-800",
         };
+
+        if (editingPaymentId === row.id) {
+          return (
+            <select
+              value={editingPaymentValue}
+              onChange={(e) => handlePaymentChange(e.target.value)}
+              onBlur={handlePaymentBlur}
+              onKeyDown={handlePaymentKeyDown}
+              autoFocus
+              className="border border-blue-500 rounded px-2 py-1 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="REFUNDED">REFUNDED</option>
+            </select>
+          );
+        }
+
+        const isEditable = value === "PAID";
+
         return (
           <span
+            onDoubleClick={() => handlePaymentDoubleClick(row)}
             className={`inline-block whitespace-nowrap px-2 py-1 text-xs rounded font-semibold ${
-              statusColors[value] || "bg-gray-100 text-gray-800"
-            }`}>
+              isEditable
+                ? "cursor-pointer hover:opacity-80"
+                : "cursor-not-allowed"
+            } ${statusColors[value] || "bg-gray-100 text-gray-800"}`}
+            title={
+              isEditable ? "Double-click to refund" : "Cannot edit this status"
+            }>
             {value}
           </span>
         );
@@ -221,19 +254,62 @@ export const Orders = () => {
       label: "Shipment Status",
       sortable: true,
       onSort: handleSort,
-      render: (value: string) => {
+      render: (value: string, row: OrderData) => {
         const statusColors: Record<string, string> = {
           PENDING: "bg-yellow-100 text-yellow-800",
-          PROCESSING: "bg-blue-100 text-blue-800",
-          SHIPPED: "bg-purple-100 text-purple-800",
+          IN_TRANSIT: "bg-blue-100 text-blue-800",
           DELIVERED: "bg-green-100 text-green-800",
           CANCELLED: "bg-red-100 text-red-800",
         };
+
+        if (editingShipmentId === row.id) {
+          // Get valid next statuses based on current status
+          const getValidNextStatuses = (currentStatus: string) => {
+            switch (currentStatus) {
+              case "PENDING":
+                return [
+                  { value: "IN_TRANSIT", label: "IN_TRANSIT" },
+                  { value: "CANCELLED", label: "CANCELLED" },
+                ];
+              case "IN_TRANSIT":
+                return [{ value: "DELIVERED", label: "DELIVERED" }];
+              default:
+                return [];
+            }
+          };
+
+          const validStatuses = getValidNextStatuses(value);
+
+          return (
+            <select
+              value={editingShipmentValue}
+              onChange={(e) => handleShipmentChange(e.target.value)}
+              onBlur={handleShipmentBlur}
+              onKeyDown={handleShipmentKeyDown}
+              autoFocus
+              className="border border-blue-500 rounded px-2 py-1 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500">
+              {validStatuses.map((status) => (
+                <option key={status.value} value={status.value}>
+                  {status.label}
+                </option>
+              ))}
+            </select>
+          );
+        }
+
+        const isEditable = value !== "DELIVERED" && value !== "CANCELLED";
+
         return (
           <span
+            onDoubleClick={() => handleShipmentDoubleClick(row)}
             className={`inline-block whitespace-nowrap px-2 py-1 text-xs rounded font-semibold ${
-              statusColors[value] || "bg-gray-100 text-gray-800"
-            }`}>
+              isEditable
+                ? "cursor-pointer hover:opacity-80"
+                : "cursor-not-allowed"
+            } ${statusColors[value] || "bg-gray-100 text-gray-800"}`}
+            title={
+              isEditable ? "Double-click to edit" : "Cannot edit final status"
+            }>
             {value}
           </span>
         );
@@ -246,6 +322,110 @@ export const Orders = () => {
       onSort: handleSort,
     },
   ];
+
+  const handlePaymentDoubleClick = (item: OrderData) => {
+    // Only allow editing if status is PAID
+    if (item.paymentStatus !== "PAID") {
+      alert("⚠️ Only PAID payments can be refunded!");
+      return;
+    }
+    setEditingPaymentId(item.id);
+    setEditingPaymentValue(item.paymentStatus);
+  };
+
+  const handlePaymentChange = (value: string) => {
+    setEditingPaymentValue(value);
+  };
+
+  const handlePaymentBlur = async () => {
+    if (editingPaymentId && editingPaymentValue) {
+      try {
+        await orderService.updatePaymentStatus(
+          editingPaymentId,
+          editingPaymentValue
+        );
+
+        // Refresh the list
+        await fetchOrders(
+          currentPage,
+          pageSize,
+          sortField,
+          sortDirection,
+          searchQuery
+        );
+
+        alert("✅ Payment status updated successfully!");
+      } catch (err) {
+        console.error("Error updating payment status:", err);
+        alert("❌ Failed to update payment status. Please try again.");
+      }
+    }
+    setEditingPaymentId(null);
+    setEditingPaymentValue("");
+  };
+
+  const handlePaymentKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      handlePaymentBlur();
+    } else if (e.key === "Escape") {
+      setEditingPaymentId(null);
+      setEditingPaymentValue("");
+    }
+  };
+
+  const handleShipmentDoubleClick = (item: OrderData) => {
+    // Only allow editing if status can be changed
+    // Cannot edit DELIVERED or CANCELLED (final states)
+    if (
+      item.shipmentStatus === "DELIVERED" ||
+      item.shipmentStatus === "CANCELLED"
+    ) {
+      alert("⚠️ Cannot edit DELIVERED or CANCELLED status!");
+      return;
+    }
+    setEditingShipmentId(item.id);
+    setEditingShipmentValue(item.shipmentStatus);
+  };
+
+  const handleShipmentChange = (value: string) => {
+    setEditingShipmentValue(value);
+  };
+
+  const handleShipmentBlur = async () => {
+    if (editingShipmentId && editingShipmentValue) {
+      try {
+        await orderService.updateShipmentStatus(
+          editingShipmentId,
+          editingShipmentValue
+        );
+
+        // Refresh the list
+        await fetchOrders(
+          currentPage,
+          pageSize,
+          sortField,
+          sortDirection,
+          searchQuery
+        );
+
+        alert("✅ Shipment status updated successfully!");
+      } catch (err) {
+        console.error("Error updating shipment status:", err);
+        alert("❌ Failed to update shipment status. Please try again.");
+      }
+    }
+    setEditingShipmentId(null);
+    setEditingShipmentValue("");
+  };
+
+  const handleShipmentKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      handleShipmentBlur();
+    } else if (e.key === "Escape") {
+      setEditingShipmentId(null);
+      setEditingShipmentValue("");
+    }
+  };
 
   const handleView = async (item: OrderData) => {
     try {

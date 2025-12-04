@@ -73,4 +73,31 @@ public class AdminUserController {
         UserDetailResponse user = adminUserService.getUserById(id);
         return ResponseEntity.ok(user);
     }
+    
+    /**
+     * PUT /api/admin/users/{id}/status - Update user status
+     */
+    @PutMapping("/{id}/status")
+    @Operation(summary = "Update user status", description = "Update user status (Admin only)")
+    public ResponseEntity<?> updateUserStatus(
+            @PathVariable Integer id,
+            @RequestParam String status) {
+        try {
+            log.info("REST request to update user status for id: {} to status: {}", id, status);
+            adminUserService.updateUserStatus(id, status);
+            return ResponseEntity.ok(new UpdateResponse(true, "User status updated successfully"));
+        } catch (RuntimeException e) {
+            log.error("Error updating user status: {}", e.getMessage());
+            return ResponseEntity.badRequest()
+                    .body(new ErrorResponse(e.getMessage()));
+        } catch (Exception e) {
+            log.error("Error updating user status", e);
+            return ResponseEntity.internalServerError()
+                    .body(new ErrorResponse("Có lỗi xảy ra khi cập nhật trạng thái người dùng: " + e.getMessage()));
+        }
+    }
+    
+    // Response DTOs
+    private record ErrorResponse(String message) {}
+    private record UpdateResponse(boolean success, String message) {}
 }

@@ -236,20 +236,27 @@ export const PurchaseInvoices = () => {
               onKeyDown={handleStatusKeyDown}
               autoFocus
               className="border border-blue-500 rounded px-2 py-1 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500">
-              <option value="PENDING">PENDING</option>
               <option value="COMPLETED">COMPLETED</option>
               <option value="CANCELLED">CANCELLED</option>
             </select>
           );
         }
 
+        const isEditable = value === "PENDING";
+
         return (
           <span
             onDoubleClick={() => handleStatusDoubleClick(row)}
-            className={`inline-block whitespace-nowrap px-2 py-1 text-xs rounded font-semibold cursor-pointer hover:opacity-80 ${
-              statusColors[value] || "bg-gray-100 text-gray-800"
-            }`}
-            title="Double-click to edit">
+            className={`inline-block whitespace-nowrap px-2 py-1 text-xs rounded font-semibold ${
+              isEditable
+                ? "cursor-pointer hover:opacity-80"
+                : "cursor-not-allowed"
+            } ${statusColors[value] || "bg-gray-100 text-gray-800"}`}
+            title={
+              isEditable
+                ? "Double-click to edit"
+                : "Only PENDING status can be edited"
+            }>
             {value}
           </span>
         );
@@ -270,6 +277,11 @@ export const PurchaseInvoices = () => {
   ];
 
   const handleStatusDoubleClick = (item: PurchaseInvoiceData) => {
+    // Only allow editing if status is PENDING
+    if (item.status !== "PENDING") {
+      alert("⚠️ Only PENDING invoices can be edited!");
+      return;
+    }
     setEditingStatusId(item.id);
     setEditingStatusValue(item.status);
   };

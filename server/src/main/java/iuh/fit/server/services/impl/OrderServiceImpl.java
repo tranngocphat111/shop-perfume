@@ -6,6 +6,7 @@ import iuh.fit.server.dto.response.OrderResponse;
 import iuh.fit.server.dto.response.PaymentCheckResponse;
 import iuh.fit.server.dto.response.RevenueStatsResponse;
 import iuh.fit.server.exception.BadRequestException;
+import iuh.fit.server.exception.ResourceNotFoundException;
 import iuh.fit.server.mapper.OrderMapper;
 import iuh.fit.server.model.entity.*;
 import iuh.fit.server.model.enums.Method;
@@ -945,6 +946,100 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
         }
         
         return orders.map(orderMapper::toResponse);
+    }
+    
+    @Override
+    @Transactional
+    public void updateShipmentStatus(Integer orderId, String status) {
+        log.info("Updating shipment status for order: {} to status: {}", orderId, status);
+        
+        // Find order
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Order not found with id: " + orderId));
+        
+        // Validate status
+        ShipmentStatus newStatus;
+        try {
+            newStatus = ShipmentStatus.valueOf(status.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Invalid shipment status: " + status);
+        }
+        
+        // Get current shipment
+        Shipment shipment = order.getShipment();
+        if (shipment == null) {
+            throw new IllegalStateException("Order does not have shipment information");
+        }
+        
+        ShipmentStatus currentStatus = shipment.getStatus();
+        log.info("Current shipment status: {}, New status: {}", currentStatus, newStatus);
+        
+        // Validate status transition (optional - add business rules if needed)
+        // For example: PENDING -> PROCESSING -> SHIPPED -> DELIVERED
+        // or PENDING -> CANCELLED
+        
+        // Update status
+        shipment.setStatus(newStatus);
+        
+        // Update appropriate date field based on status
+        Date now = new java.util.Date();
+        if (newStatus == ShipmentStatus.IN_TRANSIT) {
+            shipment.setShippedDate(now);
+            log.info("Set shippedDate to: {}", now);
+        } else if (newStatus == ShipmentStatus.DELIVERED) {
+            shipment.setDeliveredDate(now);
+            log.info("Set deliveredDate to: {}", now);
+        }
+        
+        // Save order (cascade will save shipment)
+        orderRepository.save(order);
+        
+        log.info("Shipment status updated successfully for order: {}", orderId);
+    }
+    
+    @Override
+    @Transactional
+    public void updatePaymentStatus(Integer orderId, String status) {
+        log.info("Updating payment status for order: {} to status: {}", orderId, status);
+        
+        // Find order
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Order not found with id: " + orderId));
+        
+        // Validate status
+        PaymentStatus newStatus;
+        try {
+            newStatus = PaymentStatus.valueOf(status.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Invalid payment status: " + status);
+        }
+        
+        // Get current payment
+        Payment payment = order.getPayment();
+        if (payment == null) {
+            throw new IllegalStateException("Order does not have payment information");
+        }
+        
+        PaymentStatus currentStatus = payment.getStatus();
+        log.info("Current payment status: {}, New status: {}", currentStatus, newStatus);
+        
+        // Validate: only allow PAID -> REFUNDED
+        if (currentStatus != PaymentStatus.PAID || newStatus != PaymentStatus.REFUNDED) {
+            throw new IllegalStateException("Can only change payment status from PAID to REFUNDED");
+        }
+        
+        // Update status
+        payment.setStatus(newStatus);
+        
+        // Set payment date if needed
+        if (payment.getPaymentDate() == null) {
+            payment.setPaymentDate(new java.util.Date());
+        }
+        
+        // Save order (cascade will save payment)
+        orderRepository.save(order);
+        
+        log.info("Payment status updated successfully for order: {}", orderId);
     }
 
 }

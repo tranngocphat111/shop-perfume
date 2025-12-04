@@ -116,5 +116,12 @@ export const userService = {
       throw new Error(errorMessage);
     }
   },
+
+  /**
+   * Update user status (Admin)
+   */
+  updateUserStatus: async (userId: number, status: string): Promise<void> => {
+    return apiService.put(`/admin/users/${userId}/status?status=${status}`, {});
+  },
 };
 
