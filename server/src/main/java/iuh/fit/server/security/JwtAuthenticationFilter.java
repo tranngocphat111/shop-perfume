@@ -134,15 +134,25 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
         
         // Skip JWT filter for public auth endpoints (login, register, refresh, forgot-password, reset-password)
-        // But NOT for /auth/me and /auth/change-password (requires authentication)
-        if ((pathToCheck != null && pathToCheck.startsWith("/auth/")) ||
+        // But NOT for /auth/me, /auth/change-password, /auth/update (require authentication)
+        if ((pathToCheck != null && pathToCheck.startsWith("/auth/")) || 
             (requestURI != null && requestURI.startsWith("/api/auth/"))) {
-
-            // Don't skip /auth/me - it needs authentication
-            if ((pathToCheck != null && (pathToCheck.equals("/auth/me") || pathToCheck.endsWith("/auth/me"))) ||
-                (requestURI != null && (requestURI.endsWith("/auth/me") || requestURI.contains("/auth/me")))) {
-                logger.debug("JWT filter will process /auth/me - requires authentication");
-                return false; // Process JWT filter for /auth/me
+            // Don't skip these protected auth endpoints - they need authentication
+            boolean isProtectedAuthEndpoint = 
+                (pathToCheck != null && (
+                    pathToCheck.equals("/auth/me") || pathToCheck.endsWith("/auth/me") ||
+                    pathToCheck.equals("/auth/change-password") || pathToCheck.endsWith("/auth/change-password") ||
+                    pathToCheck.equals("/auth/update") || pathToCheck.endsWith("/auth/update")
+                )) ||
+                (requestURI != null && (
+                    requestURI.endsWith("/auth/me") || requestURI.contains("/auth/me") ||
+                    requestURI.endsWith("/auth/change-password") || requestURI.contains("/auth/change-password") ||
+                    requestURI.endsWith("/auth/update") || requestURI.contains("/auth/update")
+                ));
+            
+            if (isProtectedAuthEndpoint) {
+                logger.debug("JWT filter will process protected auth endpoint - requires authentication");
+                return false; // Process JWT filter for protected auth endpoints
             }
 
             // Don't skip /auth/change-password - it needs authentication
@@ -167,7 +177,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             }
 
             logger.debug("Skipping JWT filter for public auth endpoint: servletPath=" + servletPath + ", requestURI=" + requestURI + ", pathToCheck=" + pathToCheck);
-            return true; // Skip for other auth endpoints (login, register, etc.)
+            return true; // Skip for other public auth endpoints
         }
         
         // Skip JWT filter for swagger/docs
