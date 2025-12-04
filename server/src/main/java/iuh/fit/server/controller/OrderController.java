@@ -249,10 +249,61 @@ public class OrderController {
         return ResponseEntity.ok(orders);
     }
 
+    /**
+     * Update shipment status (Admin only)
+     */
+    @PutMapping("/{orderId}/shipment-status")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Update shipment status", description = "Update shipment status for an order (Admin only)")
+    public ResponseEntity<?> updateShipmentStatus(
+            @PathVariable Integer orderId,
+            @RequestParam String status) {
+        try {
+            log.info("REST request to update shipment status for order: {} to status: {}", orderId, status);
+            orderService.updateShipmentStatus(orderId, status);
+            return ResponseEntity.ok(new UpdateResponse(true, "Shipment status updated successfully"));
+        } catch (RuntimeException e) {
+            log.error("Error updating shipment status: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ErrorResponse(e.getMessage()));
+        } catch (Exception e) {
+            log.error("Error updating shipment status", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ErrorResponse("Có lỗi xảy ra khi cập nhật trạng thái giao hàng: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * Update payment status (Admin only)
+     */
+    @PutMapping("/{orderId}/payment-status")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Update payment status", description = "Update payment status for an order (Admin only)")
+    public ResponseEntity<?> updatePaymentStatus(
+            @PathVariable Integer orderId,
+            @RequestParam String status) {
+        try {
+            log.info("REST request to update payment status for order: {} to status: {}", orderId, status);
+            orderService.updatePaymentStatus(orderId, status);
+            return ResponseEntity.ok(new UpdateResponse(true, "Payment status updated successfully"));
+        } catch (RuntimeException e) {
+            log.error("Error updating payment status: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ErrorResponse(e.getMessage()));
+        } catch (Exception e) {
+            log.error("Error updating payment status", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ErrorResponse("Có lỗi xảy ra khi cập nhật trạng thái thanh toán: " + e.getMessage()));
+        }
+    }
+
     // Error Response DTO
     private record ErrorResponse(String message) {}
     
     // Cancel Response DTO
     private record CancelResponse(boolean cancelled, String message) {}
+    
+    // Update Response DTO
+    private record UpdateResponse(boolean success, String message) {}
 }
 

@@ -84,4 +84,14 @@ export const orderService = {
       params
     );
   },
+
+  // Update shipment status (Admin)
+  updateShipmentStatus: async (orderId: number, status: string): Promise<void> => {
+    return apiService.put(`/orders/${orderId}/shipment-status?status=${status}`, {});
+  },
+
+  // Update payment status (Admin)
+  updatePaymentStatus: async (orderId: number, status: string): Promise<void> => {
+    return apiService.put(`/orders/${orderId}/payment-status?status=${status}`, {});
+  },
 };

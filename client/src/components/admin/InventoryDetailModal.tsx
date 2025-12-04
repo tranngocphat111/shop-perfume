@@ -63,14 +63,14 @@ export const InventoryDetailModal = ({
               ) : (
                 <>
                   {/* Header */}
-                  <div className="sticky top-0 bg-white px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-                    <h2 className="text-xl font-semibold text-gray-800">
+                  <div className="sticky top-0 bg-blue-600 px-6 py-4 border-b border-gray-200 flex justify-between items-center rounded-t-lg">
+                    <h2 className="text-xl font-semibold text-white">
                       Chi tiết tồn kho
                     </h2>
                     <button
                       onClick={onClose}
-                      className="text-gray-400 hover:text-gray-600 transition-colors">
-                      <i className="fas fa-times text-xl"></i>
+                      className="text-white hover:text-blue-100 transition-colors text-2xl">
+                      ✕
                     </button>
                   </div>
 
@@ -83,44 +83,44 @@ export const InventoryDetailModal = ({
                       </h3>
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <p className="text-sm text-gray-600 mb-1">ID</p>
-                          <p className="font-medium text-gray-900">
+                          <p className="text-sm text-gray-500 mb-1">ID</p>
+                          <p className="text-base font-normal text-gray-900">
                             #{inventory.product.productId}
                           </p>
                         </div>
                         <div>
-                          <p className="text-sm text-gray-600 mb-1">
+                          <p className="text-sm text-gray-500 mb-1">
                             Tên sản phẩm
                           </p>
-                          <p className="font-medium text-gray-900">
+                          <p className="text-base font-normal text-gray-900">
                             {inventory.product.name}
                           </p>
                         </div>
                         <div>
-                          <p className="text-sm text-gray-600 mb-1">
+                          <p className="text-sm text-gray-500 mb-1">
                             Thương hiệu
                           </p>
-                          <p className="font-medium text-gray-900">
+                          <p className="text-base font-normal text-gray-900">
                             {inventory.product.brand.name}
                           </p>
                         </div>
                         <div>
-                          <p className="text-sm text-gray-600 mb-1">Danh mục</p>
-                          <p className="font-medium text-gray-900">
+                          <p className="text-sm text-gray-500 mb-1">Danh mục</p>
+                          <p className="text-base font-normal text-gray-900">
                             {inventory.product.category.name}
                           </p>
                         </div>
                         <div>
-                          <p className="text-sm text-gray-600 mb-1">
+                          <p className="text-sm text-gray-500 mb-1">
                             Dung tích
                           </p>
-                          <p className="font-medium text-gray-900">
+                          <p className="text-base font-normal text-gray-900">
                             {inventory.product.columeMl} ml
                           </p>
                         </div>
                         <div>
-                          <p className="text-sm text-gray-600 mb-1">Giá bán</p>
-                          <p className="font-medium text-gray-900">
+                          <p className="text-sm text-gray-500 mb-1">Giá bán</p>
+                          <p className="text-base font-normal text-gray-900">
                             {inventory.product.unitPrice.toLocaleString()} đ
                           </p>
                         </div>
@@ -134,15 +134,15 @@ export const InventoryDetailModal = ({
                       </h3>
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <p className="text-sm text-gray-600 mb-1">
+                          <p className="text-sm text-gray-500 mb-1">
                             ID Inventory
                           </p>
-                          <p className="font-medium text-gray-900">
+                          <p className="text-base font-normal text-gray-900">
                             #{inventory.inventoryId}
                           </p>
                         </div>
                         <div>
-                          <p className="text-sm text-gray-600 mb-1">Số lượng</p>
+                          <p className="text-sm text-gray-500 mb-1">Số lượng</p>
                           <p
                             className={`font-bold text-2xl ${
                               inventory.quantity < 20
@@ -153,7 +153,7 @@ export const InventoryDetailModal = ({
                           </p>
                         </div>
                         <div>
-                          <p className="text-sm text-gray-600 mb-1">
+                          <p className="text-sm text-gray-500 mb-1">
                             Trạng thái
                           </p>
                           <span
@@ -168,10 +168,10 @@ export const InventoryDetailModal = ({
                           </span>
                         </div>
                         <div>
-                          <p className="text-sm text-gray-600 mb-1">
+                          <p className="text-sm text-gray-500 mb-1">
                             Cập nhật lần cuối
                           </p>
-                          <p className="font-medium text-gray-900">
+                          <p className="text-base font-normal text-gray-900">
                             {new Date(inventory.lastUpdated).toLocaleString(
                               "vi-VN"
                             )}
@@ -210,10 +210,10 @@ export const InventoryDetailModal = ({
                   </div>
 
                   {/* Footer */}
-                  <div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
+                  <div className="px-6 py-4 border-t border-gray-200 bg-white rounded-b-lg">
                     <button
                       onClick={onClose}
-                      className="w-full px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors">
+                      className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium">
                       Đóng
                     </button>
                   </div>

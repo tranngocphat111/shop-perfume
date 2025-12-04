@@ -14,4 +14,9 @@ public interface AdminUserService {
      * Get user by ID with detailed information
      */
     UserDetailResponse getUserById(Integer userId);
+    
+    /**
+     * Update user status
+     */
+    void updateUserStatus(Integer userId, String status);
 }

@@ -82,4 +82,31 @@ public class AdminUserServiceImpl implements AdminUserService {
                 .totalSpent(totalSpent)
                 .build();
     }
+    
+    @Override
+    @Transactional
+    public void updateUserStatus(Integer userId, String status) {
+        log.info("Updating user status for id: {} to status: {}", userId, status);
+        
+        // Find user
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found with id: " + userId));
+        
+        // Validate status
+        iuh.fit.server.model.enums.UserStatus newStatus;
+        try {
+            newStatus = iuh.fit.server.model.enums.UserStatus.valueOf(status.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Invalid user status: " + status);
+        }
+        
+        // Update status
+        user.setStatus(newStatus);
+        user.setLastUpdated(new java.util.Date());
+        
+        // Save user
+        userRepository.save(user);
+        
+        log.info("User status updated successfully for id: {}", userId);
+    }
 }
