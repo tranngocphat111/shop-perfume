@@ -277,12 +277,17 @@ export const PurchaseInvoiceAddModal = ({
               </label>
               <select
                 value={formData.supplierId}
-                onChange={(e) =>
+                onChange={(e) => {
+                  const selectedSupplierId = Number(e.target.value);
+                  const selectedSupplier = suppliers.find(
+                    (s) => s.supplierId === selectedSupplierId
+                  );
                   setFormData({
                     ...formData,
-                    supplierId: Number(e.target.value),
-                  })
-                }
+                    supplierId: selectedSupplierId,
+                    email: selectedSupplier?.email || "",
+                  });
+                }}
                 disabled={isSubmitting}
                 className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed ${
                   errors.supplierId ? "border-red-500" : "border-gray-300"
