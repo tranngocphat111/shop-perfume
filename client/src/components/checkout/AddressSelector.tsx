@@ -9,7 +9,6 @@ import { CustomSelect } from '../profile/CustomSelect';
 import { MdAddCircleOutline } from "react-icons/md";
 
 interface AddressSelectorProps {
-  formData: CheckoutFormData;
   onSelectAddress: (address: Address, provinces: Province[], districts: District[], wards: Ward[]) => void;
   onLoadProvinces: () => Promise<Province[]>;
   onLoadDistricts: (provinceCode: string) => Promise<District[]>;
@@ -20,7 +19,6 @@ const PROVINCES_API = 'https://provinces.open-api.vn/api/p/';
 const DISTRICTS_API = 'https://provinces.open-api.vn/api/d/';
 
 export const AddressSelector: React.FC<AddressSelectorProps> = ({
-  formData,
   onSelectAddress,
   onLoadProvinces,
   onLoadDistricts,

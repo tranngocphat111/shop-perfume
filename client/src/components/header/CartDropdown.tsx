@@ -65,11 +65,6 @@ export const CartDropdown = ({ isVisible, onClose }: CartDropdownProps) => {
   const availableItems = cart.items.filter(item => 
     item.stockQuantity === undefined || item.stockQuantity > 0
   );
-  
-  // Kiểm tra có sản phẩm hết hàng không
-  const hasOutOfStockItems = cart.items.some(item => 
-    item.stockQuantity !== undefined && item.stockQuantity === 0
-  );
 
   // Tính tổng và số lượng chỉ từ items còn hàng
   const availableTotal = availableItems.reduce(
