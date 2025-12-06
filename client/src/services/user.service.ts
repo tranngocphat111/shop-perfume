@@ -1,4 +1,4 @@
-import { apiService } from './api';
+import { apiService } from "./api";
 
 export interface UserInfo {
   userId: number;
@@ -17,7 +17,7 @@ export interface ChangePasswordRequest {
   newPassword: string;
 }
 
-import type { UserDetailResponse, PageResponse } from '../types';
+import type { UserDetailResponse, PageResponse } from "../types";
 
 export const userService = {
   /**
@@ -25,14 +25,14 @@ export const userService = {
    */
   getCurrentUser: async (): Promise<UserInfo | null> => {
     try {
-      console.log('🔄 [userService] Calling /auth/me...');
-      const result = await apiService.get<UserInfo>('/auth/me');
-      console.log('✅ [userService] Got user info:', result);
+      console.log("🔄 [userService] Calling /auth/me...");
+      const result = await apiService.get<UserInfo>("/auth/me");
+      console.log("✅ [userService] Got user info:", result);
       return result;
     } catch (error: any) {
-      console.error('❌ [userService] Error fetching user info:', error);
-      console.error('Error status:', error?.status);
-      console.error('Error message:', error?.message);
+      console.error("❌ [userService] Error fetching user info:", error);
+      console.error("Error status:", error?.status);
+      console.error("Error message:", error?.message);
       return null;
     }
   },
@@ -72,12 +72,12 @@ export const userService = {
    */
   updateProfile: async (request: UpdateUserRequest): Promise<UserInfo> => {
     try {
-      const response = await apiService.put<UserInfo>('/auth/me', request);
+      const response = await apiService.put<UserInfo>("/auth/me", request);
       return response;
     } catch (error: any) {
-      console.error('Error updating profile:', error);
+      console.error("Error updating profile:", error);
       // Handle different error formats
-      let errorMessage = 'Không thể cập nhật thông tin';
+      let errorMessage = "Không thể cập nhật thông tin";
 
       if (error instanceof Error) {
         errorMessage = error.message;
@@ -85,7 +85,7 @@ export const userService = {
         errorMessage = error.response.data.message;
       } else if (error?.message) {
         errorMessage = error.message;
-      } else if (typeof error === 'string') {
+      } else if (typeof error === "string") {
         errorMessage = error;
       }
 
@@ -98,10 +98,10 @@ export const userService = {
    */
   changePassword: async (request: ChangePasswordRequest): Promise<void> => {
     try {
-      await apiService.put('/auth/change-password', request);
+      await apiService.post("/auth/change-password", request);
     } catch (error: any) {
-      console.error('Error changing password:', error);
-      let errorMessage = 'Không thể đổi mật khẩu';
+      console.error("Error changing password:", error);
+      let errorMessage = "Không thể đổi mật khẩu";
 
       if (error instanceof Error) {
         errorMessage = error.message;
@@ -109,7 +109,7 @@ export const userService = {
         errorMessage = error.response.data.message;
       } else if (error?.message) {
         errorMessage = error.message;
-      } else if (typeof error === 'string') {
+      } else if (typeof error === "string") {
         errorMessage = error;
       }
 
@@ -124,4 +124,3 @@ export const userService = {
     return apiService.put(`/admin/users/${userId}/status?status=${status}`, {});
   },
 };
-
