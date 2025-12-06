@@ -26,7 +26,7 @@ const ITEMS_PER_PAGE = 2;
 
 export const MyOrders: React.FC = () => {
   const location = useLocation();
-  const { user, isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuth();
 
   usePageTitle({
     title: "Tra cứu đơn hàng - STPN Perfume",
@@ -654,5 +654,3 @@ export const MyOrders: React.FC = () => {
     </div>
   );
 };
-
-export default MyOrders;

@@ -3,6 +3,7 @@ import { ArrowRight, TicketPercent, ChevronDown } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { formatCurrency } from '../../utils/helpers';
 import { type Coupon } from '../../services/coupon.service';
+import { type UserInfo } from '../../services/user.service';
 import StickyCouponPopup from './StickyCouponPopup';
 
 interface StickyFooterProps {
@@ -14,7 +15,7 @@ interface StickyFooterProps {
   coupons: Coupon[];
   selectedCouponId: number | null;
   selectedCoupon: Coupon | undefined;
-  userInfo: any;
+  userInfo: UserInfo | null;
   showCouponPopup: boolean;
   onToggleCouponPopup: () => void;
   onSelectCoupon: (couponId: number | null) => void;
