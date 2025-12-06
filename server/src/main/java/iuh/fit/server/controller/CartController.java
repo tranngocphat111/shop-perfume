@@ -72,7 +72,7 @@ public class CartController {
      * URL: http://localhost:8080/api/carts/{cartId}/clear
      */
     @DeleteMapping("/{cartId:\\d+}/clear")
-    // @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Clear cart", description = "Remove all items from cart")
     public ResponseEntity<CartResponse> clearCart(@PathVariable int cartId) {
         log.info("REST request to clear cart with id: {}", cartId);
@@ -87,7 +87,7 @@ public class CartController {
      * URL: http://localhost:8080/api/carts/{cartId}/items
      */
     @GetMapping("/{cartId:\\d+}/items")
-    // @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Get cart items", description = "Retrieve all items in a specific cart")
     public ResponseEntity<List<CartItemResponse>> getCartItems(@PathVariable int cartId) {
         log.info("REST request to get cart items for cart_id: {}", cartId);
@@ -100,7 +100,7 @@ public class CartController {
      * URL: http://localhost:8080/api/carts/{cartId}/items
      */
     @PostMapping("/{cartId:\\d+}/items")
-    // @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Add item to cart", description = "Add a product to the cart")
     public ResponseEntity<CartItemResponse> addItemToCart(
             @PathVariable int cartId,
@@ -115,7 +115,7 @@ public class CartController {
      * URL: http://localhost:8080/api/carts/items/{cartItemId}
      */
     @PutMapping("/items/{cartItemId:\\d+}")
-    // @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Update cart item", description = "Update quantity of a cart item")
     public ResponseEntity<CartItemResponse> updateCartItem(
             @PathVariable int cartItemId,
@@ -130,7 +130,7 @@ public class CartController {
      * URL: http://localhost:8080/api/carts/items/{cartItemId}
      */
     @DeleteMapping("/items/{cartItemId:\\d+}")
-    // @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Remove item from cart", description = "Remove a specific item from cart")
     public ResponseEntity<Void> removeItemFromCart(@PathVariable int cartItemId) {
         log.info("REST request to remove cart item with id: {}", cartItemId);
