@@ -130,6 +130,7 @@ public class AuthServiceImpl implements AuthService{
     }
 
     @Override
+    @Transactional
     public AuthResponse login(LoginRequest request) {
         // Normalize email (lowercase, trim) để đảm bảo tìm đúng user
         String normalizedEmail = request.getEmail() != null 
@@ -260,7 +261,8 @@ public class AuthServiceImpl implements AuthService{
     /**
      * Lưu refresh token vào database
      */
-    private void saveRefreshToken(User user, String tokenString) {
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
+    public void saveRefreshToken(User user, String tokenString) {
         try {
             Date expiresAt = jwtTokenProvider.getExpirationDateFromToken(tokenString);
             
@@ -274,7 +276,7 @@ public class AuthServiceImpl implements AuthService{
         } catch (Exception e) {
             // Log error nhưng không throw để không ảnh hưởng đến login flow
             // Token vẫn được trả về cho client
-            System.err.println("Error saving refresh token: " + e.getMessage());
+            log.error("Error saving refresh token: {}", e.getMessage());
         }
     }
     
@@ -471,7 +473,7 @@ public class AuthServiceImpl implements AuthService{
     }
 
     @Override
-    @Transactional(rollbackFor = {Exception.class}, noRollbackFor = {AuthenticationException.class, RegistrationException.class, DataIntegrityViolationException.class})
+    @Transactional
     public AuthResponse signInWithGoogle(String googleIdToken) {
         if (googleClientId == null || googleClientId.isEmpty()) {
             throw new AuthenticationException("Google OAuth chưa được cấu hình. Vui lòng liên hệ quản trị viên.");
@@ -575,40 +577,8 @@ public class AuthServiceImpl implements AuthService{
                 throw new AuthenticationException("Tài khoản chưa được kích hoạt");
             }
             
-            // Lưu user với error handling cho duplicate key
-            try {
-                user = userRepository.save(user);
-                // Flush để đảm bảo user được lưu ngay và có thể detect duplicate key violation sớm
-                userRepository.flush();
-            } catch (DataIntegrityViolationException e) {
-                log.warn("Data integrity violation when saving user (likely duplicate). Retrying by finding existing user: {}", e.getMessage());
-                // Kiểm tra lại user có thể đã được tạo bởi concurrent request
-                User existingUser = userRepository.findByGoogleId(googleId).orElse(null);
-                if (existingUser != null) {
-                    user = existingUser;
-                    log.info("Found existing user by Google ID: {}", googleId);
-                } else {
-                    existingUser = userRepository.findByEmail(email).orElse(null);
-                    if (existingUser != null) {
-                        user = existingUser;
-                        // Link Google ID nếu chưa có
-                        if (user.getGoogleId() == null) {
-                            user.setGoogleId(googleId);
-                            try {
-                                user = userRepository.save(user);
-                            } catch (DataIntegrityViolationException e2) {
-                                // Nếu vẫn lỗi, có thể Google ID đã được sử dụng bởi user khác
-                                log.error("Cannot link Google ID to user. Google ID: {}, Email: {}", googleId, email);
-                                throw new AuthenticationException("Không thể liên kết tài khoản Google. Vui lòng thử lại.");
-                            }
-                        }
-                        log.info("Found existing user by email: {}", email);
-                    } else {
-                        log.error("Cannot find user after DataIntegrityViolationException. Google ID: {}, Email: {}", googleId, email);
-                        throw new AuthenticationException("Không thể tạo hoặc cập nhật tài khoản. Vui lòng thử lại.");
-                    }
-                }
-            }
+            // Lưu user - đơn giản hóa, không cần xử lý phức tạp
+            user = userRepository.save(user);
             
             // Generate JWT tokens
             String token = jwtTokenProvider.generateToken(user.getEmail());
@@ -636,7 +606,7 @@ public class AuthServiceImpl implements AuthService{
             );
             
         } catch (AuthenticationException | RegistrationException e) {
-            // Re-throw authentication/registration exceptions without rollback
+            // Re-throw authentication/registration exceptions
             log.warn("Google Sign-In failed: {}", e.getMessage());
             throw e;
         } catch (DataIntegrityViolationException e) {
