@@ -16,6 +16,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.Set;
 
 /**
  * Filter xác thực JWT token cho mỗi request
@@ -30,6 +31,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final JwtTokenProvider jwtTokenProvider;
     private final UserDetailsService userDetailsService;
 
+    // Protected auth endpoints that require authentication
+    private static final Set<String> PROTECTED_AUTH_ENDPOINTS = Set.of(
+            "/auth/me", "/auth/change-password", "/auth/update", "/auth/logout", "/auth/debug/auth-status"
+    );
+
+    // Public GET endpoints (read-only) - both prefix and exact match
+    private static final Set<String> PUBLIC_GET_PREFIXES = Set.of(
+            "/products", "/inventories", "/brands", "/categories", "/reviews/product", "/reviews/user"
+    );
+
     @Override
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
@@ -38,70 +49,31 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         try {
             String jwt = getJwtFromRequest(request);
             String requestURI = request.getRequestURI();
-            
-            // Log for /orders/create to debug user_id issue
-            if (requestURI != null && requestURI.contains("/orders/create")) {
-                logger.info("🔵 [JWT Filter] Processing /orders/create request");
-                logger.info("🔵 [JWT Filter] JWT token present: " + (jwt != null && !jwt.isEmpty()));
-                logger.info("🔵 [JWT Filter] Request URI: " + requestURI);
-            }
-            
-            // Log for admin endpoints to debug 401 errors
-            if (requestURI != null && requestURI.contains("/admin/")) {
-                logger.info("Processing admin request: " + request.getMethod() + " " + requestURI);
-                logger.info("JWT token present: " + (jwt != null && !jwt.isEmpty()));
-            }
-            
-            if (StringUtils.hasText(jwt)) {
-                logger.debug("JWT token found in request");
-                
-                if (jwtTokenProvider.validateToken(jwt)) {
-                    logger.debug("JWT token is valid");
-                    String email = jwtTokenProvider.getEmailFromToken(jwt);
-                    logger.debug("Extracted email from token: " + email);
-                    
-                    UserDetails userDetails = userDetailsService.loadUserByUsername(email);
-                    logger.debug("User loaded: " + userDetails.getUsername() + ", Authorities: " + userDetails.getAuthorities());
-                    
-                    // Log for admin endpoints
-                    if (requestURI != null && requestURI.contains("/admin/")) {
-                        logger.info("User: " + userDetails.getUsername() + ", Authorities: " + userDetails.getAuthorities());
-                        boolean hasAdminRole = userDetails.getAuthorities().stream()
-                                .anyMatch(auth -> auth.getAuthority().equals("ROLE_ADMIN"));
-                        logger.info("Has ADMIN role: " + hasAdminRole);
-                    }
 
-                    UsernamePasswordAuthenticationToken authentication =
-                            new UsernamePasswordAuthenticationToken(
-                                    userDetails,
-                                    null,
-                                    userDetails.getAuthorities()
-                            );
+            if (logger.isDebugEnabled()) {
+                logger.debug("Processing request: " + requestURI + ", JWT present: " + (jwt != null));
+            }
 
-                    authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                    SecurityContextHolder.getContext().setAuthentication(authentication);
-                    logger.debug("Authentication set in SecurityContext for user: " + email);
-                    
-                    // Log for /orders/create
-                    if (requestURI != null && requestURI.contains("/orders/create")) {
-                        logger.info("✅ [JWT Filter] Authentication set in SecurityContext for user: " + email);
-                    }
-                } else {
-                    logger.warn("JWT token validation failed for request: " + requestURI);
-                }
-            } else {
-                logger.debug("No JWT token found in request: " + requestURI);
-                if (requestURI != null && requestURI.contains("/admin/")) {
-                    logger.warn("No JWT token found for admin request: " + requestURI);
-                }
-                // Log for /orders/create
-                if (requestURI != null && requestURI.contains("/orders/create")) {
-                    logger.info("⚠️ [JWT Filter] No JWT token found for /orders/create - will create guest order");
+            if (StringUtils.hasText(jwt) && jwtTokenProvider.validateToken(jwt)) {
+                String email = jwtTokenProvider.getEmailFromToken(jwt);
+                UserDetails userDetails = userDetailsService.loadUserByUsername(email);
+
+                UsernamePasswordAuthenticationToken authentication =
+                        new UsernamePasswordAuthenticationToken(
+                                userDetails,
+                                null,
+                                userDetails.getAuthorities()
+                        );
+
+                authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                SecurityContextHolder.getContext().setAuthentication(authentication);
+
+                if (logger.isDebugEnabled()) {
+                    logger.debug("Authentication set for user: " + email + ", roles: " + userDetails.getAuthorities());
                 }
             }
         } catch (Exception ex) {
-            logger.error("Không thể set user authentication for request: " + request.getRequestURI(), ex);
-            logger.error("Exception details: " + ex.getMessage(), ex);
+            logger.error("Cannot set user authentication: " + ex.getMessage());
         }
 
         filterChain.doFilter(request, response);
@@ -112,111 +84,84 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String requestURI = request.getRequestURI();
         String servletPath = request.getServletPath();
         String method = request.getMethod();
-        
-        // With context-path=/api, servletPath already excludes context path
-        // Example: requestURI=/api/orders/create, servletPath=/orders/create (context-path already removed)
-        // So we use servletPath directly, or requestURI if servletPath is empty
-        String pathToCheck = (servletPath != null && !servletPath.isEmpty()) ? servletPath : requestURI;
-        
-        // Debug logging for auth endpoints
-        if (requestURI != null && requestURI.contains("/auth/")) {
-            logger.info("🔍 [JWT Filter] Checking auth endpoint - servletPath: " + servletPath + ", requestURI: " + requestURI + ", pathToCheck: " + pathToCheck + ", method: " + method);
-        }
-        
-        // CRITICAL: Skip JWT filter for webhook endpoints FIRST
-        // Check both servletPath (after context-path removal) and full requestURI
-        boolean isWebhook = (pathToCheck != null && pathToCheck.startsWith("/webhooks/")) ||
-                           (requestURI != null && (requestURI.startsWith("/api/webhooks/") || requestURI.startsWith("/webhooks/")));
-        
-        if (isWebhook) {
-            logger.debug("Skipping JWT filter for webhook: servletPath=" + servletPath + ", requestURI=" + requestURI + ", pathToCheck=" + pathToCheck);
+
+        // Use servletPath (excludes context-path) or fall back to requestURI
+        String pathToCheck = StringUtils.hasText(servletPath) ? servletPath : requestURI;
+
+        // 1. Skip for webhook endpoints
+        if (isWebhookEndpoint(pathToCheck, requestURI)) {
             return true;
         }
-        
-        // Skip JWT filter for public auth endpoints (login, register, refresh, forgot-password, reset-password)
-        // But NOT for /auth/me, /auth/change-password, /auth/update (require authentication)
-        if ((pathToCheck != null && pathToCheck.startsWith("/auth/")) || 
-            (requestURI != null && requestURI.startsWith("/api/auth/"))) {
-            // Don't skip these protected auth endpoints - they need authentication
-            boolean isProtectedAuthEndpoint = 
-                (pathToCheck != null && (
-                    pathToCheck.equals("/auth/me") || pathToCheck.endsWith("/auth/me") ||
-                    pathToCheck.equals("/auth/change-password") || pathToCheck.endsWith("/auth/change-password") ||
-                    pathToCheck.equals("/auth/update") || pathToCheck.endsWith("/auth/update")
-                )) ||
-                (requestURI != null && (
-                    requestURI.endsWith("/auth/me") || requestURI.contains("/auth/me") ||
-                    requestURI.endsWith("/auth/change-password") || requestURI.contains("/auth/change-password") ||
-                    requestURI.endsWith("/auth/update") || requestURI.contains("/auth/update")
-                ));
-            
-            if (isProtectedAuthEndpoint) {
-                logger.debug("JWT filter will process protected auth endpoint - requires authentication");
-                return false; // Process JWT filter for protected auth endpoints
-            }
 
-            // Don't skip /auth/change-password - it needs authentication
-            if ((pathToCheck != null && (pathToCheck.equals("/auth/change-password") || pathToCheck.endsWith("/auth/change-password"))) ||
-                (requestURI != null && (requestURI.endsWith("/auth/change-password") || requestURI.contains("/auth/change-password")))) {
-                logger.debug("JWT filter will process /auth/change-password - requires authentication");
-                return false; // Process JWT filter for /auth/change-password
+        // 2. Handle auth endpoints
+        if (isAuthEndpoint(pathToCheck, requestURI)) {
+            // Protected auth endpoints need JWT filter
+            if (isProtectedAuthEndpoint(pathToCheck, requestURI)) {
+                return false;
             }
-
-            // Don't skip /auth/logout - it needs authentication
-            if ((pathToCheck != null && (pathToCheck.equals("/auth/logout") || pathToCheck.endsWith("/auth/logout"))) ||
-                (requestURI != null && (requestURI.endsWith("/auth/logout") || requestURI.contains("/auth/logout")))) {
-                logger.debug("JWT filter will process /auth/logout - requires authentication");
-                return false; // Process JWT filter for /auth/logout
-            }
-
-            // Don't skip /auth/debug/auth-status - it needs authentication
-            if ((pathToCheck != null && pathToCheck.contains("/auth/debug/auth-status")) ||
-                (requestURI != null && requestURI.contains("/auth/debug/auth-status"))) {
-                logger.debug("JWT filter will process /auth/debug/auth-status - requires authentication");
-                return false; // Process JWT filter for debug endpoint
-            }
-
-            logger.debug("Skipping JWT filter for public auth endpoint: servletPath=" + servletPath + ", requestURI=" + requestURI + ", pathToCheck=" + pathToCheck);
-            return true; // Skip for other public auth endpoints
-        }
-        
-        // Skip JWT filter for swagger/docs
-        if (pathToCheck.startsWith("/swagger-ui") || pathToCheck.startsWith("/v3/api-docs") ||
-            requestURI.startsWith("/api/swagger-ui") || requestURI.startsWith("/api/v3/api-docs")) {
+            // Other auth endpoints (login, register, refresh, etc.) are public
             return true;
         }
-        
-        // KHÔNG skip filter cho /orders/create và /orders/my-orders
-        // - Cần set authentication nếu user đã đăng nhập
-        // - Endpoints này là permitAll, nhưng nếu có token thì vẫn set authentication
-        // Skip JWT filter cho các public endpoints khác (guest checkout)
-        if (pathToCheck.startsWith("/payment/check-qr") ||
-            pathToCheck.matches("/orders/\\d+/cancel-timeout")) {
+
+        // 3. Skip for Swagger/API docs
+        if (isSwaggerEndpoint(pathToCheck, requestURI)) {
             return true;
         }
-        
-        // Skip JWT filter for GET requests on public endpoints (read-only)
-        if ("GET".equalsIgnoreCase(method)) {
-            boolean isPublicGetEndpoint = pathToCheck.startsWith("/products/") ||
-                   pathToCheck.startsWith("/inventories/") ||
-                   pathToCheck.startsWith("/brands/") ||
-                   pathToCheck.startsWith("/categories/") ||
-                   pathToCheck.startsWith("/suppliers/") ||
-                   requestURI.startsWith("/api/products/") ||
-                   requestURI.startsWith("/api/inventories/") ||
-                   requestURI.startsWith("/api/brands/") ||
-                   requestURI.startsWith("/api/categories/") ||
-                   requestURI.startsWith("/api/suppliers/");
-            
-            if (isPublicGetEndpoint) {
-                return true;
-            }
+
+        // 4. Skip for specific public endpoints
+        if (isPublicPaymentEndpoint(pathToCheck)) {
+            return true;
         }
-        
-        // For POST, PUT, DELETE on admin endpoints - require authentication (don't skip filter)
+
+        // 5. Skip for public GET endpoints (products, categories, etc.)
+        if ("GET".equalsIgnoreCase(method) && isPublicGetEndpoint(pathToCheck, requestURI)) {
+            return true;
+        }
+
+        // All other requests need JWT filter processing
         return false;
     }
 
+    private boolean isWebhookEndpoint(String pathToCheck, String requestURI) {
+        return (pathToCheck != null && pathToCheck.startsWith("/webhooks/")) ||
+                (requestURI != null && (requestURI.startsWith("/api/webhooks/") || requestURI.startsWith("/webhooks/")));
+    }
+
+    private boolean isAuthEndpoint(String pathToCheck, String requestURI) {
+        return (pathToCheck != null && pathToCheck.startsWith("/auth/")) ||
+                (requestURI != null && requestURI.startsWith("/api/auth/"));
+    }
+
+    private boolean isProtectedAuthEndpoint(String pathToCheck, String requestURI) {
+        for (String endpoint : PROTECTED_AUTH_ENDPOINTS) {
+            if ((pathToCheck != null && (pathToCheck.equals(endpoint) || pathToCheck.endsWith(endpoint))) ||
+                    (requestURI != null && (requestURI.endsWith(endpoint) || requestURI.contains(endpoint)))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean isSwaggerEndpoint(String pathToCheck, String requestURI) {
+        return pathToCheck.startsWith("/swagger-ui") || pathToCheck.startsWith("/v3/api-docs") ||
+                requestURI.startsWith("/api/swagger-ui") || requestURI.startsWith("/api/v3/api-docs");
+    }
+
+    private boolean isPublicPaymentEndpoint(String pathToCheck) {
+        return pathToCheck.startsWith("/payment/check-qr") ||
+                pathToCheck.matches("/orders/\\d+/cancel-timeout");
+    }
+
+    private boolean isPublicGetEndpoint(String pathToCheck, String requestURI) {
+        for (String prefix : PUBLIC_GET_PREFIXES) {
+            // Match exact path or path with suffix (e.g., /products or /products/123)
+            if (pathToCheck.equals(prefix) || pathToCheck.startsWith(prefix + "/") ||
+                requestURI.equals("/api" + prefix) || requestURI.startsWith("/api" + prefix + "/")) {
+                return true;
+            }
+        }
+        return false;
+    }
 
     private String getJwtFromRequest(HttpServletRequest request) {
         String bearerToken = request.getHeader("Authorization");
@@ -226,4 +171,3 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         return null;
     }
 }
-

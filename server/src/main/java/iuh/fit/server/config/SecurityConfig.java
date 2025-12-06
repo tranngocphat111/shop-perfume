@@ -5,6 +5,7 @@ import iuh.fit.server.security.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -104,12 +105,22 @@ public class SecurityConfig {
                     .requestMatchers("/payment/debug").permitAll()
                     .requestMatchers("/api/payment/debug", "/api/payment/debug/**").permitAll()
                     
-                    // Public read-only endpoints
-                    .requestMatchers("/products/**").permitAll() // GET public, POST/PUT/DELETE protected by @PreAuthorize
-                    .requestMatchers("/inventories/**").permitAll() // GET public, PUT protected by @PreAuthorize
-                    .requestMatchers("/brands/**").permitAll() // GET public
-                    .requestMatchers("/categories/**").permitAll() // GET public
-                    
+                    // Public read-only endpoints (GET only)
+                    .requestMatchers(HttpMethod.GET, "/products/**").permitAll()
+                    .requestMatchers(HttpMethod.POST, "/products/**").hasRole("ADMIN")
+                    .requestMatchers(HttpMethod.PUT, "/products/**").hasRole("ADMIN")
+                    .requestMatchers(HttpMethod.DELETE, "/products/**").hasRole("ADMIN")
+
+                    .requestMatchers(HttpMethod.GET, "/inventories/**").permitAll()
+                    .requestMatchers(HttpMethod.PUT, "/inventories/**").hasRole("ADMIN")
+
+                    .requestMatchers(HttpMethod.GET, "/brands/**").permitAll()
+                    .requestMatchers(HttpMethod.GET, "/categories/**").permitAll()
+
+                    // Reviews - GET public, POST requires authentication
+                    .requestMatchers(HttpMethod.GET, "/reviews/**").permitAll()
+                    .requestMatchers(HttpMethod.POST, "/reviews/**").authenticated()
+
                     // Swagger/API docs
                     .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
 

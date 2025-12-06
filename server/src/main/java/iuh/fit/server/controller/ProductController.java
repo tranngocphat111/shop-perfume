@@ -148,7 +148,7 @@ public class ProductController {
      * Chỉ ADMIN mới có quyền tạo sản phẩm
      */
     @PostMapping(consumes = {"multipart/form-data"})
-    // @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Create new product with images", description = "Create a new product with multiple images")
     public ResponseEntity<ProductResponse> createProduct(
             @Valid @ModelAttribute ProductRequest request,
@@ -177,7 +177,7 @@ public class ProductController {
      * Chỉ ADMIN mới có quyền cập nhật sản phẩm
      */
     @PutMapping("/{id}")
-    // @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Update product", description = "Update an existing product")
     public ResponseEntity<ProductResponse> updateProduct(
             @PathVariable Integer id,
@@ -193,7 +193,7 @@ public class ProductController {
      * Chỉ ADMIN mới có quyền cập nhật ảnh
      */
     @PutMapping(value = "/{id}/images", consumes = {"multipart/form-data"})
-    // @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Update product images", description = "Update product with new images and manage existing ones")
     public ResponseEntity<ProductResponse> updateProductImages(
             @PathVariable Integer id,
@@ -212,7 +212,7 @@ public class ProductController {
      * Chỉ ADMIN mới có quyền xóa sản phẩm
      */
     @DeleteMapping("/{id}")
-    // @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Delete product", description = "Delete a product by its ID")
     public ResponseEntity<Void> deleteProduct(@PathVariable Integer id) {
         log.info("REST request to delete product: {}", id);

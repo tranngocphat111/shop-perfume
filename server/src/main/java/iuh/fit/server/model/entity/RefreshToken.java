@@ -32,7 +32,7 @@ public class RefreshToken {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    @Column(nullable = false)
+    @Column(name = "expiry_date", nullable = false)
     @Temporal(TemporalType.TIMESTAMP)
     private Date expiresAt;
 

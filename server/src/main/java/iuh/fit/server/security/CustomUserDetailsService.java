@@ -75,19 +75,11 @@ public class CustomUserDetailsService implements UserDetailsService {
             return authorities;
         }
 
-        // Thêm roles
+        // Thêm roles (chỉ dùng roles, không dùng permissions)
         user.getRoles().forEach(role -> {
             String roleAuthority = "ROLE_" + role.getName();
             authorities.add(new SimpleGrantedAuthority(roleAuthority));
             log.debug("Added role authority: {} for user {}", roleAuthority, user.getEmail());
-
-            // Thêm permissions của role
-            if (role.getPermissions() != null) {
-                role.getPermissions().forEach(permission -> {
-                    authorities.add(new SimpleGrantedAuthority(permission.getName()));
-                    log.debug("Added permission: {} for user {}", permission.getName(), user.getEmail());
-                });
-            }
         });
 
         log.debug("Total authorities for user {}: {}", user.getEmail(), authorities.size());
