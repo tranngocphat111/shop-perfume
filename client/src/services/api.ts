@@ -1,7 +1,24 @@
 import { refreshTokenManager } from "./refreshTokenManager";
 
-const API_BASE_URL = "http://13.251.125.90:8080/api";
-// const API_BASE_URL = "http://localhost:8080/api";
+// Auto-detect environment and use appropriate API URL
+const getApiBaseUrl = (): string => {
+  // Development: use Vite proxy
+  if (import.meta.env.DEV) {
+    return "/api";
+  }
+  
+  // Production on Vercel: use Vercel proxy
+  if (typeof window !== 'undefined' && window.location.hostname.includes('vercel.app')) {
+    return "/api";
+  }
+  
+  // Fallback: direct backend URL (not recommended for production)
+  return "http://13.251.125.90:8080/api";
+};
+
+const API_BASE_URL = getApiBaseUrl();
+
+console.log('🌐 API Base URL:', API_BASE_URL, '| Environment:', import.meta.env.MODE);
 
 interface ApiError {
   message: string;
