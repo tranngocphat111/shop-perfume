@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { User, Phone, MapPin, Building2, Map, Check, X } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { addressService, type Address } from '../../services/address.service';
-import type { CheckoutFormData, Province, District, Ward, ProvinceDetail, DistrictDetail } from '../../types';
+import type { Province, District, Ward, ProvinceDetail, DistrictDetail } from '../../types';
 import { FaMapMarkerAlt } from 'react-icons/fa';
 import { GoSync } from "react-icons/go";
 import { CustomSelect } from '../profile/CustomSelect';

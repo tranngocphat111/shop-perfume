@@ -235,7 +235,6 @@ export const ShippingForm: React.FC<ShippingFormProps> = ({ formData, onUpdate, 
       {/* Address Selector - only show if user is authenticated */}
       {isAuthenticated && (
         <AddressSelector
-          formData={formData}
           onSelectAddress={handleSelectAddress}
           onLoadProvinces={loadProvincesForSelector}
           onLoadDistricts={loadDistrictsForSelector}
