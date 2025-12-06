@@ -35,7 +35,6 @@ export const HeaderNavigation = ({
   brandsLoading,
   openDropdown,
   setOpenDropdown,
-  showSearch,
   isScrolled,
   isCompact,
 }: HeaderNavigationProps) => {

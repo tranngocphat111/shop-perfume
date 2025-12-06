@@ -25,7 +25,7 @@ interface SupplierData extends Record<string, unknown> {
 }
 
 export const Suppliers = () => {
-  const { toasts, showToast, success, showError, warning, removeToast } =
+  const { toasts, success, error: showError, warning, removeToast } =
     useToast();
   const [suppliers, setSuppliers] = useState<SupplierData[]>([]);
   const [loading, setLoading] = useState(true);

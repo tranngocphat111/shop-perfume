@@ -39,7 +39,7 @@ export const ProfileSidebar = ({ active, onChange }: ProfileSidebarProps) => {
       isLogout: true,
       onClick: async () => {
         try {
-          await logout("/");
+          logout();
         } catch (error) {
           console.error("Logout error:", error);
           localStorage.removeItem("auth_token");
@@ -54,7 +54,7 @@ export const ProfileSidebar = ({ active, onChange }: ProfileSidebarProps) => {
   return (
     <div className="bg-white border border-gray-100 rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
       <div className="p-2">
-        {menuItems.map((item, index) => {
+        {menuItems.map((item) => {
           const isActive = active === item.key;
           const isLogout = item.isLogout;
 

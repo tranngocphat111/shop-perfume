@@ -10,7 +10,7 @@ interface CartDropdownProps {
 }
 
 export const CartDropdown = ({ isVisible, onClose }: CartDropdownProps) => {
-  const { cart, getCartTotal, removeFromCart } = useCart();
+  const { cart, removeFromCart } = useCart();
   const navigate = useNavigate();
 
   // Hiển thị giỏ hàng trống thay vì return null

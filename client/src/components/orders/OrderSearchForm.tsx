@@ -8,7 +8,6 @@ interface OrderSearchFormProps {
   onSubmit: (e: React.FormEvent) => void;
   isLoading: boolean;
   error: string | null;
-  isAuthenticated: boolean;
 }
 
 export const OrderSearchForm: React.FC<OrderSearchFormProps> = ({
@@ -17,7 +16,6 @@ export const OrderSearchForm: React.FC<OrderSearchFormProps> = ({
   onSubmit,
   isLoading,
   error,
-  isAuthenticated,
 }) => {
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">

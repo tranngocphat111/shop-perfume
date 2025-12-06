@@ -411,7 +411,6 @@ export const MyOrders: React.FC = () => {
           onSubmit={handleSearch}
           isLoading={isLoading}
           error={null}
-          isAuthenticated={isAuthenticated}
         />
 
         {/* Content */}

@@ -82,19 +82,6 @@ const ProductsFilterContext = createContext<
 
 const FILTER_STORAGE_KEY = "products_filter_state";
 
-// Helper to load from sessionStorage
-const loadFiltersFromStorage = (): Partial<ProductsFilterState> => {
-  try {
-    const saved = sessionStorage.getItem(FILTER_STORAGE_KEY);
-    if (saved) {
-      return JSON.parse(saved);
-    }
-  } catch (err) {
-    console.error("Failed to load filters from storage:", err);
-  }
-  return {};
-};
-
 // Helper to save to sessionStorage
 const saveFiltersToStorage = (state: ProductsFilterState) => {
   try {

@@ -15,7 +15,6 @@ export const Cart = () => {
     isCartLoading,
     removeFromCart,
     updateQuantity,
-    getCartTotal,
     appliedCouponId,
     discount,
     setAppliedCouponId,

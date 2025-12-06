@@ -3,8 +3,8 @@ import { User, Phone, MapPin, Building2, Map, Check, X } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { addressService, type Address } from '../../services/address.service';
 import type { CheckoutFormData, Province, District, Ward, ProvinceDetail, DistrictDetail } from '../../types';
-import { FaMapMarkerAlt, FaPlus, } from 'react-icons/fa';
-import { GoSync, } from "react-icons/go";
+import { FaMapMarkerAlt } from 'react-icons/fa';
+import { GoSync } from "react-icons/go";
 import { CustomSelect } from '../profile/CustomSelect';
 import { MdAddCircleOutline } from "react-icons/md";
 
@@ -297,7 +297,6 @@ export const AddressSelector: React.FC<AddressSelectorProps> = ({
   };
 
   // Kiểm tra có địa chỉ mặc định không
-  const hasDefaultAddress = addresses.some(a => a.isDefault);
   const hasAnyAddress = addresses.length > 0;
 
   // Nếu chưa đăng nhập, không hiển thị gì

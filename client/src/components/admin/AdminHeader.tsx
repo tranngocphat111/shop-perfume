@@ -10,8 +10,8 @@ export const AdminHeader = ({ onToggleSidebar }: AdminHeaderProps) => {
 
   const handleLogout = async () => {
     try {
-      // Call logout with redirect to admin login page
-      await logout("/admin/login");
+      // Call logout
+      logout();
     } catch (error) {
       console.error("Logout error:", error);
       // Even if logout fails, redirect to admin login

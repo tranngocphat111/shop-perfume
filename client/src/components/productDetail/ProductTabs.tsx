@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
 import { FileText, Info, Shield, Star } from "lucide-react";
 import type { Product } from "../../types";
 import { ProductReviews } from "./ProductReviews";
