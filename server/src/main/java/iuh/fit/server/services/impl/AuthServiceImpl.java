@@ -259,25 +259,19 @@ public class AuthServiceImpl implements AuthService{
 
     /**
      * Lưu refresh token vào database
+     * Method này không nên catch exception vì sẽ gây rollback-only issue
      */
-    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
-    public void saveRefreshToken(User user, String tokenString) {
-        try {
-            Date expiresAt = jwtTokenProvider.getExpirationDateFromToken(tokenString);
-            
-            RefreshToken refreshToken = new RefreshToken();
-            refreshToken.setToken(tokenString);
-            refreshToken.setUser(user);
-            refreshToken.setExpiresAt(expiresAt);
-            refreshToken.setRevoked(false);
-            
-            refreshTokenRepository.save(refreshToken);
-            log.info("✅ Saved refresh token for user: {} (expires at: {})", user.getEmail(), expiresAt);
-        } catch (Exception e) {
-            // Log error nhưng không throw để không ảnh hưởng đến login flow
-            // Token vẫn được trả về cho client
-            log.error("Error saving refresh token: {}", e.getMessage());
-        }
+    private void saveRefreshToken(User user, String tokenString) {
+        Date expiresAt = jwtTokenProvider.getExpirationDateFromToken(tokenString);
+        
+        RefreshToken refreshToken = new RefreshToken();
+        refreshToken.setToken(tokenString);
+        refreshToken.setUser(user);
+        refreshToken.setExpiresAt(expiresAt);
+        refreshToken.setRevoked(false);
+        
+        refreshTokenRepository.save(refreshToken);
+        log.info("✅ Saved refresh token for user: {} (expires at: {})", user.getEmail(), expiresAt);
     }
     
     @Override
