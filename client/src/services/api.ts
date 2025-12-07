@@ -78,11 +78,8 @@ const ensureValidToken = async (): Promise<void> => {
   }
 };
 
-// Helper function to get auth headers (method-aware)
-const getAuthHeaders = (
-  endpoint: string = "",
-  method: string = "GET"
-): Record<string, string> => {
+// Helper function to get auth headers
+const getAuthHeaders = (endpoint: string = "", method: string = "GET"): Record<string, string> => {
   const headers: Record<string, string> = {};
 
   // Debug logging (only during development) to help trace auth header decisions
@@ -132,11 +129,11 @@ const getAuthHeaders = (
 };
 
 // Check if endpoint is public (doesn't require authentication)
-// Accept HTTP method to avoid treating non-GET methods to product URLs as public
-const isPublicEndpoint = (
-  endpoint: string,
-  method: string = "GET"
-): boolean => {
+// NOTE: /orders/create and /orders/my-orders are NOT in this list
+// - We want to send token if user is logged in
+// - Backend allows guest access (permitAll), but if token is present, it will use userId
+const isPublicEndpoint = (endpoint: string, method: string = "GET"): boolean => {
+  // Public endpoints that don't require authentication (check these FIRST)
   // Special public order endpoints (guest can access)
   if (
     endpoint.includes("/orders/my-orders") ||
@@ -258,8 +255,9 @@ const handle401Error = async <T>(
     return Promise.reject(new Error("Refresh token invalid"));
   }
 
-  // If this is a public endpoint (for the given method), don't logout - just reject the error
-  if (isPublicEndpoint(endpoint, method)) {
+  // If this is a public endpoint (GET only), don't logout - just reject the error
+  // Note: Only GET requests to products/inventories are public, not POST/PUT/DELETE
+  if (isPublicEndpoint(endpoint, "GET")) {
     console.warn(`401 on public endpoint ${endpoint} - not logging out`);
     return Promise.reject(new Error("Unauthorized"));
   }
