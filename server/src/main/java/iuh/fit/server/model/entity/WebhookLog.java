@@ -25,7 +25,7 @@ public class WebhookLog {
     private String orderCode;
 
     @Column(name = "transaction_date")
-    private LocalDateTime transactionDate;
+    private String transactionDate;
 
     @Column(name = "account_number")
     private String accountNumber;
@@ -62,6 +62,40 @@ public class WebhookLog {
 
     @Column(name = "error_message", columnDefinition = "TEXT")
     private String errorMessage;
+
+    // Additional fields used by SepayWebhookController
+    @Column(name = "gateway")
+    private String gateway;
+
+    @Column(name = "content", columnDefinition = "TEXT")
+    private String content;
+
+    @Column(name = "transfer_type")
+    private String transferType;
+
+    @Column(name = "transfer_amount")
+    private Double transferAmount;
+
+    @Column(name = "reference_code")
+    private String referenceCode;
+
+    @Column(name = "description", columnDefinition = "TEXT")
+    private String description;
+
+    @Column(name = "raw_request", columnDefinition = "TEXT")
+    private String rawRequest;
+
+    @Column(name = "remote_address")
+    private String remoteAddress;
+
+    @Column(name = "content_type")
+    private String contentType;
+
+    @Column(name = "processed")
+    private Boolean processed = false;
+
+    @Column(name = "extracted_order_id")
+    private Integer extractedOrderId;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
