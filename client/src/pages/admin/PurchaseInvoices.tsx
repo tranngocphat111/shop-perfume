@@ -300,7 +300,8 @@ export const PurchaseInvoices = () => {
       return;
     }
     setEditingStatusId(item.id);
-    setEditingStatusValue(item.status);
+    // Set default value to COMPLETED (first option in select)
+    setEditingStatusValue("COMPLETED");
   };
 
   const handleStatusChange = (value: string) => {

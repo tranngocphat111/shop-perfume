@@ -21,6 +21,7 @@ interface ProductData extends Record<string, unknown> {
   brand: string;
   category: string;
   columeMl: number;
+  perfumeLongevity: string;
   unitPrice: number;
   status: string;
   lastUpdated: string;
@@ -84,6 +85,7 @@ export const Products = () => {
           brand: item.brand.name,
           category: item.category.name,
           columeMl: item.columeMl,
+          perfumeLongevity: item.perfumeLongevity,
           unitPrice: item.unitPrice,
           status: item.status,
           lastUpdated: new Date(item.lastUpdated).toLocaleDateString(),
@@ -121,6 +123,7 @@ export const Products = () => {
     "brand.name": "brand",
     "category.name": "category",
     columeMl: "columeMl",
+    perfumeLongevity: "perfumeLongevity",
     unitPrice: "unitPrice",
     status: "status",
     lastUpdated: "lastUpdated",
@@ -135,6 +138,7 @@ export const Products = () => {
       brand: "brand.name",
       category: "category.name",
       columeMl: "columeMl",
+      perfumeLongevity: "perfumeLongevity",
       unitPrice: "unitPrice",
       status: "status",
       lastUpdated: "lastUpdated",
@@ -186,6 +190,12 @@ export const Products = () => {
     {
       key: "columeMl",
       label: "Volume (ml)",
+      sortable: true,
+      onSort: handleSort,
+    },
+    {
+      key: "perfumeLongevity",
+      label: "Longevity",
       sortable: true,
       onSort: handleSort,
     },
