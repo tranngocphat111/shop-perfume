@@ -9,6 +9,7 @@ import { ClientApp } from "./ClientApp";
 import { AdminApp } from "./AdminApp";
 import { AuthApp } from "./AuthApp";
 import "./App.css";
+import { useEffect } from "react";
 
 function AppContent() {
   const location = useLocation();
@@ -36,6 +37,31 @@ function AppContent() {
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "";
 
 function App() {
+  // Try to cancel Google One Tap early to avoid duplicate credential prompt
+  useEffect(() => {
+    try {
+      const g = (window as unknown as { google?: { accounts?: { id?: { cancel?: () => void; disableAutoSelect?: () => void } } } }).google?.accounts?.id;
+      if (g) {
+        if (typeof g.disableAutoSelect === "function") {
+          try {
+            g.disableAutoSelect();
+          } catch (err) {
+            console.debug("disableAutoSelect failed:", err);
+          }
+        }
+        if (typeof g.cancel === "function") {
+          try {
+            g.cancel();
+          } catch (err) {
+            console.debug("g.cancel failed:", err);
+          }
+        }
+      }
+    } catch (e) {
+      console.debug("Google One Tap cancellation error:", e);
+    }
+  }, []);
+
   return (
     <ErrorBoundary>
       <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
