@@ -3,7 +3,10 @@ import { refreshTokenManager } from "./refreshTokenManager";
 // Auto-detect environment and use appropriate API URL
 const getApiBaseUrl = (): string => {
   // Production on Vercel: use Vercel proxy
-  if (typeof window !== 'undefined' && window.location.hostname.includes('vercel.app')) {
+  if (
+    typeof window !== "undefined" &&
+    window.location.hostname.includes("vercel.app")
+  ) {
     return "/api";
   }
 
@@ -13,7 +16,12 @@ const getApiBaseUrl = (): string => {
 
 const API_BASE_URL = getApiBaseUrl();
 
-console.log('🌐 API Base URL:', API_BASE_URL, '| Environment:', import.meta.env.MODE);
+console.log(
+  "🌐 API Base URL:",
+  API_BASE_URL,
+  "| Environment:",
+  import.meta.env.MODE
+);
 
 interface ApiError {
   message: string;
@@ -75,12 +83,13 @@ const getAuthHeaders = (endpoint: string = "", method: string = "GET"): Record<s
   const headers: Record<string, string> = {};
 
   // Debug logging (only during development) to help trace auth header decisions
-  const isDev = import.meta.env.MODE !== 'production';
+  const isDev = import.meta.env.MODE !== "production";
   const tokenPresent = !!localStorage.getItem("auth_token");
 
   // Special handling for order endpoints - always send token if available
   // Backend allows guest access, but if token is present, it will use userId
-  const isOrderEndpoint = endpoint.includes("/orders/create") ||
+  const isOrderEndpoint =
+    endpoint.includes("/orders/create") ||
     endpoint.includes("/orders/my-orders");
 
   if (isOrderEndpoint) {
@@ -89,12 +98,25 @@ const getAuthHeaders = (endpoint: string = "", method: string = "GET"): Record<s
     if (token) {
       headers["Authorization"] = `Bearer ${token}`;
     }
-    if (isDev) console.debug("api:getAuthHeaders (order endpoint)", { endpoint, method, tokenPresent: !!localStorage.getItem("auth_token") });
+    if (isDev)
+      console.debug("api:getAuthHeaders (order endpoint)", {
+        endpoint,
+        method,
+        tokenPresent: !!localStorage.getItem("auth_token"),
+      });
     return headers;
   }
 
-  // Don't send token for public endpoints (check with actual method)
-  if (isPublicEndpoint(endpoint, method)) {
+  // Don't send token for other public endpoints (respect method)
+  const publicDecision = isPublicEndpoint(endpoint, method);
+  if (isDev)
+    console.debug("api:getAuthHeaders", {
+      endpoint,
+      method,
+      publicDecision,
+      tokenPresent,
+    });
+  if (publicDecision) {
     return headers;
   }
 
@@ -131,8 +153,6 @@ const isPublicEndpoint = (endpoint: string, method: string = "GET"): boolean => 
     "/auth/reset-password",
     "/auth/google-signin",
     "/payment/check-qr",
-    "/brands/",
-    "/categories/",
     "/webhooks/",
   ];
 
@@ -140,27 +160,36 @@ const isPublicEndpoint = (endpoint: string, method: string = "GET"): boolean => 
     return true;
   }
 
-  // GET requests for products and inventories are public (viewing products doesn't require auth)
-  // But POST/PUT/DELETE require authentication (admin only)
-  if (method === "GET") {
-    const publicProductPatterns = [
-      /^\/products\/\d+$/, // GET /products/{id}
-      /^\/products\/category\/\d+$/, // GET /products/category/{id}
-      /^\/products\/brand\/\d+$/, // GET /products/brand/{id}
-      /^\/products\/search/, // GET /products/search
-      /^\/products\/page/, // GET /products/page
-      /^\/products$/, // GET /products
-      /^\/inventories\/product\/\d+$/, // GET /inventories/product/{id}
-      /^\/inventories\/product\/\d+\/available$/, // GET /inventories/product/{id}/available
-      /^\/inventories\/best-sellers/, // GET /inventories/best-sellers
-      /^\/inventories\/lowStock$/, // GET /inventories/lowStock
-      /^\/inventories\/page/, // GET /inventories/page
-      /^\/inventories$/, // GET /inventories
-    ];
+  // Brands and categories - only GET is public, POST/PUT/DELETE require ADMIN
+  if (
+    method.toUpperCase() === "GET" &&
+    (endpoint.includes("/brands") || endpoint.includes("/categories"))
+  ) {
+    return true;
+  }
 
-    if (publicProductPatterns.some((pattern) => pattern.test(endpoint))) {
-      return true; // Public - guest can view products and inventories
-    }
+  // GET requests for products and inventories are public (viewing products doesn't require auth)
+  // Only treat these patterns as public for GET requests
+  const publicProductPatterns = [
+    /^\/products\/\d+$/, // GET /products/{id}
+    /^\/products\/category\/\d+$/, // GET /products/category/{id}
+    /^\/products\/brand\/\d+$/, // GET /products/brand/{id}
+    /^\/products\/search/, // GET /products/search
+    /^\/products\/page/, // GET /products/page
+    /^\/products$/, // GET /products
+    /^\/inventories\/product\/\d+$/, // GET /inventories/product/{id}
+    /^\/inventories\/product\/\d+\/available$/, // GET /inventories/product/{id}/available
+    /^\/inventories\/best-sellers/, // GET /inventories/best-sellers
+    /^\/inventories\/lowStock$/, // GET /inventories/lowStock
+    /^\/inventories\/page/, // GET /inventories/page
+    /^\/inventories$/, // GET /inventories
+  ];
+
+  if (
+    method.toUpperCase() === "GET" &&
+    publicProductPatterns.some((pattern) => pattern.test(endpoint))
+  ) {
+    return true; // Public for GET - guest can view products and inventories
   }
 
   // Protected endpoints that require authentication - always send token
@@ -203,7 +232,8 @@ const shouldAttachAuthFallback = (endpoint: string, method: string) => {
   // Product modifications (PUT/DELETE) should be protected
   if (/^\/products\/\d+$/.test(endpoint)) return true;
   // Other endpoints that are typically protected
-  if (endpoint.includes("/carts/") || endpoint.includes("/addresses/")) return true;
+  if (endpoint.includes("/carts/") || endpoint.includes("/addresses/"))
+    return true;
   return false;
 };
 
@@ -237,7 +267,9 @@ const handle401Error = async <T>(
   // Don't redirect to login for guests - just reject the error
   const refreshToken = localStorage.getItem("refresh_token");
   if (!refreshToken) {
-    console.warn(`401 on endpoint ${endpoint} but no refresh token - user is guest, not redirecting`);
+    console.warn(
+      `401 on endpoint ${endpoint} but no refresh token - user is guest, not redirecting`
+    );
     return Promise.reject(new Error("Unauthorized"));
   }
 
@@ -303,7 +335,10 @@ export const apiService = {
   async get<T>(endpoint: string): Promise<T> {
     // Ensure token is valid before making request (proactive refresh)
     // Skip for public endpoints AND /auth/refresh to prevent infinite loop
-    if (!isPublicEndpoint(endpoint, "GET") && !endpoint.includes("/auth/refresh")) {
+    if (
+      !isPublicEndpoint(endpoint, "GET") &&
+      !endpoint.includes("/auth/refresh")
+    ) {
       await ensureValidToken();
     }
 
@@ -344,7 +379,10 @@ export const apiService = {
   ): Promise<T> {
     // Ensure token is valid before making request (proactive refresh)
     // Skip for public endpoints AND /auth/refresh to prevent infinite loop
-    if (!isPublicEndpoint(endpoint, "POST") && !endpoint.includes("/auth/refresh")) {
+    if (
+      !isPublicEndpoint(endpoint, "POST") &&
+      !endpoint.includes("/auth/refresh")
+    ) {
       await ensureValidToken();
     }
 
@@ -359,7 +397,10 @@ export const apiService = {
 
       // Defensive fallback: attach token if endpoint looks protected but header missing
       try {
-        if (!headers["Authorization"] && shouldAttachAuthFallback(endpoint, "POST")) {
+        if (
+          !headers["Authorization"] &&
+          shouldAttachAuthFallback(endpoint, "POST")
+        ) {
           const t = localStorage.getItem("auth_token");
           if (t) headers["Authorization"] = `Bearer ${t}`;
         }
@@ -418,7 +459,11 @@ export const apiService = {
         clearTimeout(timeoutId);
 
         // Narrow error to an object with optional fields
-        const err = error as { name?: string; message?: string; status?: number };
+        const err = error as {
+          name?: string;
+          message?: string;
+          status?: number;
+        };
 
         // Handle timeout/abort error
         if (err && (err.name === "AbortError" || err.name === "TimeoutError")) {
@@ -442,7 +487,8 @@ export const apiService = {
         // Handle network errors
         throw createApiError(
           {
-            message: err?.message || "Network error. Please check your connection.",
+            message:
+              err?.message || "Network error. Please check your connection.",
           },
           0
         );
@@ -466,7 +512,10 @@ export const apiService = {
   ): Promise<T> {
     // Ensure token is valid before making request (proactive refresh)
     // Skip for public endpoints AND /auth/refresh to prevent infinite loop
-    if (!isPublicEndpoint(endpoint, "PUT") && !endpoint.includes("/auth/refresh")) {
+    if (
+      !isPublicEndpoint(endpoint, "PUT") &&
+      !endpoint.includes("/auth/refresh")
+    ) {
       await ensureValidToken();
     }
 
@@ -480,7 +529,10 @@ export const apiService = {
       };
 
       try {
-        if (!headers["Authorization"] && shouldAttachAuthFallback(endpoint, "PUT")) {
+        if (
+          !headers["Authorization"] &&
+          shouldAttachAuthFallback(endpoint, "PUT")
+        ) {
           const t = localStorage.getItem("auth_token");
           if (t) headers["Authorization"] = `Bearer ${t}`;
         }
@@ -522,13 +574,28 @@ export const apiService = {
   async delete<T>(endpoint: string): Promise<T> {
     // Ensure token is valid before making request (proactive refresh)
     // Skip for public endpoints AND /auth/refresh to prevent infinite loop
-    if (!isPublicEndpoint(endpoint, "DELETE") && !endpoint.includes("/auth/refresh")) {
+    if (
+      !isPublicEndpoint(endpoint, "DELETE") &&
+      !endpoint.includes("/auth/refresh")
+    ) {
       await ensureValidToken();
     }
 
     const makeRequest = async (): Promise<T> => {
       const fullUrl = `${API_BASE_URL}${endpoint}`;
       const headers = getAuthHeaders(endpoint, "DELETE");
+
+      try {
+        if (
+          !headers["Authorization"] &&
+          shouldAttachAuthFallback(endpoint, "DELETE")
+        ) {
+          const t = localStorage.getItem("auth_token");
+          if (t) headers["Authorization"] = `Bearer ${t}`;
+        }
+      } catch {
+        // ignore
+      }
 
       const response = await fetch(fullUrl, {
         method: "DELETE",

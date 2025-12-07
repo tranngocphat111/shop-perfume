@@ -42,7 +42,7 @@ export const BrandModal = ({
       // Set preview for existing image
       if (initialData.url) {
         const cloudinaryBaseUrl =
-          "https://res.cloudinary.com/dmmk9dwqd/image/upload/";
+          "https://res.cloudinary.com/piin/image/upload/brand";
         const fullUrl = initialData.url.startsWith("http")
           ? initialData.url
           : `${cloudinaryBaseUrl}${initialData.url}`;
@@ -240,21 +240,26 @@ export const BrandModal = ({
                     Preview:
                   </p>
                   <div className="relative inline-block">
-                    <img
-                      src={imagePreview}
-                      alt="Brand logo preview"
-                      className="h-24 object-contain border rounded-lg p-2 bg-gray-50"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setFormData({ ...formData, image: undefined });
-                        setImagePreview("");
-                      }}
-                      className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600 transition-colors"
-                    >
-                      ✕
-                    </button>
+                    <div className="w-32 h-32 bg-white border-2 border-gray-200 rounded-lg flex items-center justify-center p-3">
+                      <img
+                        src={imagePreview}
+                        alt="Brand logo preview"
+                        className="max-w-full max-h-full object-contain"
+                      />
+                    </div>
+                    <div className="absolute bottom-0 left-0 right-0 bg-gray-600 bg-opacity-80 rounded-b-lg flex items-center justify-center">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFormData({ ...formData, image: undefined });
+                          setImagePreview("");
+                        }}
+                        className="text-white hover:text-red-500 transition-colors"
+                        title="Remove image"
+                      >
+                        <i className="fas fa-trash text-sm"></i>
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}
