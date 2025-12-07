@@ -44,7 +44,7 @@ public class EmailServiceImpl implements EmailService {
     @Value("${resend.from-email}")
     private String fromEmail;
 
-    @Value("${frontend.url:${app.frontend.url:http://localhost:3000}}")
+    @Value("${app.frontend.url:${FRONTEND_URL:http://localhost:3000}}")
     private String frontendUrl;
 
     /**
@@ -54,10 +54,12 @@ public class EmailServiceImpl implements EmailService {
      */
     private String getFrontendUrl() {
         if (frontendUrl == null || frontendUrl.isEmpty()) {
+            log.warn("FRONTEND_URL not configured, using default http://localhost:3000");
             return "http://localhost:3000";
         }
-        // Lấy URL đầu tiên nếu có nhiều URL được nối với nhau
-        String url = frontendUrl.split(",")[0].trim();
+        String cleaned = frontendUrl.replace("`", "").replace("\"", "").trim();
+        log.info("Using FRONTEND_URL: {}", cleaned);
+        String url = cleaned.split(",")[0].trim();
         return url;
     }
 
