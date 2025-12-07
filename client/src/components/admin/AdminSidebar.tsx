@@ -25,6 +25,11 @@ export const AdminSidebar = ({ isOpen }: AdminSidebarProps) => {
       label: "Brands",
     },
     {
+      path: "/admin/categories",
+      icon: "fa-th-large",
+      label: "Categories",
+    },
+    {
       path: "/admin/suppliers",
       icon: "fa-truck",
       label: "Suppliers",
