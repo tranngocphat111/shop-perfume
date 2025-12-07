@@ -44,11 +44,10 @@ public class BrandController {
     }
 
     /**
-     * GET /api/brands/page - Lấy brands theo phân trang (cho admin)
+     * GET /api/brands/page - Lấy brands theo phân trang
      */
     @GetMapping("/page")
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Get paginated brands", description = "Retrieve brands with pagination and search for admin")
+    @Operation(summary = "Get paginated brands", description = "Retrieve brands with pagination and search")
     public ResponseEntity<Page<BrandResponse>> getBrandsPaginated(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "25") int size,
@@ -78,7 +77,6 @@ public class BrandController {
      * GET /api/brands/{id} - Lấy brand theo ID
      */
     @GetMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Get brand by ID", description = "Retrieve a single brand by its ID")
     public ResponseEntity<BrandResponse> getBrandById(@PathVariable int id) {
         log.info("REST request to get brand by id: {}", id);
