@@ -1,6 +1,5 @@
 import React from 'react';
 import type { OrderResponse } from '../../types';
-import { formatCurrency } from '../../utils/helpers';
 
 interface OrderSummarySidebarProps {
   order: OrderResponse;

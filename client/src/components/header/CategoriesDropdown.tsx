@@ -17,7 +17,6 @@ export const CategoriesDropdown = ({
   onMouseEnter,
   onMouseLeave,
   isScrolled,
-  isCompact,
 }: CategoriesDropdownProps) => {
   const navigate = useNavigate();
   const location = useLocation();

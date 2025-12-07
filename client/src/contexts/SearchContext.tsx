@@ -3,8 +3,8 @@ import {
   useContext,
   useState,
   useCallback,
-  ReactNode,
 } from "react";
+import type { ReactNode } from "react";
 import type { Product, Inventory } from "../types";
 import { productService } from "../services/perfume.service";
 import { inventoryService } from "../services/inventory.service";

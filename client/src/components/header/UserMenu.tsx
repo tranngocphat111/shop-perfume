@@ -31,7 +31,7 @@ export const UserMenu = ({
 
   const handleLogout = async () => {
     setShowUserMenu(false);
-    await logout("/");
+    logout();
   };
 
   return (

@@ -23,7 +23,6 @@ export const AddressFormModal = ({
   initialForm,
   onClose,
   onSave,
-  userDefaultName,
 }: AddressFormModalProps) => {
   const [form, setForm] = useState<Omit<Address, "id">>(initialForm);
   const [error, setError] = useState("");

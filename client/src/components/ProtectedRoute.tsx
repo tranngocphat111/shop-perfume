@@ -36,7 +36,7 @@ export const ProtectedRoute = ({
   requireAdmin = false, // Backward compatibility
   redirectTo,
 }: ProtectedRouteProps) => {
-  const { isAuthenticated, isAdmin, isCustomer, userRole } = useAuth();
+  const { isAuthenticated, isAdmin } = useAuth();
 
   // Backward compatibility: if requireAdmin is true, use ADMIN role
   const minRole: UserRole = requireAdmin ? "ADMIN" : requiredRole;

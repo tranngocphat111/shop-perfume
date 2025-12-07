@@ -21,7 +21,6 @@ interface BrandsDropdownProps {
 }
 
 export const BrandsDropdown = ({
-  allBrands,
   groupedBrands,
   availableLetters,
   loading,
@@ -29,7 +28,6 @@ export const BrandsDropdown = ({
   onMouseEnter,
   onMouseLeave,
   isScrolled,
-  isCompact,
 }: BrandsDropdownProps) => {
   const [selectedLetter, setSelectedLetter] = useState<string | null>(null);
   const navigate = useNavigate();

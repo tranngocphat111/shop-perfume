@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { FaExclamationCircle, FaTimes } from 'react-icons/fa';
+import { FaExclamationCircle } from 'react-icons/fa';
 
 interface OutOfStockModalProps {
   isOpen: boolean;

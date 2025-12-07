@@ -10,7 +10,7 @@ interface CartDropdownProps {
 }
 
 export const CartDropdown = ({ isVisible, onClose }: CartDropdownProps) => {
-  const { cart, getCartTotal, removeFromCart } = useCart();
+  const { cart, removeFromCart } = useCart();
   const navigate = useNavigate();
 
   // Hiển thị giỏ hàng trống thay vì return null
@@ -64,11 +64,6 @@ export const CartDropdown = ({ isVisible, onClose }: CartDropdownProps) => {
   // Filter items còn hàng để tính tổng
   const availableItems = cart.items.filter(item => 
     item.stockQuantity === undefined || item.stockQuantity > 0
-  );
-  
-  // Kiểm tra có sản phẩm hết hàng không
-  const hasOutOfStockItems = cart.items.some(item => 
-    item.stockQuantity !== undefined && item.stockQuantity === 0
   );
 
   // Tính tổng và số lượng chỉ từ items còn hàng

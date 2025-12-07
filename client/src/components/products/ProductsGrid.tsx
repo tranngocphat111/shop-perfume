@@ -1,4 +1,4 @@
-import { motion, number } from "framer-motion";
+import { motion } from "framer-motion";
 import { PerfumeCard } from "../PerfumeCard";
 import type { Product, Inventory, Brand } from "../../types";
 import type { InventoryItem } from "../../services/inventory.service";
