@@ -89,19 +89,23 @@ const Login: React.FC = () => {
     try {
       const response = await authService.login(formData);
 
-      // Chỉ customer mới đăng nhập qua trang này
-      if (response.role === "ADMIN") {
-        setError("Vui lòng sử dụng trang đăng nhập dành cho quản trị viên.");
-        authService.logout();
+      if (!response.token) {
+        setError("Login failed: No token received");
         setLoading(false);
         return;
       }
 
-      // Merge cart before navigating
-      await login(response.token, response, () =>
-        mergeCartOnLogin(response.userId)
-      );
-      navigate("/");
+      // Admin redirect to admin dashboard, customer to home
+      if (response.role === "ADMIN") {
+        await login(response.token, response);
+        navigate("/admin");
+      } else {
+        // Merge cart before navigating for customers
+        await login(response.token, response, () =>
+          mergeCartOnLogin(response.userId)
+        );
+        navigate("/");
+      }
     } catch (err) {
       console.error("Login error:", err);
       setError(getErrorMessage(err));
@@ -124,19 +128,23 @@ const Login: React.FC = () => {
         credentialResponse.credential
       );
 
-      // Chỉ customer mới đăng nhập qua trang này
-      if (response.role === "ADMIN") {
-        setError("Vui lòng sử dụng trang đăng nhập dành cho quản trị viên.");
-        authService.logout();
+      if (!response.token) {
+        setError("Google login failed: No token received");
         setGoogleLoading(false);
         return;
       }
 
-      // Merge cart before navigating
-      await login(response.token, response, () =>
-        mergeCartOnLogin(response.userId)
-      );
-      navigate("/");
+      // Admin redirect to admin dashboard, customer to home
+      if (response.role === "ADMIN") {
+        await login(response.token, response);
+        navigate("/admin");
+      } else {
+        // Merge cart before navigating for customers
+        await login(response.token, response, () =>
+          mergeCartOnLogin(response.userId)
+        );
+        navigate("/");
+      }
     } catch (err) {
       console.error("Google Sign-In error:", err);
       setError(getErrorMessage(err));
@@ -416,31 +424,19 @@ const Login: React.FC = () => {
 
           {/* Google Sign-In Button */}
           <div className={`mb-5 ${loading || googleLoading ? 'opacity-50 pointer-events-none' : ''}`}>
-            <motion.div
-              whileHover={{ scale: 1.01 }}
-              whileTap={{ scale: 0.99 }}
-              className="relative group"
-            >
-              {/* Gradient background on hover */}
-              <div className="absolute inset-0 bg-gradient-to-r from-blue-50 via-purple-50 to-pink-50 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-              
-              {/* Border and shadow container */}
-              <div className="relative border border-gray-200 rounded-lg overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 hover:border-gray-300 bg-white">
-                <GoogleLogin
-                  onSuccess={handleGoogleSuccess}
-                  onError={handleGoogleError}
-                  useOneTap={false}
-                  theme="outline"
-                  size="large"
-                  text="signin_with"
-                  shape="rectangular"
-                  locale="vi"
-                />
-              </div>
-              
-              {/* Shine effect on hover */}
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 rounded-lg pointer-events-none"></div>
-            </motion.div>
+            <div className="w-full flex justify-center">
+              <GoogleLogin
+                onSuccess={handleGoogleSuccess}
+                onError={handleGoogleError}
+                useOneTap={false}
+                theme="outline"
+                size="large"
+                text="signin_with"
+                shape="rectangular"
+                locale="vi"
+                width="100%"
+              />
+            </div>
           </div>
 
           <div className="mt-5 text-center space-y-2.5">
