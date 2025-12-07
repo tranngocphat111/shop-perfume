@@ -144,18 +144,35 @@ export const PurchaseInvoiceAddModal = ({
         ImportPrice: number;
       }>(worksheet);
 
-      const importedDetails: InvoiceDetail[] = jsonData.map((row) => {
+      const importedDetails: InvoiceDetail[] = [];
+      const invalidProducts: number[] = [];
+
+      jsonData.forEach((row) => {
         const product = products.find((p) => p.productId === row.ProductID);
         const quantity = row.Quantity || 0;
         const importPrice = row.ImportPrice || 0;
 
-        return {
-          productId: row.ProductID || 0,
-          productName: product?.name || "",
-          quantity,
-          importPrice,
-          subTotal: quantity * importPrice,
-        };
+        if (!product) {
+          // Product không tồn tại hoặc không ACTIVE
+          // Vẫn thêm vào table nhưng productId = 0 (chưa chọn)
+          invalidProducts.push(row.ProductID);
+          importedDetails.push({
+            productId: 0, // Set to 0 to show "Select Product" in dropdown
+            productName: "",
+            quantity,
+            importPrice,
+            subTotal: quantity * importPrice,
+          });
+        } else {
+          // Product hợp lệ
+          importedDetails.push({
+            productId: row.ProductID,
+            productName: product.name,
+            quantity,
+            importPrice,
+            subTotal: quantity * importPrice,
+          });
+        }
       });
 
       setDetails(importedDetails);
@@ -165,9 +182,20 @@ export const PurchaseInvoiceAddModal = ({
         fileInputRef.current.value = "";
       }
 
-      alert(
-        `✅ Successfully imported ${importedDetails.length} products from Excel!`
-      );
+      // Show results
+      let message = "";
+      if (invalidProducts.length > 0) {
+        message += `⚠️ Warning: ${invalidProducts.length} product(s) not found or INACTIVE:\n`;
+        message += `Product IDs: ${invalidProducts.join(", ")}\n`;
+        message += `These rows were imported but need product selection.\n\n`;
+      }
+
+      const validCount = importedDetails.length - invalidProducts.length;
+      message += `✅ Imported ${importedDetails.length} row(s) total:\n`;
+      message += `   - ${validCount} valid product(s)\n`;
+      message += `   - ${invalidProducts.length} need product selection`;
+
+      alert(message);
     } catch (error) {
       console.error("Error importing Excel:", error);
       alert("❌ Failed to import Excel file. Please check the file format.");

@@ -6,7 +6,7 @@ const getApiBaseUrl = (): string => {
   if (typeof window !== 'undefined' && window.location.hostname.includes('vercel.app')) {
     return "/api";
   }
-  
+
   // Development & Local: call deployed backend directly
   return "http://13.251.125.90:8080/api";
 };
@@ -71,7 +71,7 @@ const ensureValidToken = async (): Promise<void> => {
 };
 
 // Helper function to get auth headers
-const getAuthHeaders = (endpoint: string = ""): Record<string, string> => {
+const getAuthHeaders = (endpoint: string = "", method: string = "GET"): Record<string, string> => {
   const headers: Record<string, string> = {};
 
   // Special handling for order endpoints - always send token if available
@@ -88,8 +88,8 @@ const getAuthHeaders = (endpoint: string = ""): Record<string, string> => {
     return headers;
   }
 
-  // Don't send token for other public endpoints
-  if (isPublicEndpoint(endpoint)) {
+  // Don't send token for public endpoints (check with actual method)
+  if (isPublicEndpoint(endpoint, method)) {
     return headers;
   }
 
@@ -105,7 +105,7 @@ const getAuthHeaders = (endpoint: string = ""): Record<string, string> => {
 // NOTE: /orders/create and /orders/my-orders are NOT in this list
 // - We want to send token if user is logged in
 // - Backend allows guest access (permitAll), but if token is present, it will use userId
-const isPublicEndpoint = (endpoint: string): boolean => {
+const isPublicEndpoint = (endpoint: string, method: string = "GET"): boolean => {
   // Public endpoints that don't require authentication (check these FIRST)
   // Special public order endpoints (guest can access)
   if (
@@ -136,27 +136,26 @@ const isPublicEndpoint = (endpoint: string): boolean => {
   }
 
   // GET requests for products and inventories are public (viewing products doesn't require auth)
-  // Pattern: /products/{id} or /products? or /inventories/product/{id} or /inventories? (GET only)
-  // We check if it's a GET request by checking if it's NOT a POST/PUT/DELETE pattern
-  // Since we can't know the method here, we'll treat all GET-like patterns as potentially public
-  // and handle 401 errors gracefully in handle401Error
-  const publicProductPatterns = [
-    /^\/products\/\d+$/, // GET /products/{id}
-    /^\/products\/category\/\d+$/, // GET /products/category/{id}
-    /^\/products\/brand\/\d+$/, // GET /products/brand/{id}
-    /^\/products\/search/, // GET /products/search
-    /^\/products\/page/, // GET /products/page
-    /^\/products$/, // GET /products
-    /^\/inventories\/product\/\d+$/, // GET /inventories/product/{id}
-    /^\/inventories\/product\/\d+\/available$/, // GET /inventories/product/{id}/available
-    /^\/inventories\/best-sellers/, // GET /inventories/best-sellers
-    /^\/inventories\/lowStock$/, // GET /inventories/lowStock
-    /^\/inventories\/page/, // GET /inventories/page
-    /^\/inventories$/, // GET /inventories
-  ];
+  // But POST/PUT/DELETE require authentication (admin only)
+  if (method === "GET") {
+    const publicProductPatterns = [
+      /^\/products\/\d+$/, // GET /products/{id}
+      /^\/products\/category\/\d+$/, // GET /products/category/{id}
+      /^\/products\/brand\/\d+$/, // GET /products/brand/{id}
+      /^\/products\/search/, // GET /products/search
+      /^\/products\/page/, // GET /products/page
+      /^\/products$/, // GET /products
+      /^\/inventories\/product\/\d+$/, // GET /inventories/product/{id}
+      /^\/inventories\/product\/\d+\/available$/, // GET /inventories/product/{id}/available
+      /^\/inventories\/best-sellers/, // GET /inventories/best-sellers
+      /^\/inventories\/lowStock$/, // GET /inventories/lowStock
+      /^\/inventories\/page/, // GET /inventories/page
+      /^\/inventories$/, // GET /inventories
+    ];
 
-  if (publicProductPatterns.some((pattern) => pattern.test(endpoint))) {
-    return true; // Public - guest can view products and inventories
+    if (publicProductPatterns.some((pattern) => pattern.test(endpoint))) {
+      return true; // Public - guest can view products and inventories
+    }
   }
 
   // Protected endpoints that require authentication - always send token
@@ -206,8 +205,9 @@ const handle401Error = async <T>(
     return Promise.reject(new Error("Refresh token invalid"));
   }
 
-  // If this is a public endpoint, don't logout - just reject the error
-  if (isPublicEndpoint(endpoint)) {
+  // If this is a public endpoint (GET only), don't logout - just reject the error
+  // Note: Only GET requests to products/inventories are public, not POST/PUT/DELETE
+  if (isPublicEndpoint(endpoint, "GET")) {
     console.warn(`401 on public endpoint ${endpoint} - not logging out`);
     return Promise.reject(new Error("Unauthorized"));
   }
@@ -283,13 +283,13 @@ export const apiService = {
   async get<T>(endpoint: string): Promise<T> {
     // Ensure token is valid before making request (proactive refresh)
     // Skip for public endpoints AND /auth/refresh to prevent infinite loop
-    if (!isPublicEndpoint(endpoint) && !endpoint.includes("/auth/refresh")) {
+    if (!isPublicEndpoint(endpoint, "GET") && !endpoint.includes("/auth/refresh")) {
       await ensureValidToken();
     }
 
     const makeRequest = async (): Promise<T> => {
       const fullUrl = `${API_BASE_URL}${endpoint}`;
-      const headers = getAuthHeaders(endpoint);
+      const headers = getAuthHeaders(endpoint, "GET");
       const response = await fetch(fullUrl, { headers });
 
       if (!response.ok) {
@@ -324,7 +324,7 @@ export const apiService = {
   ): Promise<T> {
     // Ensure token is valid before making request (proactive refresh)
     // Skip for public endpoints AND /auth/refresh to prevent infinite loop
-    if (!isPublicEndpoint(endpoint) && !endpoint.includes("/auth/refresh")) {
+    if (!isPublicEndpoint(endpoint, "POST") && !endpoint.includes("/auth/refresh")) {
       await ensureValidToken();
     }
 
@@ -332,7 +332,7 @@ export const apiService = {
       const fullUrl = `${API_BASE_URL}${endpoint}`;
       const isFormData = data instanceof FormData;
       const headers: Record<string, string> = {
-        ...getAuthHeaders(endpoint),
+        ...getAuthHeaders(endpoint, "POST"),
         ...(isFormData ? {} : { "Content-Type": "application/json" }),
         ...options?.headers,
       };
@@ -435,7 +435,7 @@ export const apiService = {
   ): Promise<T> {
     // Ensure token is valid before making request (proactive refresh)
     // Skip for public endpoints AND /auth/refresh to prevent infinite loop
-    if (!isPublicEndpoint(endpoint) && !endpoint.includes("/auth/refresh")) {
+    if (!isPublicEndpoint(endpoint, "PUT") && !endpoint.includes("/auth/refresh")) {
       await ensureValidToken();
     }
 
@@ -443,7 +443,7 @@ export const apiService = {
       const fullUrl = `${API_BASE_URL}${endpoint}`;
       const isFormData = data instanceof FormData;
       const headers: Record<string, string> = {
-        ...getAuthHeaders(endpoint),
+        ...getAuthHeaders(endpoint, "PUT"),
         ...(isFormData ? {} : { "Content-Type": "application/json" }),
         ...options?.headers,
       };
@@ -482,13 +482,13 @@ export const apiService = {
   async delete<T>(endpoint: string): Promise<T> {
     // Ensure token is valid before making request (proactive refresh)
     // Skip for public endpoints AND /auth/refresh to prevent infinite loop
-    if (!isPublicEndpoint(endpoint) && !endpoint.includes("/auth/refresh")) {
+    if (!isPublicEndpoint(endpoint, "DELETE") && !endpoint.includes("/auth/refresh")) {
       await ensureValidToken();
     }
 
     const makeRequest = async (): Promise<T> => {
       const fullUrl = `${API_BASE_URL}${endpoint}`;
-      const headers = getAuthHeaders(endpoint);
+      const headers = getAuthHeaders(endpoint, "DELETE");
 
       const response = await fetch(fullUrl, {
         method: "DELETE",
