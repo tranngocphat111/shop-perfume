@@ -34,7 +34,7 @@ export const useCheckoutOrder = (): UseCheckoutOrderReturn => {
     formData: CheckoutFormData,
     cartItems: any[],
     discount: number,
-    appliedCouponIdParam: number | null
+    _appliedCouponIdParam: number | null
   ) => {
     // Set loading state ngay từ đầu để disable nút và hiển thị loading
     setIsProcessing(true);

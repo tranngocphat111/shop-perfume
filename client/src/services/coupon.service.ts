@@ -159,9 +159,9 @@ export const couponService = {
     sortBy: string = "couponId",
     direction: string = "desc"
   ): Promise<CouponPageResponse> => {
-    return await apiService.get<CouponPageResponse>("/coupons/admin", {
-      params: { page, size, sortBy, direction },
-    });
+    return await apiService.get<CouponPageResponse>(
+      `/coupons/admin?page=${page}&size=${size}&sortBy=${sortBy}&direction=${direction}`
+    );
   },
 
   searchCoupons: async (
@@ -171,9 +171,9 @@ export const couponService = {
     sortBy: string = "couponId",
     direction: string = "desc"
   ): Promise<CouponPageResponse> => {
-    return await apiService.get<CouponPageResponse>("/coupons/admin/search", {
-      params: { query, page, size, sortBy, direction },
-    });
+    return await apiService.get<CouponPageResponse>(
+      `/coupons/admin/search?query=${encodeURIComponent(query)}&page=${page}&size=${size}&sortBy=${sortBy}&direction=${direction}`
+    );
   },
 
   getCouponById: async (id: number): Promise<Coupon> => {
