@@ -1,6 +1,7 @@
 package iuh.fit.server.repository;
 
 import iuh.fit.server.model.entity.Brand;
+import iuh.fit.server.model.entity.Category;
 import iuh.fit.server.model.entity.Product;
 import iuh.fit.server.model.enums.ProductStatus;
 import org.springframework.data.domain.Page;
@@ -78,4 +79,9 @@ public interface ProductRepository extends JpaRepository<Product, Integer> {
      * Tìm sản phẩm theo brand và status
      */
     List<Product> findByBrandAndStatus(Brand brand, ProductStatus status);
+
+    /**
+     * Tìm sản phẩm theo category và status
+     */
+    List<Product> findByCategoryAndStatus(Category category, ProductStatus status);
 }

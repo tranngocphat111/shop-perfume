@@ -3,6 +3,7 @@ import { ScrollToTop } from "./components/ScrollToTop";
 import { Dashboard } from "./pages/admin/Dashboard";
 import { Products } from "./pages/admin/Products";
 import { Brands } from "./pages/admin/Brands";
+import { Categories } from "./pages/admin/Categories";
 import { Suppliers } from "./pages/admin/Suppliers";
 import { StockAdjustments } from "./pages/admin/StockAdjustment";
 import { PurchaseInvoices } from "./pages/admin/PurchaseInvoices";
@@ -36,6 +37,14 @@ export function AdminApp() {
             element={
               <AdminRoute>
                 <Brands />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/categories"
+            element={
+              <AdminRoute>
+                <Categories />
               </AdminRoute>
             }
           />
