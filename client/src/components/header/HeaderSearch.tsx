@@ -56,8 +56,8 @@ export const HeaderSearch = ({
       );
     } else if (quantity <= 10) {
       return (
-        <span className="inline-flex items-center gap-1 text-[10px] font-medium text-orange-600">
-          <span className="w-1 h-1 bg-orange-500 rounded-full animate-pulse"></span>
+        <span className="inline-flex items-center gap-1 text-[10px] font-medium text-yellow-600">
+          <span className="w-1 h-1 bg-yellow-500 rounded-full animate-pulse"></span>
           Sắp hết
         </span>
       );
