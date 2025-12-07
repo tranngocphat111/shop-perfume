@@ -4,6 +4,7 @@ import iuh.fit.server.dto.request.BrandRequest;
 import iuh.fit.server.dto.response.BrandResponse;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -30,12 +31,12 @@ public interface BrandService {
     /**
      * Tạo brand mới
      */
-    BrandResponse createBrand(BrandRequest request);
+    BrandResponse createBrand(BrandRequest request, MultipartFile image);
 
     /**
      * Cập nhật brand
      */
-    BrandResponse updateBrand(int id, BrandRequest request);
+    BrandResponse updateBrand(int id, BrandRequest request, MultipartFile image);
 
     /**
      * Xóa brand (kiểm tra có sản phẩm ACTIVE hay không)

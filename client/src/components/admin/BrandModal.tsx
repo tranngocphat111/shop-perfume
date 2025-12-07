@@ -13,7 +13,8 @@ export interface BrandFormData {
   name: string;
   country: string;
   description: string;
-  url: string;
+  url?: string;
+  image?: File;
 }
 
 export const BrandModal = ({
@@ -28,21 +29,34 @@ export const BrandModal = ({
     country: "",
     description: "",
     url: "",
+    image: undefined,
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [imagePreview, setImagePreview] = useState<string>("");
 
   useEffect(() => {
     if (initialData) {
       setFormData(initialData);
+      // Set preview for existing image
+      if (initialData.url) {
+        const cloudinaryBaseUrl =
+          "https://res.cloudinary.com/dmmk9dwqd/image/upload/";
+        const fullUrl = initialData.url.startsWith("http")
+          ? initialData.url
+          : `${cloudinaryBaseUrl}${initialData.url}`;
+        setImagePreview(fullUrl);
+      }
     } else {
       setFormData({
         name: "",
         country: "",
         description: "",
         url: "",
+        image: undefined,
       });
+      setImagePreview("");
     }
     setErrors({});
   }, [initialData, isOpen]);
@@ -190,28 +204,60 @@ export const BrandModal = ({
               )}
             </div>
 
-            {/* URL/Logo Path */}
+            {/* Brand Logo */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-1">
-                Logo URL/Path
+                Brand Logo
               </label>
               <input
-                type="text"
-                value={formData.url}
-                onChange={(e) =>
-                  setFormData({ ...formData, url: e.target.value })
-                }
-                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                  errors.url ? "border-red-500" : "border-gray-300"
-                }`}
-                placeholder="e.g., brand/Chanel.png or full URL"
+                type="file"
+                accept="image/*"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    setFormData({ ...formData, image: file });
+                    // Create preview
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                      setImagePreview(reader.result as string);
+                    };
+                    reader.readAsDataURL(file);
+                  }
+                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
-              {errors.url && (
-                <p className="text-red-500 text-sm mt-1">{errors.url}</p>
+              {errors.image && (
+                <p className="text-red-500 text-sm mt-1">{errors.image}</p>
               )}
               <p className="text-xs text-gray-500 mt-1">
-                Enter logo path (e.g., "brand/Chanel.png") or full URL
+                Upload brand logo image (PNG, JPG, etc.)
               </p>
+
+              {/* Image Preview */}
+              {imagePreview && (
+                <div className="mt-3">
+                  <p className="text-sm font-medium text-gray-700 mb-2">
+                    Preview:
+                  </p>
+                  <div className="relative inline-block">
+                    <img
+                      src={imagePreview}
+                      alt="Brand logo preview"
+                      className="h-24 object-contain border rounded-lg p-2 bg-gray-50"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFormData({ ...formData, image: undefined });
+                        setImagePreview("");
+                      }}
+                      className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600 transition-colors"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 

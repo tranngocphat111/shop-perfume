@@ -16,6 +16,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -85,28 +86,31 @@ public class BrandController {
     }
 
     /**
-     * POST /api/brands - Tạo brand mới
+     * POST /api/brands - Tạo brand mới (có thể có ảnh)
      */
-    @PostMapping
+    @PostMapping(consumes = { "multipart/form-data", "application/json" })
     @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Create new brand", description = "Create a new brand")
-    public ResponseEntity<BrandResponse> createBrand(@Valid @RequestBody BrandRequest request) {
-        log.info("REST request to create brand: {}", request.getName());
-        BrandResponse brand = brandService.createBrand(request);
+    @Operation(summary = "Create new brand", description = "Create a new brand with optional image")
+    public ResponseEntity<BrandResponse> createBrand(
+            @Valid @ModelAttribute BrandRequest request,
+            @RequestParam(value = "image", required = false) MultipartFile image) {
+        log.info("REST request to create brand: {} with image: {}", request.getName(), image != null);
+        BrandResponse brand = brandService.createBrand(request, image);
         return ResponseEntity.status(HttpStatus.CREATED).body(brand);
     }
 
     /**
-     * PUT /api/brands/{id} - Cập nhật brand
+     * PUT /api/brands/{id} - Cập nhật brand (có thể có ảnh mới)
      */
-    @PutMapping("/{id}")
+    @PutMapping(value = "/{id}", consumes = { "multipart/form-data", "application/json" })
     @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Update brand", description = "Update an existing brand")
+    @Operation(summary = "Update brand", description = "Update an existing brand with optional new image")
     public ResponseEntity<BrandResponse> updateBrand(
             @PathVariable int id,
-            @Valid @RequestBody BrandRequest request) {
-        log.info("REST request to update brand id {}: {}", id, request.getName());
-        BrandResponse brand = brandService.updateBrand(id, request);
+            @Valid @ModelAttribute BrandRequest request,
+            @RequestParam(value = "image", required = false) MultipartFile image) {
+        log.info("REST request to update brand id {}: {} with image: {}", id, request.getName(), image != null);
+        BrandResponse brand = brandService.updateBrand(id, request, image);
         return ResponseEntity.ok(brand);
     }
 

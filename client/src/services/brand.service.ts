@@ -7,20 +7,22 @@ export interface Brand {
   country?: string;
   description?: string;
   url?: string;
+  createdAt?: string;
+  lastUpdated?: string;
+  createdBy?: string;
+  lastUpdatedBy?: string;
 }
 
 export interface CreateBrandRequest {
   name: string;
   country?: string;
   description?: string;
-  url?: string;
 }
 
 export interface UpdateBrandRequest {
   name: string;
   country?: string;
   description?: string;
-  url?: string;
 }
 
 export const brandService = {
@@ -52,12 +54,36 @@ export const brandService = {
     return apiService.get<Brand>(`/brands/${id}`);
   },
 
-  async createBrand(data: CreateBrandRequest): Promise<Brand> {
-    return apiService.post<Brand>("/brands", data);
+  async createBrand(data: CreateBrandRequest, image?: File): Promise<Brand> {
+    if (image) {
+      const formData = new FormData();
+      formData.append("name", data.name);
+      if (data.country) formData.append("country", data.country);
+      if (data.description) formData.append("description", data.description);
+      formData.append("image", image);
+
+      return apiService.post<Brand>("/brands", formData);
+    } else {
+      return apiService.post<Brand>("/brands", data);
+    }
   },
 
-  async updateBrand(id: number, data: UpdateBrandRequest): Promise<Brand> {
-    return apiService.put<Brand>(`/brands/${id}`, data);
+  async updateBrand(
+    id: number,
+    data: UpdateBrandRequest,
+    image?: File
+  ): Promise<Brand> {
+    if (image) {
+      const formData = new FormData();
+      formData.append("name", data.name);
+      if (data.country) formData.append("country", data.country);
+      if (data.description) formData.append("description", data.description);
+      formData.append("image", image);
+
+      return apiService.put<Brand>(`/brands/${id}`, formData);
+    } else {
+      return apiService.put<Brand>(`/brands/${id}`, data);
+    }
   },
 
   async deleteBrand(id: number): Promise<void> {
