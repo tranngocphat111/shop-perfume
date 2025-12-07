@@ -120,17 +120,14 @@ public class CouponServiceImpl implements CouponService {
         return coupons.stream()
                 .filter(c -> {
                     // Filter WELCOME5: chỉ hiển thị cho user chưa từng đặt hàng
-                    // NOTE: Không còn kiểm tra hasUserUsedCoupon vì Order không lưu coupon relationship nữa
-                    // User có thể dùng coupon nhiều lần miễn là đủ điểm
                     if ("WELCOME5".equalsIgnoreCase(c.getCode())) {
                         if (userId == null) {
                             return false; // Guest không được dùng
                         }
-                        // Nếu user đã đặt hàng hoặc đã sử dụng WELCOME5 thì không hiển thị
-                        if (finalHasPlacedOrder || orderRepository.hasUserUsedCoupon(userId, c.getCouponId())) {
-                            log.info("Filtering WELCOME5 for user {}: hasPlacedOrder={}, hasUsedCoupon={}",
-                                    userId, finalHasPlacedOrder,
-                                    orderRepository.hasUserUsedCoupon(userId, c.getCouponId()));
+                        // Nếu user đã đặt hàng thì không hiển thị WELCOME5
+                        if (finalHasPlacedOrder) {
+                            log.info("Filtering WELCOME5 for user {}: hasPlacedOrder={}",
+                                    userId, finalHasPlacedOrder);
                             return false;
                         }
                     }
@@ -342,10 +339,8 @@ public class CouponServiceImpl implements CouponService {
         Coupon coupon = couponRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Coupon not found with ID: " + id));
 
-        // Check if coupon has been used in any orders
-        if (orderRepository.existsByCoupon_CouponId(id)) {
-            throw new RuntimeException("Cannot delete coupon that has been used in orders");
-        }
+        // Note: Order entity no longer has coupon relationship
+        // Coupons can be deleted freely
 
         couponRepository.delete(coupon);
         log.info("Coupon deleted successfully with ID: {}", id);

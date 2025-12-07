@@ -40,17 +40,6 @@ public interface OrderRepository extends JpaRepository<Order, Integer> {
        @Query("SELECT COUNT(o) > 0 FROM Order o WHERE o.user.userId = :userId")
        boolean hasUserPlacedOrder(@Param("userId") Integer userId);
 
-       /**
-        * Kiểm tra user đã sử dụng coupon này chưa
-        */
-       @Query("SELECT COUNT(o) > 0 FROM Order o WHERE o.user.userId = :userId AND o.coupon.couponId = :couponId")
-       boolean hasUserUsedCoupon(@Param("userId") Integer userId, @Param("couponId") Integer couponId);
-
-       /**
-        * Check if coupon exists in any orders
-        */
-       boolean existsByCoupon_CouponId(Integer couponId);
-
        @Query("SELECT COUNT(o) FROM Order o join o.payment p WHERE p.status = :paymentStatus")
        Long getSizeOfOrdersHaveStatus(@PathVariable("paymentStatus") PaymentStatus paymentStatus);
 
