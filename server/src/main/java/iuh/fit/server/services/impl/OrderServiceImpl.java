@@ -310,6 +310,7 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
         Order order = new Order();
         order.setOrderDate(new Date());
         order.setTotalAmount(request.getTotalAmount());
+        order.setDiscountAmount(request.getDiscountAmount() != null ? request.getDiscountAmount() : 0.0);
         order.setGuestName(request.getFullName());
         order.setGuestEmail(request.getEmail());
         order.setGuestPhone(request.getPhone());
@@ -401,52 +402,9 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
         shipment.setOrder(order);
         order.setShipment(shipment);
 
-        // Xử lý coupon và điểm tích lũy nếu user đã đăng nhập
-        User orderUser = order.getUser();
-        if (orderUser != null && request.getCouponId() != null) {
-            try {
-                log.info("Processing coupon: couponId={}, userId={}", 
-                        request.getCouponId(), orderUser.getUserId());
-                
-                Optional<Coupon> couponOpt = couponRepository.findById(request.getCouponId());
-                
-                if (couponOpt.isPresent()) {
-                    Coupon coupon = couponOpt.get();
-                    Date currentDate = new Date();
-                    
-                    // Validate coupon
-                    if (!coupon.isActive()) {
-                        log.warn("⚠️ Coupon is not active: {}", request.getCouponId());
-                    } else if (currentDate.before(coupon.getStartDate()) || currentDate.after(coupon.getEndDate())) {
-                        log.warn("⚠️ Coupon is expired or not yet valid: {}", request.getCouponId());
-                    } else if (orderUser.getLoyaltyPoints() < coupon.getRequiredPoints()) {
-                        log.warn("⚠️ User has {} points, but coupon requires {} points", 
-                                orderUser.getLoyaltyPoints(), coupon.getRequiredPoints());
-                    } else {
-                        // Apply coupon discount
-                        double discountAmount = (request.getTotalAmount() * coupon.getDiscountPercent()) / 100.0;
-                        double finalAmount = request.getTotalAmount() - discountAmount;
-                        order.setTotalAmount(finalAmount);
-                        
-                        // Set coupon reference
-                        order.setCoupon(coupon);
-                        
-                        // Deduct loyalty points
-                        int newPoints = orderUser.getLoyaltyPoints() - coupon.getRequiredPoints();
-                        orderUser.setLoyaltyPoints(newPoints);
-                        userRepository.save(orderUser);
-                        
-                        log.info("✅ Coupon applied: discount={}, points deducted={}, remaining points={}", 
-                                discountAmount, coupon.getRequiredPoints(), newPoints);
-                    }
-                } else {
-                    log.warn("⚠️ Coupon not found: {}", request.getCouponId());
-                }
-            } catch (Exception e) {
-                log.error("❌ Error processing coupon", e);
-                // Don't fail order creation if coupon processing fails
-            }
-        }
+        // Note: Coupon discount đã được tính từ frontend và truyền vào qua totalAmount và discountAmount
+        // Không cần xử lý coupon ở backend nữa, chỉ lưu thông tin đơn hàng
+        // discountAmount đã được set ở trên khi tạo order
 
         // Save order first (cascade will save orderItems, payment, and shipment)
         Order savedOrder = orderRepository.save(order);

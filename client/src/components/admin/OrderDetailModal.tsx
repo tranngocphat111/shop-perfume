@@ -272,11 +272,38 @@ export const OrderDetailModal = ({
                   ))}
                 </tbody>
                 <tfoot className="bg-gray-50">
-                  <tr>
+                  {/* Hiển thị tổng giá sản phẩm trước giảm giá */}
+                  <tr className="border-t">
+                    <td
+                      colSpan={4}
+                      className="px-4 py-3 text-right text-sm text-gray-700">
+                      Tổng giá sản phẩm:
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-right text-sm text-gray-900">
+                      {order.orderItems.reduce((sum, item) => sum + item.subTotal, 0).toLocaleString("vi-VN")} đ
+                    </td>
+                  </tr>
+                  
+                  {/* Hiển thị số tiền giảm nếu có */}
+                  {order.discountAmount && order.discountAmount > 0 && (
+                    <tr className="border-t">
+                      <td
+                        colSpan={4}
+                        className="px-4 py-3 text-right text-sm text-red-600">
+                        Giảm giá:
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium text-red-600">
+                        -{order.discountAmount.toLocaleString("vi-VN")} đ
+                      </td>
+                    </tr>
+                  )}
+                  
+                  {/* Tổng thanh toán */}
+                  <tr className="border-t">
                     <td
                       colSpan={4}
                       className="px-4 py-4 text-right text-sm font-bold text-gray-900">
-                      Total Amount:
+                      Tổng thanh toán:
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap text-right text-lg font-bold text-green-600">
                       {order.totalAmount.toLocaleString("vi-VN")} đ
