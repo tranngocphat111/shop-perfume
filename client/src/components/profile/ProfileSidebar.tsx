@@ -42,8 +42,6 @@ export const ProfileSidebar = ({ active, onChange }: ProfileSidebarProps) => {
           await logout("/");
         } catch (error) {
           console.error("Logout error:", error);
-          localStorage.removeItem("auth_token");
-          localStorage.removeItem("refresh_token");
           localStorage.removeItem("user_info");
           window.location.href = "/";
         }

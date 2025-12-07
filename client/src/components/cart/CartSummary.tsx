@@ -64,9 +64,6 @@ export default function CartSummary({ total, itemCount, discount = 0, onCouponAp
   const loadUserInfo = async (): Promise<void> => {
     try {
       console.log('🔄 [CartSummary] Loading user info...');
-      const token = localStorage.getItem('auth_token');
-      console.log('🔄 [CartSummary] Token exists:', !!token);
-      
       const info = await userService.getCurrentUser();
       if (info) {
         setUserInfo(info);

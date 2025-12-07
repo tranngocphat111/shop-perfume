@@ -42,9 +42,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       await authService.logout();
     } catch (error) {
       console.error("Logout error:", error);
-      // Clear tokens anyway
-      localStorage.removeItem("auth_token");
-      localStorage.removeItem("refresh_token");
+      // Clear localStorage anyway (cookies sẽ được clear bởi backend)
       localStorage.removeItem("user_info");
     } finally {
       setUser(null);
@@ -57,24 +55,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     // Load user info from localStorage on mount
+    // Với HTTP-only cookies, validate bằng cách gọi /auth/me
     const initAuth = async () => {
       try {
         const savedUser = authService.getUser();
         if (savedUser) {
-          // Validate token and refresh if needed
+          // Validate token bằng cách gọi /auth/me
           const isValid = await authService.validateAndRefreshToken();
 
           if (isValid) {
             setUser(savedUser);
           } else {
-            // Token is invalid and couldn't be refreshed
-            authService.logout();
+            // Token invalid - clear user
             setUser(null);
           }
         }
       } catch (error) {
         console.error("Auth initialization error:", error);
-        authService.logout();
         setUser(null);
       } finally {
         setIsLoading(false);
@@ -84,163 +81,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     initAuth();
   }, []);
 
-  // Smart token refresh - tính toán thời gian chính xác thay vì check định kỳ
-  useEffect(() => {
-    if (!user) return;
-
-    let timeoutId: NodeJS.Timeout | null = null;
-    let isRefreshing = false;
-    let isMounted = true;
-
-    const scheduleRefresh = () => {
-      if (!isMounted) return;
-
-      try {
-        // Clear existing timeout
-        if (timeoutId) {
-          clearTimeout(timeoutId);
-          timeoutId = null;
-        }
-
-        const token = authService.getToken();
-        const refreshToken = authService.getRefreshToken();
-
-        if (!token || !refreshToken) {
-          return;
-        }
-
-        // Tính toán thời gian còn lại của token
-        let timeRemaining: number | null = null;
-        try {
-          timeRemaining = authService.getTokenTimeRemaining();
-        } catch (error) {
-          console.error("Error calculating token time remaining:", error);
-          // Nếu không tính được, schedule lại sau 1 phút
-          if (isMounted) {
-            timeoutId = setTimeout(() => {
-              if (isMounted) {
-                scheduleRefresh();
-              }
-            }, 60000);
-          }
-          return;
-        }
-
-        if (timeRemaining === null || timeRemaining <= 0) {
-          // Token đã hết hạn, refresh ngay
-          performRefresh();
-          return;
-        }
-
-        // Refresh khi còn 5 phút (300000ms)
-        // Nếu token còn ít hơn 5 phút, refresh ngay
-        // Nếu token còn nhiều hơn, schedule refresh sau (timeRemaining - 5 phút)
-        const refreshThreshold = 5 * 60 * 1000; // 5 minutes
-        const timeUntilRefresh = Math.max(0, timeRemaining - refreshThreshold);
-
-        if (timeUntilRefresh === 0) {
-          // Token sắp hết hạn, refresh ngay
-          performRefresh();
-        } else {
-          // Schedule refresh khi còn đúng 5 phút
-          timeoutId = setTimeout(() => {
-            if (isMounted) {
-              performRefresh();
-            }
-          }, timeUntilRefresh);
-        }
-      } catch (error) {
-        console.error("Error in scheduleRefresh:", error);
-        // Nếu có lỗi, thử lại sau 1 phút
-        if (isMounted) {
-          timeoutId = setTimeout(() => {
-            if (isMounted) {
-              scheduleRefresh();
-            }
-          }, 60000); // Retry after 1 minute
-        }
-      }
-    };
-
-    const performRefresh = async () => {
-      if (!isMounted) return;
-
-      // Tránh multiple refresh cùng lúc (race condition protection)
-      if (isRefreshing) {
-        return;
-      }
-
-      try {
-        isRefreshing = true;
-
-        if (!authService.getToken() || !authService.getRefreshToken()) {
-          return;
-        }
-
-        // Chỉ refresh nếu token sắp hết hạn
-        if (authService.isTokenExpiringSoon()) {
-          console.log("🔄 Auto-refreshing token...");
-          const success = await authService.refreshToken(true); // delayClear = true để tránh clear khi đang refresh
-
-          if (success && isMounted) {
-            console.log("✅ Token refreshed successfully");
-            // Update user info với token mới
-            const updatedUser = authService.getUser();
-            if (updatedUser) {
-              setUser(updatedUser);
-            }
-            // Schedule next refresh với token mới
-            scheduleRefresh();
-          } else if (!success && isMounted) {
-            console.error("❌ Failed to refresh token");
-            // Don't call logout here to avoid infinite loop, just clear user
-            setUser(null);
-            // Clear tokens silently
-            try {
-              authService.logout();
-            } catch (err) {
-              console.error("Error clearing tokens:", err);
-            }
-          }
-        } else if (isMounted) {
-          // Token chưa sắp hết hạn, schedule lại
-          scheduleRefresh();
-        }
-      } catch (error) {
-        console.error("Token refresh error:", error);
-        if (isMounted) {
-          // Don't call logout to avoid infinite loop
-          setUser(null);
-          // Clear tokens silently
-          try {
-            authService.logout();
-          } catch (err) {
-            console.error("Error clearing tokens:", err);
-          }
-        }
-      } finally {
-        isRefreshing = false;
-      }
-    };
-
-    // Schedule refresh ban đầu
-    scheduleRefresh();
-
-    // Cleanup
-    return () => {
-      isMounted = false;
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
-    };
-  }, [user]);
-
-  const login = async (token: string, userData: AuthResponse) => {
+  const login = async (_token: string, userData: AuthResponse) => {
     try {
-      authService.setToken(token);
-      if (userData.refreshToken) {
-        authService.setRefreshToken(userData.refreshToken);
-      }
+      // Với HTTP-only cookies, không cần lưu token vào localStorage
+      // Token được lưu trong cookie bởi backend
+      // Chỉ cần lưu user info để hiển thị UI
       authService.setUser(userData);
       setUser(userData);
     } catch (error) {
@@ -275,7 +120,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     !user || isLoading ? "GUEST" : user.role === "ADMIN" ? "ADMIN" : "CUSTOMER";
 
   const isAdmin = userRole === "ADMIN";
-  const isCustomer = userRole === "CUSTOMER" || userRole === "ADMIN"; // Admin can do everything Customer can
+  const isCustomer = userRole === "CUSTOMER" || userRole === "ADMIN";
   const isGuest = userRole === "GUEST";
   const isAuthenticated = !!user && !isLoading;
 

@@ -1,7 +1,7 @@
 import { refreshTokenManager } from "./refreshTokenManager";
 
-const API_BASE_URL = "http://13.251.125.90:8080/api";
-// const API_BASE_URL = "http://localhost:8080/api";
+// const API_BASE_URL = "http://13.251.125.90:8080/api";
+const API_BASE_URL = "http://localhost:8080/api";
 
 interface ApiError {
   message: string;
@@ -12,90 +12,26 @@ interface ApiError {
 }
 
 // Helper function to clear auth without importing authService (avoid circular dependency)
+// Chỉ xóa user_info từ localStorage - tokens được quản lý bởi HTTP-only cookies
 const clearAuthData = () => {
-  localStorage.removeItem("auth_token");
-  localStorage.removeItem("refresh_token");
   localStorage.removeItem("user_info");
+  // Cookies sẽ được clear bởi backend khi gọi /auth/logout
 };
 
-// Helper function to check if token is expired
-const isTokenExpired = (token: string): boolean => {
-  try {
-    const payload = JSON.parse(atob(token.split(".")[1]));
-    const expirationTime = payload.exp * 1000; // Convert to milliseconds
-    return Date.now() >= expirationTime;
-  } catch {
-    return true; // If can't parse, consider it expired
-  }
-};
-
-// Helper function to check if token will expire soon (within 5 minutes)
-const isTokenExpiringSoon = (token: string): boolean => {
-  try {
-    const payload = JSON.parse(atob(token.split(".")[1]));
-    const expirationTime = payload.exp * 1000;
-    const fiveMinutes = 5 * 60 * 1000; // 5 minutes in milliseconds
-    return Date.now() >= expirationTime - fiveMinutes;
-  } catch {
-    return true; // If can't parse, consider it expired
-  }
-};
-
-// Ensure token is valid before making request (proactive refresh)
-// This prevents 401 errors by refreshing token before it expires
-const ensureValidToken = async (): Promise<void> => {
-  const token = localStorage.getItem("auth_token");
-
-  // If no token, nothing to do (request will fail with 401, which is handled)
-  if (!token) {
-    return;
-  }
-
-  // Check if token is expired or expiring soon
-  if (isTokenExpired(token) || isTokenExpiringSoon(token)) {
-    // Try to refresh token proactively
-    await refreshTokenManager.refreshToken();
-  }
-};
+// Với HTTP-only cookies, không cần kiểm tra token expiration ở frontend
+// Backend sẽ tự động reject request nếu token hết hạn
+// Frontend chỉ cần handle 401 error và gọi refresh
 
 // Helper function to get auth headers
-const getAuthHeaders = (endpoint: string = ""): Record<string, string> => {
-  const headers: Record<string, string> = {};
-
-  // Special handling for order endpoints - always send token if available
-  // Backend allows guest access, but if token is present, it will use userId
-  const isOrderEndpoint = endpoint.includes("/orders/create") ||
-    endpoint.includes("/orders/my-orders");
-
-  if (isOrderEndpoint) {
-    // Always send token if available (even though endpoint is public)
-    const token = localStorage.getItem("auth_token");
-    if (token) {
-      headers["Authorization"] = `Bearer ${token}`;
-    }
-    return headers;
-  }
-
-  // Don't send token for other public endpoints
-  if (isPublicEndpoint(endpoint)) {
-    return headers;
-  }
-
-  const token = localStorage.getItem("auth_token");
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
-  }
-
-  return headers;
+// Với HTTP-only cookies, không cần gửi Authorization header
+// Cookies sẽ được browser tự động gửi khi credentials: 'include'
+const getAuthHeaders = (): Record<string, string> => {
+  // Không cần thêm Authorization header khi dùng HTTP-only cookies
+  // Browser sẽ tự động gửi cookies với credentials: 'include'
+  return {};
 };
 
-// Check if endpoint is public (doesn't require authentication)
-// NOTE: /orders/create and /orders/my-orders are NOT in this list
-// - We want to send token if user is logged in
-// - Backend allows guest access (permitAll), but if token is present, it will use userId
 const isPublicEndpoint = (endpoint: string): boolean => {
-  // Public endpoints that don't require authentication (check these FIRST)
-  // Special public order endpoints (guest can access)
   if (
     endpoint.includes("/orders/my-orders") ||
     endpoint.includes("/orders/create") ||
@@ -124,10 +60,6 @@ const isPublicEndpoint = (endpoint: string): boolean => {
   }
 
   // GET requests for products and inventories are public (viewing products doesn't require auth)
-  // Pattern: /products/{id} or /products? or /inventories/product/{id} or /inventories? (GET only)
-  // We check if it's a GET request by checking if it's NOT a POST/PUT/DELETE pattern
-  // Since we can't know the method here, we'll treat all GET-like patterns as potentially public
-  // and handle 401 errors gracefully in handle401Error
   const publicProductPatterns = [
     /^\/products\/\d+$/, // GET /products/{id}
     /^\/products\/category\/\d+$/, // GET /products/category/{id}
@@ -147,7 +79,7 @@ const isPublicEndpoint = (endpoint: string): boolean => {
     return true; // Public - guest can view products and inventories
   }
 
-  // Protected endpoints that require authentication - always send token
+  // Protected endpoints that require authentication
   const protectedEndpoints = [
     "/auth/me",
     "/auth/change-password",
@@ -165,12 +97,12 @@ const isPublicEndpoint = (endpoint: string): boolean => {
   if (
     protectedEndpoints.some((protectedPath) => endpoint.includes(protectedPath))
   ) {
-    return false; // Not public, send token
+    return false; // Not public
   }
 
   // Default: if endpoint contains /orders/ but not in public list above, it's protected
   if (endpoint.includes("/orders/")) {
-    return false; // Protected, send token
+    return false; // Protected
   }
 
   // Default: not public
@@ -185,7 +117,6 @@ const handle401Error = async <T>(
   retryCount: number = 0
 ): Promise<T> => {
   // CRITICAL: If this is /auth/refresh endpoint, never try to refresh again
-  // This prevents infinite loop if /auth/refresh itself returns 401
   if (endpoint.includes("/auth/refresh")) {
     console.error("Refresh token endpoint returned 401, logging out");
     clearAuthData();
@@ -197,15 +128,6 @@ const handle401Error = async <T>(
   // If this is a public endpoint, don't logout - just reject the error
   if (isPublicEndpoint(endpoint)) {
     console.warn(`401 on public endpoint ${endpoint} - not logging out`);
-    return Promise.reject(new Error("Unauthorized"));
-  }
-
-  // Check if user has a refresh token (i.e., was previously authenticated)
-  // If no refresh token exists, this is likely a guest user trying to access a protected endpoint
-  // Don't redirect to login for guests - just reject the error
-  const refreshToken = localStorage.getItem("refresh_token");
-  if (!refreshToken) {
-    console.warn(`401 on endpoint ${endpoint} but no refresh token - user is guest, not redirecting`);
     return Promise.reject(new Error("Unauthorized"));
   }
 
@@ -223,22 +145,18 @@ const handle401Error = async <T>(
 
   if (refreshed && originalRequest) {
     // Retry the original request with new token (only once)
-    // getAuthHeaders() will automatically use the new token from localStorage
     try {
       return await originalRequest();
     } catch (retryError) {
-      // If retry still fails, call handle401Error again with retryCount=1 to prevent further retries
       console.error("Request failed after token refresh:", retryError);
-      // Check if it's still a 401 error
       if ((retryError as ApiError).status === 401) {
         return handle401Error(endpoint, originalRequest, 1);
       }
-      // For other errors, throw them
       throw retryError;
     }
   }
 
-  // If refresh failed, clear auth and redirect (only if user was previously authenticated)
+  // If refresh failed, clear auth and redirect
   clearAuthData();
   const isAdminEndpoint = endpoint.includes("/admin/");
   window.location.href = isAdminEndpoint ? "/admin/login" : "/login";
@@ -269,22 +187,19 @@ const createApiError = (
 
 export const apiService = {
   async get<T>(endpoint: string): Promise<T> {
-    // Ensure token is valid before making request (proactive refresh)
-    // Skip for public endpoints AND /auth/refresh to prevent infinite loop
-    if (!isPublicEndpoint(endpoint) && !endpoint.includes("/auth/refresh")) {
-      await ensureValidToken();
-    }
-
     const makeRequest = async (): Promise<T> => {
       const fullUrl = `${API_BASE_URL}${endpoint}`;
-      const headers = getAuthHeaders(endpoint);
-      const response = await fetch(fullUrl, { headers });
+      const headers = getAuthHeaders();
+
+      const response = await fetch(fullUrl, {
+        headers,
+        credentials: 'include', // QUAN TRỌNG: Để gửi/nhận HTTP-only cookies
+      });
 
       if (!response.ok) {
         const errorData = await parseErrorResponse(response);
 
         // Handle 401 Unauthorized - try refresh token first
-        // Exclude /auth/refresh to prevent infinite loop
         if (response.status === 401 && !endpoint.includes("/auth/")) {
           return handle401Error(endpoint, makeRequest, 0);
         }
@@ -310,25 +225,16 @@ export const apiService = {
     data: unknown,
     options?: { headers?: Record<string, string>; timeout?: number }
   ): Promise<T> {
-    // Ensure token is valid before making request (proactive refresh)
-    // Skip for public endpoints AND /auth/refresh to prevent infinite loop
-    if (!isPublicEndpoint(endpoint) && !endpoint.includes("/auth/refresh")) {
-      await ensureValidToken();
-    }
-
     const makeRequest = async (): Promise<T> => {
       const fullUrl = `${API_BASE_URL}${endpoint}`;
       const isFormData = data instanceof FormData;
       const headers: Record<string, string> = {
-        ...getAuthHeaders(endpoint),
+        ...getAuthHeaders(),
         ...(isFormData ? {} : { "Content-Type": "application/json" }),
         ...options?.headers,
       };
 
-      // Set timeout (default 60 seconds, 300 seconds for order creation to allow time for lock waiting)
-      // Backend transaction timeout is 60s, but when locked, multiple requests may need to wait
-      // We set 300s (5 minutes) to ensure enough time for all queued requests to complete
-      // This prevents premature timeout when requests are waiting for lock release
+      // Set timeout (default 60 seconds, 300 seconds for order creation)
       const timeout =
         options?.timeout ||
         (endpoint.includes("/orders/create") ? 300000 : 60000);
@@ -343,6 +249,7 @@ export const apiService = {
           headers,
           body: isFormData ? data : JSON.stringify(data),
           signal: controller.signal,
+          credentials: 'include', // QUAN TRỌNG: Để gửi/nhận HTTP-only cookies
         });
 
         clearTimeout(timeoutId);
@@ -351,7 +258,6 @@ export const apiService = {
           const errorData = await parseErrorResponse(response);
 
           // Handle 401 Unauthorized - try refresh token first
-          // Exclude /auth/refresh to prevent infinite loop
           if (response.status === 401 && !endpoint.includes("/auth/")) {
             return handle401Error(endpoint, makeRequest, 0);
           }
@@ -363,21 +269,21 @@ export const apiService = {
         const text = await response.text();
 
         if (!text || text.trim() === "") {
-          return {} as T; // Return empty object for void responses
+          return {} as T;
         }
 
         // Try to parse as JSON
         try {
           return JSON.parse(text) as T;
         } catch {
-          return {} as T; // Return empty object if not valid JSON
+          return {} as T;
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
         clearTimeout(timeoutId);
 
         // Handle timeout/abort error
-        // Frontend timeout (no response from backend) - mark with special flag
-        if (error.name === "AbortError" || error.name === "TimeoutError") {
+        const err = error as { name?: string; message?: string };
+        if (err.name === "AbortError" || err.name === "TimeoutError") {
           const timeoutError = createApiError(
             {
               message: "Request timeout. Vui lòng thử lại.",
@@ -385,7 +291,6 @@ export const apiService = {
             },
             408
           );
-          // Remove response.data to indicate this is a frontend timeout
           delete timeoutError.response;
           throw timeoutError;
         }
@@ -399,7 +304,7 @@ export const apiService = {
         throw createApiError(
           {
             message:
-              error.message || "Network error. Please check your connection.",
+              err.message || "Network error. Please check your connection.",
           },
           0
         );
@@ -421,17 +326,11 @@ export const apiService = {
     data: unknown,
     options?: { headers?: Record<string, string> }
   ): Promise<T> {
-    // Ensure token is valid before making request (proactive refresh)
-    // Skip for public endpoints AND /auth/refresh to prevent infinite loop
-    if (!isPublicEndpoint(endpoint) && !endpoint.includes("/auth/refresh")) {
-      await ensureValidToken();
-    }
-
     const makeRequest = async (): Promise<T> => {
       const fullUrl = `${API_BASE_URL}${endpoint}`;
       const isFormData = data instanceof FormData;
       const headers: Record<string, string> = {
-        ...getAuthHeaders(endpoint),
+        ...getAuthHeaders(),
         ...(isFormData ? {} : { "Content-Type": "application/json" }),
         ...options?.headers,
       };
@@ -440,13 +339,13 @@ export const apiService = {
         method: "PUT",
         headers,
         body: isFormData ? data : JSON.stringify(data),
+        credentials: 'include', // QUAN TRỌNG: Để gửi/nhận HTTP-only cookies
       });
 
       if (!response.ok) {
         const errorData = await parseErrorResponse(response);
 
         // Handle 401 Unauthorized - try refresh token first
-        // Exclude /auth/refresh to prevent infinite loop
         if (response.status === 401 && !endpoint.includes("/auth/")) {
           return handle401Error(endpoint, makeRequest, 0);
         }
@@ -468,26 +367,20 @@ export const apiService = {
   },
 
   async delete<T>(endpoint: string): Promise<T> {
-    // Ensure token is valid before making request (proactive refresh)
-    // Skip for public endpoints AND /auth/refresh to prevent infinite loop
-    if (!isPublicEndpoint(endpoint) && !endpoint.includes("/auth/refresh")) {
-      await ensureValidToken();
-    }
-
     const makeRequest = async (): Promise<T> => {
       const fullUrl = `${API_BASE_URL}${endpoint}`;
-      const headers = getAuthHeaders(endpoint);
+      const headers = getAuthHeaders();
 
       const response = await fetch(fullUrl, {
         method: "DELETE",
         headers,
+        credentials: 'include', // QUAN TRỌNG: Để gửi/nhận HTTP-only cookies
       });
 
       if (!response.ok) {
         const errorData = await parseErrorResponse(response);
 
         // Handle 401 Unauthorized - try refresh token first
-        // Exclude /auth/refresh to prevent infinite loop
         if (response.status === 401 && !endpoint.includes("/auth/")) {
           return handle401Error(endpoint, makeRequest, 0);
         }
@@ -498,7 +391,6 @@ export const apiService = {
       // Handle 204 No Content (successful delete with no body)
       if (response.status === 204 || response.status === 200) {
         const contentType = response.headers.get("content-type");
-        // Only parse JSON if there's actually content
         if (contentType && contentType.includes("application/json")) {
           const text = await response.text();
           return text ? JSON.parse(text) : (null as T);
@@ -506,7 +398,6 @@ export const apiService = {
         return null as T;
       }
 
-      // For other success statuses, try to parse JSON
       return response.json();
     };
 
@@ -516,9 +407,7 @@ export const apiService = {
       if ((error as ApiError).status) {
         throw error;
       }
-      // Check if it's a JSON parse error from empty response
       if (error instanceof SyntaxError && error.message.includes("JSON")) {
-        // This is likely a 204 No Content response, which is actually success
         return null as T;
       }
       throw new Error("Network error. Please check your connection.");

@@ -12,12 +12,16 @@ import iuh.fit.server.dto.response.AuthResponse;
 import iuh.fit.server.dto.response.TokenRefreshResponse;
 import iuh.fit.server.dto.response.UserInfoResponse;
 import iuh.fit.server.services.AuthService;
+import iuh.fit.server.util.CookieUtil;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -28,6 +32,7 @@ import java.util.Map;
 
 /**
  * Controller xử lý đăng ký và đăng nhập
+ * Sử dụng HTTP-only cookies để lưu JWT tokens (bảo mật hơn localStorage)
  */
 @RestController
 @RequestMapping("/auth")
@@ -37,45 +42,113 @@ import java.util.Map;
 public class AuthController {
 
     private final AuthService authService;
+    private final CookieUtil cookieUtil;
 
     @PostMapping("/register")
     @Operation(summary = "Đăng ký tài khoản mới")
-    public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request) {
-        return ResponseEntity.ok(authService.register(request));
+    public ResponseEntity<AuthResponse> register(
+            @Valid @RequestBody RegisterRequest request,
+            HttpServletResponse response) {
+        AuthResponse authResponse = authService.register(request);
+
+        // Set HTTP-only cookies
+        ResponseCookie accessCookie = cookieUtil.createAccessTokenCookie(authResponse.getToken());
+        ResponseCookie refreshCookie = cookieUtil.createRefreshTokenCookie(authResponse.getRefreshToken());
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, accessCookie.toString())
+                .header(HttpHeaders.SET_COOKIE, refreshCookie.toString())
+                .body(authResponse);
     }
 
     @PostMapping("/login")
     @Operation(summary = "Đăng nhập")
-    public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
-        return ResponseEntity.ok(authService.login(request));
+    public ResponseEntity<AuthResponse> login(
+            @Valid @RequestBody LoginRequest request,
+            HttpServletResponse response) {
+        AuthResponse authResponse = authService.login(request);
+
+        // Set HTTP-only cookies
+        ResponseCookie accessCookie = cookieUtil.createAccessTokenCookie(authResponse.getToken());
+        ResponseCookie refreshCookie = cookieUtil.createRefreshTokenCookie(authResponse.getRefreshToken());
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, accessCookie.toString())
+                .header(HttpHeaders.SET_COOKIE, refreshCookie.toString())
+                .body(authResponse);
     }
 
     @PostMapping("/google-signin")
     @Operation(summary = "Đăng nhập bằng Google", description = "Xác thực và đăng nhập bằng Google ID token")
-    public ResponseEntity<AuthResponse> googleSignIn(@Valid @RequestBody GoogleSignInRequest request) {
-        return ResponseEntity.ok(authService.signInWithGoogle(request.getIdToken()));
+    public ResponseEntity<AuthResponse> googleSignIn(
+            @Valid @RequestBody GoogleSignInRequest request,
+            HttpServletResponse response) {
+        AuthResponse authResponse = authService.signInWithGoogle(request.getIdToken());
+
+        // Set HTTP-only cookies
+        ResponseCookie accessCookie = cookieUtil.createAccessTokenCookie(authResponse.getToken());
+        ResponseCookie refreshCookie = cookieUtil.createRefreshTokenCookie(authResponse.getRefreshToken());
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, accessCookie.toString())
+                .header(HttpHeaders.SET_COOKIE, refreshCookie.toString())
+                .body(authResponse);
     }
 
     @PostMapping("/refresh")
     @Operation(summary = "Làm mới access token bằng refresh token")
-    public ResponseEntity<TokenRefreshResponse> refreshToken(@Valid @RequestBody RefreshTokenRequest request) {
-        return ResponseEntity.ok(authService.refreshToken(request));
+    public ResponseEntity<TokenRefreshResponse> refreshToken(
+            @Valid @RequestBody(required = false) RefreshTokenRequest request,
+            @CookieValue(name = "refresh_token", required = false) String refreshTokenCookie,
+            HttpServletResponse response) {
+
+        // Ưu tiên lấy refresh token từ cookie, nếu không có thì lấy từ body
+        String refreshToken = refreshTokenCookie;
+        if (refreshToken == null && request != null) {
+            refreshToken = request.getRefreshToken();
+        }
+
+        if (refreshToken == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        RefreshTokenRequest tokenRequest = new RefreshTokenRequest();
+        tokenRequest.setRefreshToken(refreshToken);
+
+        TokenRefreshResponse tokenResponse = authService.refreshToken(tokenRequest);
+
+        // Set new access token cookie
+        ResponseCookie accessCookie = cookieUtil.createAccessTokenCookie(tokenResponse.getAccessToken());
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, accessCookie.toString())
+                .body(tokenResponse);
     }
 
     /**
-     * Đăng xuất - revoke tất cả refresh tokens
+     * Đăng xuất - revoke tất cả refresh tokens và clear cookies
      * Yêu cầu user phải đăng nhập
      */
     @PostMapping("/logout")
     @PreAuthorize("isAuthenticated()")
-    @Operation(summary = "Đăng xuất - revoke tất cả refresh tokens")
-    public ResponseEntity<Void> logout(Authentication authentication) {
+    @Operation(summary = "Đăng xuất - revoke tất cả refresh tokens và clear cookies")
+    public ResponseEntity<Void> logout(
+            Authentication authentication,
+            HttpServletResponse response) {
         if (authentication != null && authentication.isAuthenticated()) {
             UserDetails userDetails = (UserDetails) authentication.getPrincipal();
             String email = userDetails.getUsername();
             authService.logout(email);
         }
-        return ResponseEntity.ok().build();
+
+        // Clear HTTP-only cookies
+        ResponseCookie clearAccessCookie = cookieUtil.createAccessTokenClearCookie();
+        ResponseCookie clearRefreshCookie = cookieUtil.createRefreshTokenClearCookie();
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, clearAccessCookie.toString())
+                .header(HttpHeaders.SET_COOKIE, clearRefreshCookie.toString())
+                .build();
     }
 
     /**

@@ -104,6 +104,8 @@ public class WebConfig implements WebMvcConfigurer {
         
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
+        // Expose headers so frontend can read them (for HTTP-only cookies)
+        configuration.setExposedHeaders(Arrays.asList("Set-Cookie", "Authorization"));
         configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);
 

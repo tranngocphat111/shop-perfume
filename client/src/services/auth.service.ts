@@ -15,7 +15,8 @@ export interface RegisterRequest {
 }
 
 export interface AuthResponse {
-  token: string;
+  token?: string; // Optional - tokens now stored in HTTP-only cookies
+  accessToken?: string;
   refreshToken?: string;
   type: string;
   userId: number;
@@ -26,7 +27,7 @@ export interface AuthResponse {
 
 export interface TokenRefreshResponse {
   accessToken: string;
-  refreshToken: string;
+  refreshToken?: string;
   type: string;
 }
 
@@ -39,10 +40,21 @@ export interface ResetPasswordRequest {
   newPassword: string;
 }
 
+/**
+ * AuthService - sử dụng HTTP-only cookies cho JWT tokens
+ *
+ * Với HTTP-only cookies:
+ * - Tokens được lưu trong cookies (không accessible từ JavaScript)
+ * - Browser tự động gửi cookies với mỗi request (credentials: 'include')
+ * - Chỉ lưu user_info vào localStorage để hiển thị UI
+ * - Không thể kiểm tra token expiration từ frontend (vì không đọc được)
+ * - Sử dụng /auth/me để kiểm tra authentication status
+ */
 class AuthService {
-  private readonly TOKEN_KEY = "auth_token";
-  private readonly REFRESH_TOKEN_KEY = "refresh_token";
   private readonly USER_KEY = "user_info";
+
+  // Lưu trạng thái authentication trong memory
+  private isAuthenticatedCache: boolean | null = null;
 
   async login(credentials: LoginRequest): Promise<AuthResponse> {
     const response = await apiService.post<AuthResponse>(
@@ -50,12 +62,10 @@ class AuthService {
       credentials
     );
 
-    // Lưu token và thông tin user vào localStorage
-    this.setToken(response.token);
-    if (response.refreshToken) {
-      this.setRefreshToken(response.refreshToken);
-    }
+    // Chỉ lưu thông tin user vào localStorage (không lưu token)
+    // Token được lưu trong HTTP-only cookie bởi backend
     this.setUser(response);
+    this.isAuthenticatedCache = true;
 
     return response;
   }
@@ -66,50 +76,32 @@ class AuthService {
       userData
     );
 
-    // Lưu token và thông tin user vào localStorage
-    this.setToken(response.token);
-    if (response.refreshToken) {
-      this.setRefreshToken(response.refreshToken);
-    }
+    // Chỉ lưu thông tin user vào localStorage
     this.setUser(response);
+    this.isAuthenticatedCache = true;
 
     return response;
   }
 
   async logout(): Promise<void> {
     try {
-      // Gọi API logout để revoke tất cả refresh tokens trên server
-      const token = this.getToken();
-      if (token) {
-        // Try to call logout endpoint, but don't fail if it errors
-        // (user might already be logged out or token expired)
-        try {
-          await apiService.post("/auth/logout", {});
-        } catch (error) {
-          // Ignore errors - user might already be logged out
-          console.log(
-            "Logout API call failed (user may already be logged out):",
-            error
-          );
-        }
+      // Gọi API logout để revoke tokens và clear cookies
+      try {
+        await apiService.post("/auth/logout", {});
+      } catch (error) {
+        // Ignore errors - user might already be logged out
+        console.log(
+          "Logout API call failed (user may already be logged out):",
+          error
+        );
       }
     } catch (error) {
-      // Ignore errors - clear local storage anyway
       console.log("Error during logout:", error);
     } finally {
-      // Always clear local storage
-      localStorage.removeItem(this.TOKEN_KEY);
-      localStorage.removeItem(this.REFRESH_TOKEN_KEY);
+      // Clear localStorage (chỉ user_info)
       localStorage.removeItem(this.USER_KEY);
+      this.isAuthenticatedCache = false;
     }
-  }
-
-  getToken(): string | null {
-    return localStorage.getItem(this.TOKEN_KEY);
-  }
-
-  setToken(token: string): void {
-    localStorage.setItem(this.TOKEN_KEY, token);
   }
 
   getUser(): AuthResponse | null {
@@ -124,145 +116,91 @@ class AuthService {
   }
 
   setUser(user: AuthResponse): void {
-    localStorage.setItem(this.USER_KEY, JSON.stringify(user));
+    // Lưu user info nhưng không lưu tokens (chúng được quản lý bởi cookies)
+    const userToStore = {
+      userId: user.userId,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      type: user.type,
+    };
+    localStorage.setItem(this.USER_KEY, JSON.stringify(userToStore));
   }
 
-  getRefreshToken(): string | null {
-    return localStorage.getItem(this.REFRESH_TOKEN_KEY);
-  }
-
-  setRefreshToken(refreshToken: string): void {
-    localStorage.setItem(this.REFRESH_TOKEN_KEY, refreshToken);
-  }
-
+  /**
+   * Kiểm tra authentication status
+   * Với HTTP-only cookies, không thể đọc token từ JavaScript
+   * Phải kiểm tra bằng cách:
+   * 1. Kiểm tra cache (nhanh)
+   * 2. Kiểm tra localStorage có user_info không (nhanh)
+   * 3. Gọi /auth/me để verify với server (chính xác nhất)
+   */
   isAuthenticated(): boolean {
-    const token = this.getToken();
-    if (!token) return false;
-    // Check if token is expired
-    if (this.isTokenExpired()) {
+    // Quick check: có user_info trong localStorage không?
+    const user = this.getUser();
+    if (!user) {
+      this.isAuthenticatedCache = false;
       return false;
     }
+
+    // Nếu có user_info, assume authenticated
+    // Backend sẽ reject request nếu cookie invalid
+    if (this.isAuthenticatedCache !== null) {
+      return this.isAuthenticatedCache;
+    }
+
+    // Default: có user_info = authenticated
     return true;
+  }
+
+  /**
+   * Kiểm tra authentication status với server
+   * Gọi /auth/me để verify token trong cookie
+   */
+  async checkAuthStatus(): Promise<boolean> {
+    try {
+      await apiService.get("/auth/me");
+      this.isAuthenticatedCache = true;
+      return true;
+    } catch {
+      this.isAuthenticatedCache = false;
+      localStorage.removeItem(this.USER_KEY);
+      return false;
+    }
   }
 
   isAdmin(): boolean {
-    const user = this.getUser(); // Get user from localStorage
+    const user = this.getUser();
     return user?.role === "ADMIN";
   }
 
-  // Check if token is expired by parsing JWT
-  isTokenExpired(): boolean {
-    const token = this.getToken();
-    if (!token) return true;
-
-    try {
-      // Decode JWT token (without verification, just to check expiration)
-      const payload = JSON.parse(atob(token.split(".")[1]));
-      const expirationTime = payload.exp * 1000; // Convert to milliseconds
-      return Date.now() >= expirationTime;
-    } catch {
-      return true; // If can't parse, consider it expired
-    }
-  }
-
-  // Check if token will expire soon (within 5 minutes)
-  // Với access token 30 phút, refresh khi còn 5 phút để đảm bảo không bị gián đoạn
-  isTokenExpiringSoon(): boolean {
-    const token = this.getToken();
-    if (!token) return true;
-
-    try {
-      const payload = JSON.parse(atob(token.split(".")[1]));
-      const expirationTime = payload.exp * 1000;
-      const fiveMinutes = 5 * 60 * 1000; // 5 minutes in milliseconds
-      return Date.now() >= expirationTime - fiveMinutes;
-    } catch {
-      return true;
-    }
-  }
-
-  // Tính toán thời gian còn lại của token (milliseconds)
-  getTokenTimeRemaining(): number | null {
-    const token = this.getToken();
-    if (!token) return null;
-
-    try {
-      const payload = JSON.parse(atob(token.split(".")[1]));
-      const expirationTime = payload.exp * 1000;
-      const remaining = expirationTime - Date.now();
-      return remaining > 0 ? remaining : 0;
-    } catch {
-      return null;
-    }
-  }
-
-  // Get valid token (refresh if needed)
-  async getValidToken(): Promise<string | null> {
-    const token = this.getToken();
-    if (!token) {
-      return null;
-    }
-
-    // If token is expired, try to refresh
-    if (this.isTokenExpired()) {
-      const refreshed = await this.refreshToken();
-      return refreshed ? this.getToken() : null;
-    }
-
-    return token;
-  }
-
-  // Refresh access token using refresh token
-  // Race condition được xử lý bởi refreshTokenManager: nếu đang refresh, các request khác sẽ chờ
-  async refreshToken(_delayClear: boolean = false): Promise<boolean> {
-    const refreshToken = this.getRefreshToken();
-    if (!refreshToken) {
-      // If delayClear is true, don't clear auth here - let handle401Error do it
-      if (!_delayClear) {
-        this.logout();
-      }
-      return false;
-    }
-
-    // Use shared refresh token manager to prevent race conditions
+  /**
+   * Refresh token
+   * Với HTTP-only cookies, browser tự động gửi refresh_token cookie
+   */
+  async refreshToken(): Promise<boolean> {
     const refreshed = await refreshTokenManager.refreshToken();
 
     if (!refreshed) {
-      // If delayClear is true, don't clear auth here - let handle401Error do it
-      if (!_delayClear) {
-        this.logout();
-      }
+      this.isAuthenticatedCache = false;
       return false;
     }
 
-    // Token has been updated by refreshTokenManager
-    // Update user info with new token (keep other user data)
-    const user = this.getUser();
-    if (user) {
-      const newToken = this.getToken();
-      if (newToken) {
-        user.token = newToken;
-        this.setUser(user);
-      }
-    }
-
+    this.isAuthenticatedCache = true;
     return true;
   }
 
-  // Validate token on app load
+  /**
+   * Validate và refresh token khi app load
+   */
   async validateAndRefreshToken(): Promise<boolean> {
-    const token = this.getToken();
-    if (!token) {
+    // Với HTTP-only cookies, kiểm tra bằng cách gọi /auth/me
+    const user = this.getUser();
+    if (!user) {
       return false;
     }
 
-    // If token is expired, try to refresh it
-    if (this.isTokenExpired()) {
-      const refreshed = await this.refreshToken();
-      return refreshed;
-    }
-
-    return true;
+    return await this.checkAuthStatus();
   }
 
   /**
@@ -290,15 +228,13 @@ class AuthService {
       { idToken }
     );
 
-    // Lưu token và thông tin user vào localStorage
-    this.setToken(response.token);
-    if (response.refreshToken) {
-      this.setRefreshToken(response.refreshToken);
-    }
+    // Chỉ lưu thông tin user vào localStorage
     this.setUser(response);
+    this.isAuthenticatedCache = true;
 
     return response;
   }
+
   async changePassword(
     currentPassword: string,
     newPassword: string

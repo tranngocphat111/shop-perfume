@@ -1,8 +1,10 @@
 package iuh.fit.server.security;
 
+import iuh.fit.server.util.CookieUtil;
 import iuh.fit.server.util.JwtTokenProvider;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -20,7 +22,7 @@ import java.util.Set;
 
 /**
  * Filter xác thực JWT token cho mỗi request
- * - Lấy token từ header Authorization
+ * - Lấy token từ header Authorization HOẶC HTTP-only cookie
  * - Validate token
  * - Set authentication vào SecurityContext
  */
@@ -163,11 +165,30 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         return false;
     }
 
+    /**
+     * Lấy JWT token từ request
+     * Ưu tiên: 1. Authorization header, 2. HTTP-only cookie
+     */
     private String getJwtFromRequest(HttpServletRequest request) {
+        // 1. Kiểm tra Authorization header trước
         String bearerToken = request.getHeader("Authorization");
         if (StringUtils.hasText(bearerToken) && bearerToken.startsWith("Bearer ")) {
             return bearerToken.substring(7);
         }
+
+        // 2. Nếu không có header, kiểm tra HTTP-only cookie
+        Cookie[] cookies = request.getCookies();
+        if (cookies != null) {
+            for (Cookie cookie : cookies) {
+                if (CookieUtil.ACCESS_TOKEN_COOKIE_NAME.equals(cookie.getName())) {
+                    String token = cookie.getValue();
+                    if (StringUtils.hasText(token)) {
+                        return token;
+                    }
+                }
+            }
+        }
+
         return null;
     }
 }
