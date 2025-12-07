@@ -74,6 +74,10 @@ const ensureValidToken = async (): Promise<void> => {
 const getAuthHeaders = (endpoint: string = "", method: string = "GET"): Record<string, string> => {
   const headers: Record<string, string> = {};
 
+  // Debug logging (only during development) to help trace auth header decisions
+  const isDev = import.meta.env.MODE !== 'production';
+  const tokenPresent = !!localStorage.getItem("auth_token");
+
   // Special handling for order endpoints - always send token if available
   // Backend allows guest access, but if token is present, it will use userId
   const isOrderEndpoint = endpoint.includes("/orders/create") ||
@@ -85,6 +89,7 @@ const getAuthHeaders = (endpoint: string = "", method: string = "GET"): Record<s
     if (token) {
       headers["Authorization"] = `Bearer ${token}`;
     }
+    if (isDev) console.debug("api:getAuthHeaders (order endpoint)", { endpoint, method, tokenPresent: !!localStorage.getItem("auth_token") });
     return headers;
   }
 
@@ -188,12 +193,27 @@ const isPublicEndpoint = (endpoint: string, method: string = "GET"): boolean => 
   return false;
 };
 
+// Defensive helper: if for some reason header wasn't attached, but this endpoint
+// is likely protected for non-GET methods, attach auth if token exists.
+const shouldAttachAuthFallback = (endpoint: string, method: string) => {
+  const m = method.toUpperCase();
+  if (m === "GET") return false;
+  // Admin endpoints should always have Authorization for non-GET
+  if (endpoint.includes("/admin/")) return true;
+  // Product modifications (PUT/DELETE) should be protected
+  if (/^\/products\/\d+$/.test(endpoint)) return true;
+  // Other endpoints that are typically protected
+  if (endpoint.includes("/carts/") || endpoint.includes("/addresses/")) return true;
+  return false;
+};
+
 // Handle 401 errors - try refresh token first, then redirect
 // retryCount: 0 = first attempt, 1 = already retried once, prevent infinite loop
 const handle401Error = async <T>(
   endpoint: string,
   originalRequest?: () => Promise<T>,
-  retryCount: number = 0
+  retryCount: number = 0,
+  method: string = "GET"
 ): Promise<T> => {
   // CRITICAL: If this is /auth/refresh endpoint, never try to refresh again
   // This prevents infinite loop if /auth/refresh itself returns 401
@@ -243,7 +263,7 @@ const handle401Error = async <T>(
       console.error("Request failed after token refresh:", retryError);
       // Check if it's still a 401 error
       if ((retryError as ApiError).status === 401) {
-        return handle401Error(endpoint, originalRequest, 1);
+        return handle401Error(endpoint, originalRequest, 1, method);
       }
       // For other errors, throw them
       throw retryError;
@@ -298,7 +318,7 @@ export const apiService = {
         // Handle 401 Unauthorized - try refresh token first
         // Exclude /auth/refresh to prevent infinite loop
         if (response.status === 401 && !endpoint.includes("/auth/")) {
-          return handle401Error(endpoint, makeRequest, 0);
+          return handle401Error(endpoint, makeRequest, 0, "GET");
         }
 
         throw createApiError(errorData, response.status);
@@ -337,6 +357,16 @@ export const apiService = {
         ...options?.headers,
       };
 
+      // Defensive fallback: attach token if endpoint looks protected but header missing
+      try {
+        if (!headers["Authorization"] && shouldAttachAuthFallback(endpoint, "POST")) {
+          const t = localStorage.getItem("auth_token");
+          if (t) headers["Authorization"] = `Bearer ${t}`;
+        }
+      } catch {
+        // ignore
+      }
+
       // Set timeout (default 60 seconds, 300 seconds for order creation to allow time for lock waiting)
       // Backend transaction timeout is 60s, but when locked, multiple requests may need to wait
       // We set 300s (5 minutes) to ensure enough time for all queued requests to complete
@@ -365,7 +395,7 @@ export const apiService = {
           // Handle 401 Unauthorized - try refresh token first
           // Exclude /auth/refresh to prevent infinite loop
           if (response.status === 401 && !endpoint.includes("/auth/")) {
-            return handle401Error(endpoint, makeRequest, 0);
+            return handle401Error(endpoint, makeRequest, 0, "POST");
           }
 
           throw createApiError(errorData, response.status);
@@ -384,12 +414,14 @@ export const apiService = {
         } catch {
           return {} as T; // Return empty object if not valid JSON
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
         clearTimeout(timeoutId);
 
+        // Narrow error to an object with optional fields
+        const err = error as { name?: string; message?: string; status?: number };
+
         // Handle timeout/abort error
-        // Frontend timeout (no response from backend) - mark with special flag
-        if (error.name === "AbortError" || error.name === "TimeoutError") {
+        if (err && (err.name === "AbortError" || err.name === "TimeoutError")) {
           const timeoutError = createApiError(
             {
               message: "Request timeout. Vui lòng thử lại.",
@@ -402,16 +434,15 @@ export const apiService = {
           throw timeoutError;
         }
 
-        // Re-throw if it's already an ApiError
-        if ((error as ApiError).status) {
+        // Re-throw if it's already an ApiError-like object
+        if (err && typeof err.status === "number") {
           throw error;
         }
 
         // Handle network errors
         throw createApiError(
           {
-            message:
-              error.message || "Network error. Please check your connection.",
+            message: err?.message || "Network error. Please check your connection.",
           },
           0
         );
@@ -448,6 +479,15 @@ export const apiService = {
         ...options?.headers,
       };
 
+      try {
+        if (!headers["Authorization"] && shouldAttachAuthFallback(endpoint, "PUT")) {
+          const t = localStorage.getItem("auth_token");
+          if (t) headers["Authorization"] = `Bearer ${t}`;
+        }
+      } catch {
+        // ignore
+      }
+
       const response = await fetch(fullUrl, {
         method: "PUT",
         headers,
@@ -460,7 +500,7 @@ export const apiService = {
         // Handle 401 Unauthorized - try refresh token first
         // Exclude /auth/refresh to prevent infinite loop
         if (response.status === 401 && !endpoint.includes("/auth/")) {
-          return handle401Error(endpoint, makeRequest, 0);
+          return handle401Error(endpoint, makeRequest, 0, "PUT");
         }
 
         throw createApiError(errorData, response.status);
@@ -501,7 +541,7 @@ export const apiService = {
         // Handle 401 Unauthorized - try refresh token first
         // Exclude /auth/refresh to prevent infinite loop
         if (response.status === 401 && !endpoint.includes("/auth/")) {
-          return handle401Error(endpoint, makeRequest, 0);
+          return handle401Error(endpoint, makeRequest, 0, "DELETE");
         }
 
         throw createApiError(errorData, response.status);
@@ -527,11 +567,6 @@ export const apiService = {
     } catch (error) {
       if ((error as ApiError).status) {
         throw error;
-      }
-      // Check if it's a JSON parse error from empty response
-      if (error instanceof SyntaxError && error.message.includes("JSON")) {
-        // This is likely a 204 No Content response, which is actually success
-        return null as T;
       }
       throw new Error("Network error. Please check your connection.");
     }

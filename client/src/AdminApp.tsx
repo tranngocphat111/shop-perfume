@@ -2,6 +2,7 @@ import { Routes, Route } from "react-router-dom";
 import { ScrollToTop } from "./components/ScrollToTop";
 import { Dashboard } from "./pages/admin/Dashboard";
 import { Products } from "./pages/admin/Products";
+import { Brands } from "./pages/admin/Brands";
 import { Suppliers } from "./pages/admin/Suppliers";
 import { StockAdjustments } from "./pages/admin/StockAdjustment";
 import { PurchaseInvoices } from "./pages/admin/PurchaseInvoices";
@@ -27,6 +28,14 @@ export function AdminApp() {
             element={
               <AdminRoute>
                 <Products />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/brands"
+            element={
+              <AdminRoute>
+                <Brands />
               </AdminRoute>
             }
           />
