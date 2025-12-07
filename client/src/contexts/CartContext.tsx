@@ -50,19 +50,21 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   const [appliedCouponId, setAppliedCouponId] = useState<number | null>(null);
   const [discount, setDiscount] = useState<number>(0);
 
-  // Save to sessionStorage whenever cart changes (only if not authenticated)
+  // Save to sessionStorage whenever cart changes
   useEffect(() => {
-    if (!isAuthenticated) {
-      sessionStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cart));
-    }
-  }, [cart, isAuthenticated]);
+    sessionStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cart));
+  }, [cart]);
 
   // Track if we've already loaded/merged cart for this user
   const hasLoadedCartRef = useRef<number | null>(null);
   const isInitialLoadRef = useRef(true);
+  const prevAuthenticatedRef = useRef(isAuthenticated);
 
   // Load cart from DB when user is authenticated (only once on mount or when user changes)
   useEffect(() => {
+    const wasAuthenticated = prevAuthenticatedRef.current;
+    prevAuthenticatedRef.current = isAuthenticated;
+
     if (isAuthenticated && user) {
       // Only load if we haven't loaded for this user yet
       // mergeCartOnLogin will handle the merge, so we only load if no merge happened
@@ -88,21 +90,19 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         isInitialLoadRef.current = false;
         setIsCartLoading(false);
       }
-    } else if (!isAuthenticated) {
-      // User logged out - clear cart state and sessionStorage
-      // Cart is already saved in DB, so it will be restored when user logs back in
+    } else if (!isAuthenticated && wasAuthenticated) {
+      // User just logged out (transition from authenticated to not authenticated)
+      // Clear cart state but DON'T clear sessionStorage (guest can continue shopping)
       setCart({ items: [], total: 0, totalItems: 0 });
-      sessionStorage.removeItem(CART_STORAGE_KEY);
       lastCartRef.current = "";
       // Reset the loaded cart ref so we can load again on next login
       hasLoadedCartRef.current = null;
       isInitialLoadRef.current = true;
-      // For guest users, check if cart from sessionStorage is ready
-      const savedCart = sessionStorage.getItem(CART_STORAGE_KEY);
-      if (!savedCart) {
-        setIsCartLoading(false);
-      }
-      // Otherwise, let the stock fetching effect handle it
+      setIsCartLoading(false);
+    } else if (!isAuthenticated && !wasAuthenticated) {
+      // User was never authenticated (guest user on page load)
+      // Cart is already loaded from sessionStorage in useState initializer
+      setIsCartLoading(false);
     }
   }, [isAuthenticated, user?.userId]);
 
@@ -243,8 +243,8 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       lastCartRef.current = cartString;
 
       setCart(dbCart);
-      // Clear sessionStorage after loading from DB
-      sessionStorage.removeItem(CART_STORAGE_KEY);
+      // Don't clear sessionStorage here - only clear after merge on login
+      // sessionStorage should persist for guest users
       isSyncingRef.current = false;
       setIsCartLoading(false);
     } catch (error) {

@@ -77,7 +77,7 @@ export const getBrandLogoUrl = (brandUrl: string | undefined | null): string | n
   const cleanUrl = url.startsWith('/') ? url.substring(1) : url;
   
   // Prepend Cloudinary base URL
-  return `${CLOUDINARY_BASE_URL}${cleanUrl}`;
+  return `${CLOUDINARY_BASE_URL}brand/${cleanUrl}`;
 };
 
 /**
