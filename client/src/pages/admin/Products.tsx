@@ -324,9 +324,14 @@ export const Products = () => {
   };
 
   const handleAdd = () => {
+    console.log("🔵 ADD BUTTON CLICKED!"); // ✅ Thêm log
+    console.log("🔵 Current isModalOpen:", isModalOpen); // ✅ Check state
+
     setSelectedProduct(null);
     setModalMode("add");
     setIsModalOpen(true);
+
+    console.log("🔵 After setState - isModalOpen should be true"); // ✅ Confirm
   };
 
   const handleModalSubmit = async (data: ProductFormData) => {

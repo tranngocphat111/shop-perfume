@@ -6,7 +6,7 @@ const getApiBaseUrl = (): string => {
   if (typeof window !== 'undefined' && window.location.hostname.includes('vercel.app')) {
     return "/api";
   }
-  
+
   // Development & Local: call deployed backend directly
   return "http://13.251.125.90:8080/api";
 };
@@ -70,7 +70,7 @@ const ensureValidToken = async (): Promise<void> => {
   }
 };
 
-// Helper function to get auth headers (method-aware)
+// Helper function to get auth headers
 const getAuthHeaders = (endpoint: string = "", method: string = "GET"): Record<string, string> => {
   const headers: Record<string, string> = {};
 
@@ -93,10 +93,8 @@ const getAuthHeaders = (endpoint: string = "", method: string = "GET"): Record<s
     return headers;
   }
 
-  // Don't send token for other public endpoints (respect method)
-  const publicDecision = isPublicEndpoint(endpoint, method);
-  if (isDev) console.debug("api:getAuthHeaders", { endpoint, method, publicDecision, tokenPresent });
-  if (publicDecision) {
+  // Don't send token for public endpoints (check with actual method)
+  if (isPublicEndpoint(endpoint, method)) {
     return headers;
   }
 
@@ -109,8 +107,11 @@ const getAuthHeaders = (endpoint: string = "", method: string = "GET"): Record<s
 };
 
 // Check if endpoint is public (doesn't require authentication)
-// Accept HTTP method to avoid treating non-GET methods to product URLs as public
+// NOTE: /orders/create and /orders/my-orders are NOT in this list
+// - We want to send token if user is logged in
+// - Backend allows guest access (permitAll), but if token is present, it will use userId
 const isPublicEndpoint = (endpoint: string, method: string = "GET"): boolean => {
+  // Public endpoints that don't require authentication (check these FIRST)
   // Special public order endpoints (guest can access)
   if (
     endpoint.includes("/orders/my-orders") ||
@@ -140,24 +141,26 @@ const isPublicEndpoint = (endpoint: string, method: string = "GET"): boolean => 
   }
 
   // GET requests for products and inventories are public (viewing products doesn't require auth)
-  // Only treat these patterns as public for GET requests
-  const publicProductPatterns = [
-    /^\/products\/\d+$/, // GET /products/{id}
-    /^\/products\/category\/\d+$/, // GET /products/category/{id}
-    /^\/products\/brand\/\d+$/, // GET /products/brand/{id}
-    /^\/products\/search/, // GET /products/search
-    /^\/products\/page/, // GET /products/page
-    /^\/products$/, // GET /products
-    /^\/inventories\/product\/\d+$/, // GET /inventories/product/{id}
-    /^\/inventories\/product\/\d+\/available$/, // GET /inventories/product/{id}/available
-    /^\/inventories\/best-sellers/, // GET /inventories/best-sellers
-    /^\/inventories\/lowStock$/, // GET /inventories/lowStock
-    /^\/inventories\/page/, // GET /inventories/page
-    /^\/inventories$/, // GET /inventories
-  ];
+  // But POST/PUT/DELETE require authentication (admin only)
+  if (method === "GET") {
+    const publicProductPatterns = [
+      /^\/products\/\d+$/, // GET /products/{id}
+      /^\/products\/category\/\d+$/, // GET /products/category/{id}
+      /^\/products\/brand\/\d+$/, // GET /products/brand/{id}
+      /^\/products\/search/, // GET /products/search
+      /^\/products\/page/, // GET /products/page
+      /^\/products$/, // GET /products
+      /^\/inventories\/product\/\d+$/, // GET /inventories/product/{id}
+      /^\/inventories\/product\/\d+\/available$/, // GET /inventories/product/{id}/available
+      /^\/inventories\/best-sellers/, // GET /inventories/best-sellers
+      /^\/inventories\/lowStock$/, // GET /inventories/lowStock
+      /^\/inventories\/page/, // GET /inventories/page
+      /^\/inventories$/, // GET /inventories
+    ];
 
-  if (method.toUpperCase() === "GET" && publicProductPatterns.some((pattern) => pattern.test(endpoint))) {
-    return true; // Public for GET - guest can view products and inventories
+    if (publicProductPatterns.some((pattern) => pattern.test(endpoint))) {
+      return true; // Public - guest can view products and inventories
+    }
   }
 
   // Protected endpoints that require authentication - always send token
@@ -222,8 +225,9 @@ const handle401Error = async <T>(
     return Promise.reject(new Error("Refresh token invalid"));
   }
 
-  // If this is a public endpoint (for the given method), don't logout - just reject the error
-  if (isPublicEndpoint(endpoint, method)) {
+  // If this is a public endpoint (GET only), don't logout - just reject the error
+  // Note: Only GET requests to products/inventories are public, not POST/PUT/DELETE
+  if (isPublicEndpoint(endpoint, "GET")) {
     console.warn(`401 on public endpoint ${endpoint} - not logging out`);
     return Promise.reject(new Error("Unauthorized"));
   }
@@ -525,15 +529,6 @@ export const apiService = {
     const makeRequest = async (): Promise<T> => {
       const fullUrl = `${API_BASE_URL}${endpoint}`;
       const headers = getAuthHeaders(endpoint, "DELETE");
-
-      try {
-        if (!headers["Authorization"] && shouldAttachAuthFallback(endpoint, "DELETE")) {
-          const t = localStorage.getItem("auth_token");
-          if (t) headers["Authorization"] = `Bearer ${t}`;
-        }
-      } catch {
-        // ignore
-      }
 
       const response = await fetch(fullUrl, {
         method: "DELETE",
