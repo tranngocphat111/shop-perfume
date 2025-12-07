@@ -159,6 +159,7 @@ export const Brands = () => {
             </div>
           );
         }
+        // Backend returns only filename, construct full URL with brand folder
         const cloudinaryBaseUrl =
           "https://res.cloudinary.com/piin/image/upload/brand/";
         const imageUrl = value.startsWith("http")

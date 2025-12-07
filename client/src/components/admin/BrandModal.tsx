@@ -42,7 +42,7 @@ export const BrandModal = ({
       // Set preview for existing image
       if (initialData.url) {
         const cloudinaryBaseUrl =
-          "https://res.cloudinary.com/piin/image/upload/brand";
+          "https://res.cloudinary.com/piin/image/upload/brand/";
         const fullUrl = initialData.url.startsWith("http")
           ? initialData.url
           : `${cloudinaryBaseUrl}${initialData.url}`;

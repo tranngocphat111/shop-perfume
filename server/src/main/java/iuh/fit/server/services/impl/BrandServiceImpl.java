@@ -101,9 +101,9 @@ public class BrandServiceImpl implements BrandService {
         // Upload image to Cloudinary if provided
         if (image != null && !image.isEmpty()) {
             try {
-                String publicId = cloudinaryService.uploadImage(image);
+                String publicId = cloudinaryService.uploadImageToFolder(image, "brand");
                 brand.setUrl(publicId);
-                log.info("Image uploaded successfully: {}", publicId);
+                log.info("Image uploaded successfully to brand folder: {}", publicId);
             } catch (Exception e) {
                 log.error("Error uploading brand image", e);
                 throw new RuntimeException("Failed to upload brand image: " + e.getMessage());
@@ -145,10 +145,10 @@ public class BrandServiceImpl implements BrandService {
                     }
                 }
 
-                // Upload new image
-                String publicId = cloudinaryService.uploadImage(image);
+                // Upload new image to brand folder
+                String publicId = cloudinaryService.uploadImageToFolder(image, "brand");
                 existingBrand.setUrl(publicId);
-                log.info("New image uploaded successfully: {}", publicId);
+                log.info("New image uploaded successfully to brand folder: {}", publicId);
             } catch (Exception e) {
                 log.error("Error uploading brand image", e);
                 throw new RuntimeException("Failed to upload brand image: " + e.getMessage());

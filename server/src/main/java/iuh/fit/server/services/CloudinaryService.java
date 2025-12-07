@@ -26,19 +26,20 @@ public class CloudinaryService {
 
     /**
      * Upload ảnh lên Cloudinary
+     * 
      * @param file File ảnh cần upload
      * @return URL của ảnh đã upload (chỉ trả về public_id, không có base URL)
      */
     public String uploadImage(MultipartFile file) {
         try {
             log.info("Uploading image to Cloudinary: {}", file.getOriginalFilename());
-            
+
             Map<?, ?> uploadResult = cloudinary.uploader().upload(file.getBytes(), ObjectUtils.emptyMap());
             String publicId = uploadResult.get("public_id").toString();
-            
+
             log.info("Image uploaded successfully with public_id: {}", publicId);
             return publicId;
-            
+
         } catch (IOException e) {
             log.error("Error uploading image to Cloudinary", e);
             throw new RuntimeException("Failed to upload image: " + e.getMessage());
@@ -46,7 +47,40 @@ public class CloudinaryService {
     }
 
     /**
+     * Upload ảnh lên Cloudinary với folder chỉ định
+     * 
+     * @param file   File ảnh cần upload
+     * @param folder Tên folder trên Cloudinary (vd: "brand", "product")
+     * @return Chỉ trả về filename (không bao gồm folder path)
+     */
+    public String uploadImageToFolder(MultipartFile file, String folder) {
+        try {
+            log.info("Uploading image to Cloudinary folder '{}': {}", folder, file.getOriginalFilename());
+
+            @SuppressWarnings("unchecked")
+            Map<String, Object> options = ObjectUtils.asMap("folder", folder);
+            Map<?, ?> uploadResult = cloudinary.uploader().upload(file.getBytes(), options);
+            String publicId = uploadResult.get("public_id").toString();
+
+            // Extract only filename from public_id (remove folder prefix)
+            // Example: "brand/logo_abc123.png" -> "logo_abc123.png"
+            String filename = publicId;
+            if (publicId.contains("/")) {
+                filename = publicId.substring(publicId.lastIndexOf("/") + 1);
+            }
+
+            log.info("Image uploaded successfully. Public ID: {}, Returning filename: {}", publicId, filename);
+            return filename;
+
+        } catch (IOException e) {
+            log.error("Error uploading image to Cloudinary folder '{}'", folder, e);
+            throw new RuntimeException("Failed to upload image: " + e.getMessage());
+        }
+    }
+
+    /**
      * Xóa ảnh từ Cloudinary
+     * 
      * @param publicId Public ID của ảnh cần xóa
      */
     public void deleteImage(String publicId) {
@@ -62,6 +96,7 @@ public class CloudinaryService {
 
     /**
      * Upload ảnh bất đồng bộ
+     * 
      * @param file File ảnh cần upload
      * @return CompletableFuture chứa URL của ảnh đã upload
      */
@@ -79,6 +114,7 @@ public class CloudinaryService {
 
     /**
      * Xóa ảnh bất đồng bộ
+     * 
      * @param publicId Public ID của ảnh cần xóa
      * @return CompletableFuture<Void>
      */
@@ -96,19 +132,20 @@ public class CloudinaryService {
 
     /**
      * Upload nhiều ảnh song song
+     * 
      * @param files Danh sách file ảnh
      * @return CompletableFuture chứa danh sách URL đã upload
      */
     public CompletableFuture<List<String>> uploadImagesParallel(List<MultipartFile> files) {
         log.info("Starting parallel upload for {} images", files.size());
-        
+
         List<CompletableFuture<String>> uploadFutures = new ArrayList<>();
-        
+
         for (MultipartFile file : files) {
             CompletableFuture<String> future = uploadImageAsync(file);
             uploadFutures.add(future);
         }
-        
+
         // Combine all futures
         return CompletableFuture.allOf(uploadFutures.toArray(new CompletableFuture[0]))
                 .thenApply(v -> {
@@ -128,19 +165,20 @@ public class CloudinaryService {
 
     /**
      * Xóa nhiều ảnh song song
+     * 
      * @param publicIds Danh sách public ID cần xóa
      * @return CompletableFuture<Void>
      */
     public CompletableFuture<Void> deleteImagesParallel(List<String> publicIds) {
         log.info("Starting parallel delete for {} images", publicIds.size());
-        
+
         List<CompletableFuture<Void>> deleteFutures = new ArrayList<>();
-        
+
         for (String publicId : publicIds) {
             CompletableFuture<Void> future = deleteImageAsync(publicId);
             deleteFutures.add(future);
         }
-        
+
         // Combine all futures
         return CompletableFuture.allOf(deleteFutures.toArray(new CompletableFuture[0]))
                 .thenRun(() -> log.info("Completed parallel delete for {} images", publicIds.size()));

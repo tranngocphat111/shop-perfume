@@ -25,8 +25,9 @@ export const BrandDetailModal = ({
       return brand.url;
     }
 
-    // If it's a Cloudinary path, construct the full URL
-    const cloudinaryBaseUrl = "https://res.cloudinary.com/piin/image/upload/brand/";
+    // Backend returns only filename, construct full Cloudinary URL with brand folder
+    const cloudinaryBaseUrl =
+      "https://res.cloudinary.com/piin/image/upload/brand/";
     return `${cloudinaryBaseUrl}${brand.url}`;
   };
 
