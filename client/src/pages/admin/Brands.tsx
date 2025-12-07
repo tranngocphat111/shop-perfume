@@ -18,6 +18,9 @@ interface BrandData extends Record<string, unknown> {
   name: string;
   country: string;
   description: string;
+  url: string;
+  lastUpdated: string;
+  updatedBy: string;
 }
 
 export const Brands = () => {
@@ -77,10 +80,15 @@ export const Brands = () => {
           name: item.name,
           country: item.country || "N/A",
           description: item.description
-            ? item.description.length > 100
-              ? item.description.substring(0, 100) + "..."
+            ? item.description.length > 50
+              ? item.description.substring(0, 50) + "..."
               : item.description
             : "N/A",
+          url: item.url || "",
+          lastUpdated: item.lastUpdated
+            ? new Date(item.lastUpdated).toLocaleDateString()
+            : "N/A",
+          updatedBy: item.lastUpdatedBy || "System",
         })
       );
 
@@ -140,6 +148,37 @@ export const Brands = () => {
       onSort: handleSort,
     },
     {
+      key: "url",
+      label: "Logo",
+      sortable: false,
+      render: (value: string) => {
+        if (!value) {
+          return (
+            <div className="w-12 h-12 bg-gray-200 rounded flex items-center justify-center">
+              <i className="fas fa-image text-gray-400"></i>
+            </div>
+          );
+        }
+        const cloudinaryBaseUrl =
+          "https://res.cloudinary.com/dmmk9dwqd/image/upload/";
+        const imageUrl = value.startsWith("http")
+          ? value
+          : `${cloudinaryBaseUrl}${value}`;
+        return (
+          <img
+            src={imageUrl}
+            alt="Brand logo"
+            className="w-12 h-12 object-contain rounded"
+            onError={(e) => {
+              (e.target as HTMLImageElement).style.display = "none";
+              (e.target as HTMLImageElement).parentElement!.innerHTML =
+                '<div class="w-12 h-12 bg-gray-200 rounded flex items-center justify-center"><i class="fas fa-image text-gray-400"></i></div>';
+            }}
+          />
+        );
+      },
+    },
+    {
       key: "name",
       label: "Brand Name",
       sortable: true,
@@ -155,6 +194,18 @@ export const Brands = () => {
       key: "description",
       label: "Description",
       sortable: false,
+    },
+    {
+      key: "lastUpdated",
+      label: "Last Updated",
+      sortable: true,
+      onSort: handleSort,
+    },
+    {
+      key: "updatedBy",
+      label: "Updated By",
+      sortable: true,
+      onSort: handleSort,
     },
   ];
 
@@ -253,12 +304,14 @@ export const Brands = () => {
       console.log("Modal submit data:", data);
 
       if (modalMode === "add") {
-        await brandService.createBrand({
-          name: data.name,
-          country: data.country || undefined,
-          description: data.description || undefined,
-          url: data.url || undefined,
-        });
+        await brandService.createBrand(
+          {
+            name: data.name,
+            country: data.country || undefined,
+            description: data.description || undefined,
+          },
+          data.image
+        );
         success(`Brand "${data.name}" created successfully!`);
       } else {
         if (!selectedBrand || !selectedBrand.brandId) {
@@ -266,12 +319,15 @@ export const Brands = () => {
           return;
         }
 
-        await brandService.updateBrand(selectedBrand.brandId, {
-          name: data.name,
-          country: data.country || undefined,
-          description: data.description || undefined,
-          url: data.url || undefined,
-        });
+        await brandService.updateBrand(
+          selectedBrand.brandId,
+          {
+            name: data.name,
+            country: data.country || undefined,
+            description: data.description || undefined,
+          },
+          data.image
+        );
         success(`Brand "${data.name}" updated successfully!`);
       }
 

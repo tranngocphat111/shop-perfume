@@ -11,12 +11,14 @@ import iuh.fit.server.model.enums.ProductStatus;
 import iuh.fit.server.repository.BrandRepository;
 import iuh.fit.server.repository.ProductRepository;
 import iuh.fit.server.services.BrandService;
+import iuh.fit.server.services.CloudinaryService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -33,6 +35,7 @@ public class BrandServiceImpl implements BrandService {
     private final BrandRepository brandRepository;
     private final ProductRepository productRepository;
     private final BrandMapper brandMapper;
+    private final CloudinaryService cloudinaryService;
 
     /**
      * Format brand URL to Cloudinary format
@@ -120,14 +123,25 @@ public class BrandServiceImpl implements BrandService {
      * Tạo brand mới
      */
     @Override
-    public BrandResponse createBrand(BrandRequest request) {
-        log.info("Service: Creating new brand: {}", request.getName());
+    public BrandResponse createBrand(BrandRequest request, MultipartFile image) {
+        log.info("Service: Creating new brand: {} with image: {}", request.getName(), image != null);
 
         Brand brand = new Brand();
         brand.setName(request.getName());
         brand.setCountry(request.getCountry());
         brand.setDescription(request.getDescription());
-        brand.setUrl(request.getUrl());
+
+        // Upload image to Cloudinary if provided
+        if (image != null && !image.isEmpty()) {
+            try {
+                String publicId = cloudinaryService.uploadImage(image);
+                brand.setUrl(publicId);
+                log.info("Image uploaded successfully: {}", publicId);
+            } catch (Exception e) {
+                log.error("Error uploading brand image", e);
+                throw new RuntimeException("Failed to upload brand image: " + e.getMessage());
+            }
+        }
 
         Brand savedBrand = brandRepository.save(brand);
         log.info("Brand created successfully with id: {}", savedBrand.getBrandId());
@@ -142,8 +156,8 @@ public class BrandServiceImpl implements BrandService {
      * Cập nhật brand
      */
     @Override
-    public BrandResponse updateBrand(int id, BrandRequest request) {
-        log.info("Service: Updating brand id {}: {}", id, request.getName());
+    public BrandResponse updateBrand(int id, BrandRequest request, MultipartFile image) {
+        log.info("Service: Updating brand id {}: {} with new image: {}", id, request.getName(), image != null);
 
         Brand existingBrand = brandRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Brand not found with id: " + id));
@@ -151,7 +165,29 @@ public class BrandServiceImpl implements BrandService {
         existingBrand.setName(request.getName());
         existingBrand.setCountry(request.getCountry());
         existingBrand.setDescription(request.getDescription());
-        existingBrand.setUrl(request.getUrl());
+
+        // Upload new image to Cloudinary if provided
+        if (image != null && !image.isEmpty()) {
+            try {
+                // Delete old image if exists
+                if (existingBrand.getUrl() != null && !existingBrand.getUrl().isEmpty()) {
+                    try {
+                        cloudinaryService.deleteImage(existingBrand.getUrl());
+                        log.info("Deleted old brand image: {}", existingBrand.getUrl());
+                    } catch (Exception e) {
+                        log.warn("Could not delete old brand image: {}", e.getMessage());
+                    }
+                }
+
+                // Upload new image
+                String publicId = cloudinaryService.uploadImage(image);
+                existingBrand.setUrl(publicId);
+                log.info("New image uploaded successfully: {}", publicId);
+            } catch (Exception e) {
+                log.error("Error uploading brand image", e);
+                throw new RuntimeException("Failed to upload brand image: " + e.getMessage());
+            }
+        }
 
         Brand updatedBrand = brandRepository.save(existingBrand);
         log.info("Brand updated successfully: {}", id);
