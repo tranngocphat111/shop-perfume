@@ -190,6 +190,20 @@ const isPublicEndpoint = (endpoint: string, method: string = "GET"): boolean => 
   return false;
 };
 
+// Defensive helper: if for some reason header wasn't attached, but this endpoint
+// is likely protected for non-GET methods, attach auth if token exists.
+const shouldAttachAuthFallback = (endpoint: string, method: string) => {
+  const m = method.toUpperCase();
+  if (m === "GET") return false;
+  // Admin endpoints should always have Authorization for non-GET
+  if (endpoint.includes("/admin/")) return true;
+  // Product modifications (PUT/DELETE) should be protected
+  if (/^\/products\/\d+$/.test(endpoint)) return true;
+  // Other endpoints that are typically protected
+  if (endpoint.includes("/carts/") || endpoint.includes("/addresses/")) return true;
+  return false;
+};
+
 // Handle 401 errors - try refresh token first, then redirect
 // retryCount: 0 = first attempt, 1 = already retried once, prevent infinite loop
 const handle401Error = async <T>(
@@ -339,6 +353,16 @@ export const apiService = {
         ...options?.headers,
       };
 
+      // Defensive fallback: attach token if endpoint looks protected but header missing
+      try {
+        if (!headers["Authorization"] && shouldAttachAuthFallback(endpoint, "POST")) {
+          const t = localStorage.getItem("auth_token");
+          if (t) headers["Authorization"] = `Bearer ${t}`;
+        }
+      } catch {
+        // ignore
+      }
+
       // Set timeout (default 60 seconds, 300 seconds for order creation to allow time for lock waiting)
       // Backend transaction timeout is 60s, but when locked, multiple requests may need to wait
       // We set 300s (5 minutes) to ensure enough time for all queued requests to complete
@@ -451,6 +475,15 @@ export const apiService = {
         ...options?.headers,
       };
 
+      try {
+        if (!headers["Authorization"] && shouldAttachAuthFallback(endpoint, "PUT")) {
+          const t = localStorage.getItem("auth_token");
+          if (t) headers["Authorization"] = `Bearer ${t}`;
+        }
+      } catch {
+        // ignore
+      }
+
       const response = await fetch(fullUrl, {
         method: "PUT",
         headers,
@@ -492,6 +525,15 @@ export const apiService = {
     const makeRequest = async (): Promise<T> => {
       const fullUrl = `${API_BASE_URL}${endpoint}`;
       const headers = getAuthHeaders(endpoint, "DELETE");
+
+      try {
+        if (!headers["Authorization"] && shouldAttachAuthFallback(endpoint, "DELETE")) {
+          const t = localStorage.getItem("auth_token");
+          if (t) headers["Authorization"] = `Bearer ${t}`;
+        }
+      } catch {
+        // ignore
+      }
 
       const response = await fetch(fullUrl, {
         method: "DELETE",
