@@ -322,7 +322,7 @@ public class AuthServiceImpl implements AuthService{
         passwordResetTokenRepository.save(resetToken);
         
         // Tạo reset URL - sử dụng getFrontendUrl() để lấy URL đầu tiên từ danh sách
-        String resetUrl = frontendUrl + "/reset-password/" + token;
+        String resetUrl = getFrontendUrl() + "/reset-password/" + token;
 
         // Gửi email
         try {
