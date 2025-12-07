@@ -53,7 +53,7 @@ public class AuthServiceImpl implements AuthService{
     private final PasswordResetTokenRepository passwordResetTokenRepository;
     private final EmailService emailService;
     
-    @Value("${app.frontend.url}")
+    @Value("${frontend.url:${app.frontend.url:}}")
     private String frontendUrl;
     
     /**

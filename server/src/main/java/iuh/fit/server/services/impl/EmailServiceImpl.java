@@ -44,7 +44,7 @@ public class EmailServiceImpl implements EmailService {
     @Value("${resend.from-email}")
     private String fromEmail;
 
-    @Value("${app.frontend.url:http://localhost:3000}")
+    @Value("${frontend.url:${app.frontend.url:http://localhost:3000}}")
     private String frontendUrl;
 
     /**
