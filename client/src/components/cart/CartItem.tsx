@@ -1,8 +1,8 @@
-import { motion } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
-import { Trash2, Plus, Minus, Package } from 'lucide-react';
-import type { CartItem as CartItemType } from '../../types';
-import { getPrimaryImageUrl, formatCurrency } from '../../utils/helpers';
+import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
+import { Trash2, Plus, Minus, Package } from "lucide-react";
+import type { CartItem as CartItemType } from "../../types";
+import { getPrimaryImageUrl, formatCurrency } from "../../utils/helpers";
 
 interface CartItemProps {
   item: CartItemType;
@@ -14,11 +14,12 @@ interface CartItemProps {
 export const CartItem = ({
   item,
   onQuantityChange,
-  onRemove
+  onRemove,
 }: CartItemProps) => {
   const navigate = useNavigate();
   const maxQuantity = item.stockQuantity ?? Infinity;
-  const isOutOfStock = item.stockQuantity !== undefined && item.stockQuantity === 0;
+  const isOutOfStock =
+    item.stockQuantity !== undefined && item.stockQuantity === 0;
   const isMaxQuantity = item.quantity >= maxQuantity;
   const isMinQuantity = item.quantity <= 1;
   const subtotal = item.product.unitPrice * item.quantity;
@@ -50,43 +51,42 @@ export const CartItem = ({
       className="cursor-pointer group relative bg-white rounded-xl border border-gray-200 hover:border-gray-900 hover:shadow-md transition-all duration-200 overflow-hidden mb-3"
     >
       <div className="flex flex-col md:flex-row p-4 gap-4 md:items-stretch">
-        
         {/* 1. IMAGE BLOCK: Full height */}
-        <div 
-          className="relative w-full md:w-28 h-48 md:h-auto md:self-stretch flex-shrink-0 bg-gray-50 rounded-lg overflow-hidden border border-gray-100"
-        >
+        <div className="relative w-full md:w-28 h-48 md:h-auto md:self-stretch flex-shrink-0 bg-gray-50 rounded-lg overflow-hidden border border-gray-100">
           <img
             src={getPrimaryImageUrl(item.product)}
             alt={item.product.name}
             className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-            onError={(e) => { e.currentTarget.src = 'https://via.placeholder.com/200'; }}
+            onError={(e) => {
+              e.currentTarget.src = "https://via.placeholder.com/200";
+            }}
           />
-           {/* Badge số lượng tồn kho */}
-           {item.stockQuantity !== undefined && item.stockQuantity === 0 && (
+          {/* Badge số lượng tồn kho */}
+          {item.stockQuantity !== undefined && item.stockQuantity === 0 && (
             <div className="absolute top-2 left-2 bg-red-600 text-white text-[10px] font-bold px-2 py-1 rounded shadow-sm">
               HẾT HÀNG
             </div>
           )}
-          {item.stockQuantity !== undefined && item.stockQuantity > 0 && item.stockQuantity < 10 && (
-            <div className="absolute top-2 left-2 bg-red-500 text-white text-[10px] font-bold px-2 py-1 rounded shadow-sm">
-              SẮP HẾT
-            </div>
-          )}
+          {item.stockQuantity !== undefined &&
+            item.stockQuantity > 0 &&
+            item.stockQuantity < 10 && (
+              <div className="absolute top-2 left-2 bg-yellow-500 text-white text-[10px] font-bold px-2 py-1 rounded shadow-sm">
+                SẮP HẾT
+              </div>
+            )}
         </div>
 
         {/* 2. MAIN CONTENT WRAPPER */}
         <div className="flex-1 flex flex-col justify-between">
-          
           {/* Header Info */}
           <div className="flex justify-between items-start">
             <div className="pr-8">
-              <h3 
-                className="text-base md:text-lg font-bold text-gray-900 hover:text-gray-600 transition-colors leading-tight"
-              >
+              <h3 className="text-base md:text-lg font-bold text-gray-900 hover:text-gray-600 transition-colors leading-tight">
                 {item.product.name}
               </h3>
               <div className="flex items-center gap-2 mt-2">
-                {item.stockQuantity !== undefined && item.stockQuantity === 0 ? (
+                {item.stockQuantity !== undefined &&
+                item.stockQuantity === 0 ? (
                   <span className="text-lg inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-red-50 text-xs font-semibold text-red-600 border border-red-200">
                     <Package className="w-3 h-3 " />
                     <span className="mt-[-2px]"> Hết hàng</span>
@@ -94,15 +94,18 @@ export const CartItem = ({
                 ) : (
                   <span className="text-lg inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-gray-100 text-xs font-semibold text-gray-600 border border-gray-200">
                     <Package className="w-3 h-3 " />
-                    <span className="mt-[-2px]"> {item.stockQuantity ?? 'N/A'} sản phẩm</span>
+                    <span className="mt-[-2px]">
+                      {" "}
+                      {item.stockQuantity ?? "N/A"} sản phẩm
+                    </span>
                   </span>
                 )}
                 <span className="text-sm font-medium text-gray-400">
-                   • Đơn giá: {formatCurrency(item.product.unitPrice)}
+                  • Đơn giá: {formatCurrency(item.product.unitPrice)}
                 </span>
               </div>
             </div>
-            
+
             {/* Delete Button (Desktop Top Right) */}
             <button
               onClick={(e) => {
@@ -116,17 +119,18 @@ export const CartItem = ({
           </div>
 
           {/* 3. CONTROL BAR: Separated distinct area */}
-          <div 
+          <div
             onClick={(e) => e.stopPropagation()}
             className="mt-4 flex flex-col md:flex-row items-center justify-between bg-gray-50 rounded-lg p-2.5 gap-3 md:gap-0"
           >
-            
             {/* Quantity Control: Rounded full style like product detail */}
-            <div className={`flex items-center border rounded-lg overflow-hidden transition-colors w-full md:w-auto ${
-              isOutOfStock 
-                ? 'border-red-200 bg-red-50' 
-                : 'border-gray-200 bg-white hover:border-gray-300'
-            }`}>
+            <div
+              className={`flex items-center border rounded-lg overflow-hidden transition-colors w-full md:w-auto ${
+                isOutOfStock
+                  ? "border-red-200 bg-red-50"
+                  : "border-gray-200 bg-white hover:border-gray-300"
+              }`}
+            >
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -137,7 +141,7 @@ export const CartItem = ({
               >
                 <Minus className="w-4 h-5 text-gray-700" />
               </button>
-              
+
               <input
                 type="number"
                 value={item.quantity}
@@ -166,8 +170,8 @@ export const CartItem = ({
 
             {/* Price & Mobile Delete */}
             <div className="flex items-center justify-between w-full md:w-auto px-2">
-               {/* Mobile Delete */}
-               <button
+              {/* Mobile Delete */}
+              <button
                 onClick={(e) => {
                   e.stopPropagation();
                   onRemove(item.product.productId);
@@ -178,7 +182,9 @@ export const CartItem = ({
               </button>
 
               <div className="flex flex-col items-end">
-                <span className="text-xs text-gray-500 font-medium uppercase tracking-wider">Thành tiền</span>
+                <span className="text-xs text-gray-500 font-medium uppercase tracking-wider">
+                  Thành tiền
+                </span>
                 <span className="text-lg md:text-xl font-bold text-gray-900 tracking-tight">
                   {formatCurrency(subtotal)}
                 </span>

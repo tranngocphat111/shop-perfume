@@ -27,4 +27,12 @@ public interface EmailService {
      * @param contactRequest Thông tin liên hệ
      */
     void sendContactEmail(ContactRequest contactRequest);
+
+    /**
+     * Gửi email chào mừng khi đăng ký thành công
+     *
+     * @param toEmail email người dùng
+     * @param name tên người dùng (có thể null)
+     */
+    void sendWelcomeEmail(String toEmail, String name);
 }

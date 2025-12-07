@@ -6,6 +6,7 @@ import com.resend.services.emails.model.SendEmailRequest;
 import com.resend.services.emails.model.SendEmailResponse;
 import iuh.fit.server.dto.ContactRequest;
 import iuh.fit.server.email.templates.PasswordResetEmailTemplate;
+import iuh.fit.server.email.templates.WelcomeEmailTemplate;
 import iuh.fit.server.model.entity.Order;
 import iuh.fit.server.model.enums.Method;
 import iuh.fit.server.model.enums.PaymentStatus;
@@ -33,6 +34,7 @@ import java.util.Locale;
 public class EmailServiceImpl implements EmailService {
 
     private final PasswordResetEmailTemplate passwordResetEmailTemplate;
+    private final WelcomeEmailTemplate welcomeEmailTemplate;
     private final JavaMailSender mailSender;
     private final TemplateEngine templateEngine;
 
@@ -356,6 +358,41 @@ public class EmailServiceImpl implements EmailService {
             log.error("❌ [sendContactEmail] Unexpected error sending contact email from {}: {}",
                     contactRequest.getEmail(), e.getMessage(), e);
             throw new RuntimeException("Có lỗi xảy ra khi gửi email. Vui lòng thử lại sau.", e);
+        }
+    }
+
+    @Override
+    public void sendWelcomeEmail(String toEmail, String name) {
+        try {
+            if (toEmail == null || toEmail.isEmpty()) {
+                log.warn("⚠️ [sendWelcomeEmail] No email provided, skip sending welcome email");
+                return;
+            }
+
+            log.info("📧 [sendWelcomeEmail] Sending welcome email to: {}", toEmail);
+
+            // Use WelcomeEmailTemplate (component) to build content
+            String subject = welcomeEmailTemplate.getSubject(getFrontendUrl(), name);
+            String htmlContent = welcomeEmailTemplate.buildHtml(getFrontendUrl(), name);
+            String textContent = welcomeEmailTemplate.buildText(getFrontendUrl(), name);
+
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+
+            helper.setFrom(mailFrom);
+            helper.setTo(toEmail);
+            helper.setSubject(subject);
+            helper.setText(htmlContent, true);
+
+            mailSender.send(message);
+
+            log.info("✅ [sendWelcomeEmail] Welcome email sent successfully to: {}", toEmail);
+        } catch (MessagingException e) {
+            log.error("❌ [sendWelcomeEmail] Error sending welcome email to {}: {}", toEmail, e.getMessage(), e);
+            // Don't throw - don't break registration
+        } catch (Exception e) {
+            log.error("❌ [sendWelcomeEmail] Unexpected error sending welcome email to {}: {}", toEmail, e.getMessage(), e);
+            // Don't throw
         }
     }
 

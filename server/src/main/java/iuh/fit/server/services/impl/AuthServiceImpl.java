@@ -117,6 +117,13 @@ public class AuthServiceImpl implements AuthService{
         // Lưu refresh token vào database
         saveRefreshToken(user, refreshTokenString);
 
+        // Gửi email chào mừng (không làm thất bại đăng ký nếu email không gửi được)
+        try {
+            emailService.sendWelcomeEmail(user.getEmail(), user.getName());
+        } catch (Exception e) {
+            log.warn("Failed to send welcome email to {}: {}", user.getEmail(), e.getMessage());
+        }
+
         return new AuthResponse(
                 token,
                 refreshTokenString,
@@ -611,5 +618,4 @@ public class AuthServiceImpl implements AuthService{
         }
     }
 }
-
 

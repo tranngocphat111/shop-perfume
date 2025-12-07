@@ -10,6 +10,10 @@ export const ChangePassword = () => {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  // Toggle visibility for password inputs
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -60,17 +64,14 @@ export const ChangePassword = () => {
       setNewPassword("");
       setConfirmPassword("");
       setTimeout(() => setSuccess(""), 3000);
-    } catch (error: any) {
+    } catch (errorUnknown) {
       let errorMessage = "Có lỗi xảy ra khi đổi mật khẩu";
-      
-      if (error instanceof Error) {
-        errorMessage = error.message;
-      } else if (error?.message) {
-        errorMessage = error.message;
-      } else if (typeof error === 'string') {
-        errorMessage = error;
+      const err = errorUnknown as unknown as { message?: string };
+      if (err && typeof (err as any).message === 'string') {
+        errorMessage = (err as any).message;
+      } else if (typeof errorUnknown === 'string') {
+        errorMessage = errorUnknown;
       }
-      
       setError(errorMessage);
       setTimeout(() => setError(""), 4000);
     } finally {
