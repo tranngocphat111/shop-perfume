@@ -285,9 +285,20 @@ export const Brands = () => {
         sortDirection,
         searchQuery
       );
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error deleting brand:", err);
-      const errorMessage = err instanceof Error ? err.message : "Unknown error";
+
+      // Extract error message from different error formats
+      let errorMessage = "Unknown error";
+      if (err?.response?.data?.message) {
+        errorMessage = err.response.data.message;
+      } else if (err?.message) {
+        errorMessage = err.message;
+      } else if (typeof err === "string") {
+        errorMessage = err;
+      }
+
+      console.log("Extracted error message:", errorMessage);
 
       // Check if error is due to authentication
       if (
@@ -299,7 +310,10 @@ export const Brands = () => {
         );
       }
       // Check if error is due to active products
-      else if (errorMessage.includes("ACTIVE product")) {
+      else if (
+        errorMessage.includes("ACTIVE product") ||
+        errorMessage.includes("being used")
+      ) {
         showError(errorMessage);
       } else {
         showError(`Failed to delete brand: ${errorMessage}`);
