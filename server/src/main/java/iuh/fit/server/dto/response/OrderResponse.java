@@ -14,6 +14,7 @@ public class OrderResponse {
     private Integer orderId;
     private Date orderDate;
     private Double totalAmount;
+    private Double discountAmount; // Số tiền đã giảm
     private String guestName;
     private String guestEmail;
     private String guestPhone;

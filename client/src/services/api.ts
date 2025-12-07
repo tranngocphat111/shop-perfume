@@ -153,6 +153,7 @@ const isPublicEndpoint = (endpoint: string, method: string = "GET"): boolean => 
     "/auth/reset-password",
     "/auth/google-signin",
     "/payment/check-qr",
+    "/contact/send-email", // Contact form - public
     "/webhooks/",
   ];
 
