@@ -39,11 +39,17 @@ export const ProductDetail = () => {
 
   // Set page title and meta tags
   usePageTitle({
-    title: product ? `${product.name} - STPN Perfume` : "Chi tiết sản phẩm - STPN Perfume",
-    description: product 
-      ? `${product.name} - ${product.brand?.name || ''} ${product.category?.name || ''}. ${product.description || 'Nước hoa chính hãng chất lượng cao.'}`
+    title: product
+      ? `${product.name} - STPN Perfume`
+      : "Chi tiết sản phẩm - STPN Perfume",
+    description: product
+      ? `${product.name} - ${product.brand?.name || ""} ${
+          product.category?.name || ""
+        }. ${product.description || "Nước hoa chính hãng chất lượng cao."}`
       : "Chi tiết sản phẩm nước hoa chính hãng",
-    image: product ? getPrimaryImageUrl(product) : "https://res.cloudinary.com/piin/image/upload/v1762171215/banner.zip-2_gdvc0y.jpg"
+    image: product
+      ? getPrimaryImageUrl(product)
+      : "https://res.cloudinary.com/piin/image/upload/v1762171215/banner.zip-2_gdvc0y.jpg",
   });
 
   // Fetch main product data (critical - hiển thị ngay)
@@ -296,7 +302,21 @@ export const ProductDetail = () => {
       }, 3000);
     } catch (error) {
       console.error("Error adding to cart:", error);
-      alert("Có lỗi xảy ra khi thêm vào giỏ hàng");
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Có lỗi xảy ra khi thêm vào giỏ hàng";
+
+      // Show error notification
+      const notification = document.createElement("div");
+      notification.className =
+        "fixed top-20 right-4 bg-red-600 text-white px-6 py-3 rounded-lg shadow-lg z-50 animate-fade-in";
+      notification.textContent = `✗ ${errorMessage}`;
+      document.body.appendChild(notification);
+
+      setTimeout(() => {
+        notification.remove();
+      }, 3000);
     } finally {
       setTimeout(() => setIsAddingToCart(false), 500);
     }

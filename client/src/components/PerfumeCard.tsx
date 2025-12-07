@@ -70,7 +70,21 @@ export const PerfumeCard = ({ inventory, brands = [] }: ProductCardProps) => {
       }, 3000);
     } catch (error) {
       console.error("Error adding to cart:", error);
-      alert("Có lỗi xảy ra khi thêm vào giỏ hàng");
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Có lỗi xảy ra khi thêm vào giỏ hàng";
+
+      // Show error notification
+      const notification = document.createElement("div");
+      notification.className =
+        "fixed top-20 right-4 bg-red-600 text-white px-6 py-3 rounded-lg shadow-lg z-50 animate-fade-in";
+      notification.textContent = `✗ ${errorMessage}`;
+      document.body.appendChild(notification);
+
+      setTimeout(() => {
+        notification.remove();
+      }, 3000);
     } finally {
       setTimeout(() => setIsAdding(false), 500);
     }
