@@ -85,62 +85,64 @@ public class ProductServiceImpl implements ProductService {
     @Override
     public ProductResponse create(ProductRequest request) {
         log.info("Creating new product: {}", request);
-        
+
         // Validate brand
         Brand brand = brandRepository.findById(request.getBrandId())
                 .orElseThrow(() -> new ResourceNotFoundException("Brand not found with id: " + request.getBrandId()));
-        
+
         // Validate category
         Category category = categoryRepository.findById(request.getCategoryId())
-                .orElseThrow(() -> new ResourceNotFoundException("Category not found with id: " + request.getCategoryId()));
-        
+                .orElseThrow(
+                        () -> new ResourceNotFoundException("Category not found with id: " + request.getCategoryId()));
+
         // Create product entity
         Product product = productMapper.toEntity(request);
         product.setBrand(brand);
         product.setCategory(category);
-        
+
         // Save
         Product savedProduct = productRepository.save(product);
         log.info("Product created successfully with id: {}", savedProduct.getProductId());
-        
+
         // Create Inventory with quantity 0
         iuh.fit.server.model.entity.Inventory inventory = new iuh.fit.server.model.entity.Inventory();
         inventory.setProduct(savedProduct);
         inventory.setQuantity(0);
         inventoryRepository.save(inventory);
         log.info("Inventory created for product {} with quantity 0", savedProduct.getProductId());
-        
+
         return productMapper.toResponse(savedProduct);
     }
 
     @Override
     public ProductResponse createWithImages(ProductRequest request, List<MultipartFile> images, int primaryImageIndex) {
         log.info("Creating new product with {} images", images.size());
-        
+
         // Validate brand
         Brand brand = brandRepository.findById(request.getBrandId())
                 .orElseThrow(() -> new ResourceNotFoundException("Brand not found with id: " + request.getBrandId()));
-        
+
         // Validate category
         Category category = categoryRepository.findById(request.getCategoryId())
-                .orElseThrow(() -> new ResourceNotFoundException("Category not found with id: " + request.getCategoryId()));
-        
+                .orElseThrow(
+                        () -> new ResourceNotFoundException("Category not found with id: " + request.getCategoryId()));
+
         // Create product entity
         Product product = productMapper.toEntity(request);
         product.setBrand(brand);
         product.setCategory(category);
-        
+
         // Save product first to get ID
         Product savedProduct = productRepository.save(product);
         log.info("Product created successfully with id: {}", savedProduct.getProductId());
-        
+
         // Create Inventory with quantity 0
         iuh.fit.server.model.entity.Inventory inventory = new iuh.fit.server.model.entity.Inventory();
         inventory.setProduct(savedProduct);
         inventory.setQuantity(0);
         inventoryRepository.save(inventory);
         log.info("Inventory created for product {} with quantity 0", savedProduct.getProductId());
-        
+
         // Upload images to Cloudinary in parallel
         List<String> publicIds;
         try {
@@ -150,7 +152,7 @@ public class ProductServiceImpl implements ProductService {
             log.error("Error uploading images in parallel", e);
             throw new RuntimeException("Failed to upload images: " + e.getMessage());
         }
-        
+
         // Create Image entities with uploaded URLs
         List<Image> imageEntities = new ArrayList<>();
         for (int i = 0; i < publicIds.size(); i++) {
@@ -160,33 +162,34 @@ public class ProductServiceImpl implements ProductService {
             image.setProduct(savedProduct);
             imageEntities.add(image);
         }
-        
+
         // Save all images
         imageRepository.saveAll(imageEntities);
         log.info("Saved {} images for product {}", imageEntities.size(), savedProduct.getProductId());
-        
+
         // Set images to product for response
         savedProduct.setImages(imageEntities);
-        
+
         return productMapper.toResponse(savedProduct);
     }
 
     @Override
     public ProductResponse update(int productId, ProductRequest request) {
         log.info("Updating product id {}: {}", productId, request);
-        
+
         // Check if product exists
         Product existingProduct = productRepository.findById(productId)
                 .orElseThrow(() -> new ResourceNotFoundException("Product not found with id: " + productId));
-        
+
         // Validate brand
         Brand brand = brandRepository.findById(request.getBrandId())
                 .orElseThrow(() -> new ResourceNotFoundException("Brand not found with id: " + request.getBrandId()));
-        
+
         // Validate category
         Category category = categoryRepository.findById(request.getCategoryId())
-                .orElseThrow(() -> new ResourceNotFoundException("Category not found with id: " + request.getCategoryId()));
-        
+                .orElseThrow(
+                        () -> new ResourceNotFoundException("Category not found with id: " + request.getCategoryId()));
+
         // Update fields
         existingProduct.setName(request.getName());
         existingProduct.setDescription(request.getDescription());
@@ -198,30 +201,32 @@ public class ProductServiceImpl implements ProductService {
         existingProduct.setStatus(request.getStatus());
         existingProduct.setBrand(brand);
         existingProduct.setCategory(category);
-        
+
         // Save
         Product updatedProduct = productRepository.save(existingProduct);
         log.info("Product updated successfully: {}", productId);
-        
+
         return productMapper.toResponse(updatedProduct);
     }
 
     @Override
-    public ProductResponse updateWithImages(int productId, ProductRequest request, List<MultipartFile> newImages, List<Integer> imagesToDelete, Integer primaryImageId) {
+    public ProductResponse updateWithImages(int productId, ProductRequest request, List<MultipartFile> newImages,
+            List<Integer> imagesToDelete, Integer primaryImageId) {
         log.info("Updating product {} with images management", productId);
-        
+
         // Check if product exists
         Product existingProduct = productRepository.findById(productId)
                 .orElseThrow(() -> new ResourceNotFoundException("Product not found with id: " + productId));
-        
+
         // Validate brand
         Brand brand = brandRepository.findById(request.getBrandId())
                 .orElseThrow(() -> new ResourceNotFoundException("Brand not found with id: " + request.getBrandId()));
-        
+
         // Validate category
         Category category = categoryRepository.findById(request.getCategoryId())
-                .orElseThrow(() -> new ResourceNotFoundException("Category not found with id: " + request.getCategoryId()));
-        
+                .orElseThrow(
+                        () -> new ResourceNotFoundException("Category not found with id: " + request.getCategoryId()));
+
         // Update product fields
         existingProduct.setName(request.getName());
         existingProduct.setDescription(request.getDescription());
@@ -233,15 +238,15 @@ public class ProductServiceImpl implements ProductService {
         existingProduct.setStatus(request.getStatus());
         existingProduct.setBrand(brand);
         existingProduct.setCategory(category);
-        
+
         // Save product first
         Product savedProduct = productRepository.save(existingProduct);
-        
+
         // Delete specified images in parallel
         if (imagesToDelete != null && !imagesToDelete.isEmpty()) {
             List<String> publicIdsToDelete = new ArrayList<>();
             List<Integer> imageIdsToDelete = new ArrayList<>();
-            
+
             // Collect URLs and IDs
             for (Integer imageId : imagesToDelete) {
                 Image imageToDelete = imageRepository.findById(imageId).orElse(null);
@@ -250,7 +255,7 @@ public class ProductServiceImpl implements ProductService {
                     imageIdsToDelete.add(imageId);
                 }
             }
-            
+
             // Delete from Cloudinary in parallel (async, non-blocking)
             if (!publicIdsToDelete.isEmpty()) {
                 cloudinaryService.deleteImagesParallel(publicIdsToDelete)
@@ -260,17 +265,17 @@ public class ProductServiceImpl implements ProductService {
                             return null;
                         });
             }
-            
+
             // Delete from database immediately
             imageRepository.deleteAllById(imageIdsToDelete);
             imageRepository.flush(); // Flush to ensure deletion is committed
             log.info("Deleted {} images from product {}", imageIdsToDelete.size(), productId);
-            
+
             // Reload product to refresh the images collection after deletion
             savedProduct = productRepository.findById(productId)
                     .orElseThrow(() -> new ResourceNotFoundException("Product not found with id: " + productId));
         }
-        
+
         // Upload new images in parallel
         if (newImages != null && !newImages.isEmpty()) {
             List<String> publicIds;
@@ -281,7 +286,7 @@ public class ProductServiceImpl implements ProductService {
                 log.error("Error uploading new images in parallel", e);
                 throw new RuntimeException("Failed to upload new images: " + e.getMessage());
             }
-            
+
             // Create Image entities with uploaded URLs
             List<Image> imageEntities = new ArrayList<>();
             for (String publicId : publicIds) {
@@ -291,25 +296,25 @@ public class ProductServiceImpl implements ProductService {
                 image.setProduct(savedProduct);
                 imageEntities.add(image);
             }
-            
+
             // Save all new images
             imageRepository.saveAll(imageEntities);
             log.info("Added {} new images to product {}", imageEntities.size(), productId);
         }
-        
+
         // Update primary image if specified
         if (primaryImageId != null) {
             // Reload product again to get fresh images collection
             Product freshProduct = productRepository.findById(productId)
                     .orElseThrow(() -> new ResourceNotFoundException("Product not found with id: " + productId));
-            
+
             // Reset all images to non-primary
             List<Image> allImages = freshProduct.getImages();
             if (allImages != null && !allImages.isEmpty()) {
                 allImages.forEach(img -> img.setPrimary(false));
                 imageRepository.saveAll(allImages);
             }
-            
+
             // Set new primary image
             Image primaryImage = imageRepository.findById(primaryImageId).orElse(null);
             if (primaryImage != null && primaryImage.getProduct().getProductId() == productId) {
@@ -318,28 +323,28 @@ public class ProductServiceImpl implements ProductService {
                 log.info("Set image {} as primary for product {}", primaryImageId, productId);
             }
         }
-        
+
         log.info("Product {} updated successfully with images", productId);
-        
+
         // Reload product to get updated images
         Product reloadedProduct = productRepository.findById(productId)
                 .orElseThrow(() -> new ResourceNotFoundException("Product not found with id: " + productId));
-        
+
         return productMapper.toResponse(reloadedProduct);
     }
 
     @Override
     public void delete(int productId) {
         log.info("Soft deleting product (setting status to INACTIVE): {}", productId);
-        
+
         // Find product
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new ResourceNotFoundException("Product not found with id: " + productId));
-        
+
         // Set status to INACTIVE instead of deleting
         product.setStatus(ProductStatus.INACTIVE);
         product.setLastUpdated(new java.util.Date());
-        
+
         // Save
         productRepository.save(product);
         log.info("Product status set to INACTIVE successfully: {}", productId);
@@ -349,47 +354,53 @@ public class ProductServiceImpl implements ProductService {
     @Transactional(readOnly = true)
     public List<ProductResponse> findBestSellers(int limit) {
         log.info("Finding best selling products with limit: {}", limit);
-        
+
         // Get best selling product IDs from order_item table
         List<Object[]> bestSellingData = orderItemRepository.findBestSellingProductsWithLimit(limit);
-        
+
         if (bestSellingData.isEmpty()) {
             log.warn("No best selling products found, returning empty list");
             return new ArrayList<>();
         }
-        
+
         // Extract product IDs
         List<Integer> productIds = bestSellingData.stream()
                 .map(row -> ((Number) row[0]).intValue())
                 .collect(Collectors.toList());
-        
+
         log.info("Found {} best selling product IDs: {}", productIds.size(), productIds);
-        
+
         // Fetch products by IDs, maintaining the order
         List<Product> products = productRepository.findAllById(productIds);
-        
+
+        // Filter only ACTIVE products
+        products = products.stream()
+                .filter(p -> p.getStatus() == ProductStatus.ACTIVE)
+                .collect(Collectors.toList());
+
         // Sort products to maintain the order from query (best sellers first)
         products.sort((p1, p2) -> {
             int index1 = productIds.indexOf(p1.getProductId());
             int index2 = productIds.indexOf(p2.getProductId());
             return Integer.compare(index1, index2);
         });
-        
+
         // Map to response
         List<ProductResponse> responses = products.stream()
                 .map(productMapper::toResponse)
                 .collect(Collectors.toList());
-        
+
         log.info("Returning {} best selling products", responses.size());
         return responses;
     }
 
     @Override
     @Transactional(readOnly = true)
-    public Page<ProductResponse> filterProducts(Integer brandId, Integer categoryId, String status, String searchTerm, Pageable pageable) {
-        log.info("Filtering products with brandId: {}, categoryId: {}, status: '{}', searchTerm: '{}', pageable: {}", 
+    public Page<ProductResponse> filterProducts(Integer brandId, Integer categoryId, String status, String searchTerm,
+            Pageable pageable) {
+        log.info("Filtering products with brandId: {}, categoryId: {}, status: '{}', searchTerm: '{}', pageable: {}",
                 brandId, categoryId, status, searchTerm, pageable);
-        
+
         // Convert String status to ProductStatus enum
         ProductStatus productStatus = null;
         if (status != null && !status.trim().isEmpty()) {
@@ -399,8 +410,9 @@ public class ProductServiceImpl implements ProductService {
                 log.warn("Invalid status value: {}", status);
             }
         }
-        
-        Page<Product> products = productRepository.filterProducts(brandId, categoryId, productStatus, searchTerm, pageable);
+
+        Page<Product> products = productRepository.filterProducts(brandId, categoryId, productStatus, searchTerm,
+                pageable);
         log.info("✅ Filter result: Found {} products", products.getNumberOfElements());
         return products.map(productMapper::toResponse);
     }
@@ -436,7 +448,7 @@ public class ProductServiceImpl implements ProductService {
     @Transactional(readOnly = true)
     public List<ProductSummaryResponse> getProductSummaries(String status) {
         log.info("Getting product summaries with status: {}", status);
-        
+
         List<Product> products;
         if (status != null && !status.trim().isEmpty()) {
             try {
@@ -451,10 +463,9 @@ public class ProductServiceImpl implements ProductService {
             products = productRepository.findAll();
             log.info("Found {} products (all statuses)", products.size());
         }
-        
+
         return products.stream()
                 .map(product -> new ProductSummaryResponse(product.getProductId(), product.getName()))
                 .collect(Collectors.toList());
     }
 }
-
