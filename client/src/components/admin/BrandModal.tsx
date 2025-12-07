@@ -35,30 +35,39 @@ export const BrandModal = ({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [imagePreview, setImagePreview] = useState<string>("");
+  const [isImageDeleted, setIsImageDeleted] = useState(false);
 
   useEffect(() => {
-    if (initialData) {
-      setFormData(initialData);
-      // Set preview for existing image
-      if (initialData.url) {
-        const cloudinaryBaseUrl =
-          "https://res.cloudinary.com/piin/image/upload/brand/";
-        const fullUrl = initialData.url.startsWith("http")
-          ? initialData.url
-          : `${cloudinaryBaseUrl}${initialData.url}`;
-        setImagePreview(fullUrl);
+    if (isOpen) {
+      setIsImageDeleted(false); // Reset deleted flag when modal opens
+      if (initialData) {
+        setFormData(initialData);
+        // Set preview for existing image
+        if (initialData.url) {
+          const cloudinaryBaseUrl =
+            "https://res.cloudinary.com/piin/image/upload/brand/";
+          const fullUrl = initialData.url.startsWith("http")
+            ? initialData.url
+            : `${cloudinaryBaseUrl}${initialData.url}`;
+          setImagePreview(fullUrl);
+        } else {
+          setImagePreview("");
+        }
+      } else {
+        setFormData({
+          name: "",
+          country: "",
+          description: "",
+          url: "",
+          image: undefined,
+        });
+        setImagePreview("");
       }
-    } else {
-      setFormData({
-        name: "",
-        country: "",
-        description: "",
-        url: "",
-        image: undefined,
-      });
-      setImagePreview("");
+      setErrors({});
+      // Reset file input
+      const fileInput = document.getElementById("brand-logo-input") as HTMLInputElement;
+      if (fileInput) fileInput.value = "";
     }
-    setErrors({});
   }, [initialData, isOpen]);
 
   const validate = () => {
@@ -80,6 +89,13 @@ export const BrandModal = ({
 
     if (formData.url && formData.url.length > 500) {
       newErrors.url = "URL must not exceed 500 characters";
+    }
+
+    // Validate logo: require image for new brand or when existing image was deleted
+    if (mode === "add" && !formData.image) {
+      newErrors.image = "Brand logo is required";
+    } else if (mode === "edit" && isImageDeleted && !formData.image) {
+      newErrors.image = "Brand logo is required";
     }
 
     setErrors(newErrors);
@@ -209,23 +225,44 @@ export const BrandModal = ({
               <label className="block text-sm font-semibold text-gray-700 mb-1">
                 Brand Logo
               </label>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) {
-                    setFormData({ ...formData, image: file });
-                    // Create preview
-                    const reader = new FileReader();
-                    reader.onloadend = () => {
-                      setImagePreview(reader.result as string);
-                    };
-                    reader.readAsDataURL(file);
-                  }
-                }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
+
+              {/* Custom File Input */}
+              <div className="relative">
+                <input
+                  type="file"
+                  id="brand-logo-input"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      setFormData({ ...formData, image: file });
+                      // Create preview
+                      const reader = new FileReader();
+                      reader.onloadend = () => {
+                        setImagePreview(reader.result as string);
+                      };
+                      reader.readAsDataURL(file);
+                    }
+                  }}
+                  className="hidden"
+                />
+                <label
+                  htmlFor="brand-logo-input"
+                  className={`flex items-center justify-between w-full px-3 py-2 border-2 rounded-lg cursor-pointer hover:border-blue-400 focus-within:ring-4 focus-within:ring-blue-200 bg-white transition-all ${
+                    errors.image ? "border-red-500" : "border-gray-300"
+                  }`}
+                >
+                  <span className="font-semibold text-gray-700 truncate">
+                    {formData.image?.name ||
+                      (!isImageDeleted && initialData?.url) ||
+                      "Không có tệp nào được chọn"}
+                  </span>
+                  <span className="ml-2 px-3 py-1 bg-blue-600 text-white font-semibold rounded hover:bg-blue-700 whitespace-nowrap transition-colors">
+                    Chọn tệp
+                  </span>
+                </label>
+              </div>
+
               {errors.image && (
                 <p className="text-red-500 text-sm mt-1">{errors.image}</p>
               )}
@@ -251,8 +288,14 @@ export const BrandModal = ({
                       <button
                         type="button"
                         onClick={() => {
-                          setFormData({ ...formData, image: undefined });
+                          setFormData({ ...formData, image: undefined, url: "" });
                           setImagePreview("");
+                          setIsImageDeleted(true); // Mark as deleted
+                          // Reset file input
+                          const fileInput = document.getElementById(
+                            "brand-logo-input"
+                          ) as HTMLInputElement;
+                          if (fileInput) fileInput.value = "";
                         }}
                         className="text-white hover:text-red-500 transition-colors"
                         title="Remove image"
