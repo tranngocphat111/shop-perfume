@@ -13,7 +13,6 @@ import java.util.List;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-@lombok.ToString(exclude = {"orders"})
 public class Coupon {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -30,6 +29,6 @@ public class Coupon {
     private Date endDate;
     private boolean isActive;
 
-    @OneToMany(mappedBy = "coupon")
-    private List<Order> orders;
+    // Note: Đã bỏ mối quan hệ với Order
+    // Order không còn lưu coupon_id nữa, chỉ lưu discountAmount
 }
