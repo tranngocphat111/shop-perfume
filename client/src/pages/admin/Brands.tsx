@@ -160,7 +160,7 @@ export const Brands = () => {
           );
         }
         const cloudinaryBaseUrl =
-          "https://res.cloudinary.com/dmmk9dwqd/image/upload/";
+          "https://res.cloudinary.com/piin/image/upload/brand/";
         const imageUrl = value.startsWith("http")
           ? value
           : `${cloudinaryBaseUrl}${value}`;
@@ -170,9 +170,13 @@ export const Brands = () => {
             alt="Brand logo"
             className="w-12 h-12 object-contain rounded"
             onError={(e) => {
-              (e.target as HTMLImageElement).style.display = "none";
-              (e.target as HTMLImageElement).parentElement!.innerHTML =
-                '<div class="w-12 h-12 bg-gray-200 rounded flex items-center justify-center"><i class="fas fa-image text-gray-400"></i></div>';
+              const img = e.target as HTMLImageElement;
+              const parent = img.parentElement;
+              if (parent) {
+                img.style.display = "none";
+                parent.innerHTML =
+                  '<div class="w-12 h-12 bg-gray-200 rounded flex items-center justify-center"><i class="fas fa-image text-gray-400"></i></div>';
+              }
             }}
           />
         );
@@ -284,8 +288,17 @@ export const Brands = () => {
       console.error("Error deleting brand:", err);
       const errorMessage = err instanceof Error ? err.message : "Unknown error";
 
+      // Check if error is due to authentication
+      if (
+        errorMessage.includes("401") ||
+        errorMessage.includes("Unauthorized")
+      ) {
+        showError(
+          "You don't have permission to delete brands. Please login as ADMIN."
+        );
+      }
       // Check if error is due to active products
-      if (errorMessage.includes("ACTIVE product")) {
+      else if (errorMessage.includes("ACTIVE product")) {
         showError(errorMessage);
       } else {
         showError(`Failed to delete brand: ${errorMessage}`);

@@ -38,34 +38,6 @@ public class BrandServiceImpl implements BrandService {
     private final CloudinaryService cloudinaryService;
 
     /**
-     * Format brand URL to Cloudinary format
-     * If URL is just a filename, prepend "brand/" path
-     * Format: brand/{filename} (e.g., "brand/Yves_Saint_Laurent.png")
-     */
-    private void formatBrandUrl(BrandResponse response) {
-        if (response.getUrl() != null && !response.getUrl().isEmpty()) {
-            String url = response.getUrl();
-            log.debug("Original brand URL for {}: {}", response.getName(), url);
-
-            // If URL doesn't start with http, it's just a filename
-            if (!url.startsWith("http://") && !url.startsWith("https://")) {
-                // If URL doesn't already start with "brand/", add it
-                if (!url.startsWith("brand/")) {
-                    String formattedUrl = "brand/" + url;
-                    response.setUrl(formattedUrl);
-                    log.debug("Formatted brand URL for {}: {}", response.getName(), formattedUrl);
-                } else {
-                    log.debug("Brand URL already has 'brand/' prefix: {}", url);
-                }
-            } else {
-                log.debug("Brand URL is full URL, keeping as is: {}", url);
-            }
-        } else {
-            log.warn("Brand {} has no URL", response.getName());
-        }
-    }
-
-    /**
      * Lấy tất cả brands
      */
     @Override
@@ -74,9 +46,6 @@ public class BrandServiceImpl implements BrandService {
         List<BrandResponse> brands = brandRepository.findAll().stream()
                 .map(brandMapper::toResponse)
                 .collect(Collectors.toList());
-
-        // Format brand URLs
-        brands.forEach(this::formatBrandUrl);
 
         return brands;
     }
@@ -98,7 +67,6 @@ public class BrandServiceImpl implements BrandService {
         }
 
         Page<BrandResponse> responses = brands.map(brandMapper::toResponse);
-        responses.forEach(this::formatBrandUrl);
 
         return responses;
     }
@@ -114,7 +82,6 @@ public class BrandServiceImpl implements BrandService {
                 .orElseThrow(() -> new ResourceNotFoundException("Brand not found with id: " + id));
 
         BrandResponse response = brandMapper.toResponse(brand);
-        formatBrandUrl(response);
 
         return response;
     }
@@ -147,7 +114,6 @@ public class BrandServiceImpl implements BrandService {
         log.info("Brand created successfully with id: {}", savedBrand.getBrandId());
 
         BrandResponse response = brandMapper.toResponse(savedBrand);
-        formatBrandUrl(response);
 
         return response;
     }
@@ -193,7 +159,6 @@ public class BrandServiceImpl implements BrandService {
         log.info("Brand updated successfully: {}", id);
 
         BrandResponse response = brandMapper.toResponse(updatedBrand);
-        formatBrandUrl(response);
 
         return response;
     }

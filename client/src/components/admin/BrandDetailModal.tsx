@@ -26,8 +26,7 @@ export const BrandDetailModal = ({
     }
 
     // If it's a Cloudinary path, construct the full URL
-    const cloudinaryBaseUrl =
-      "https://res.cloudinary.com/dmmk9dwqd/image/upload/";
+    const cloudinaryBaseUrl = "https://res.cloudinary.com/piin/image/upload/brand/";
     return `${cloudinaryBaseUrl}${brand.url}`;
   };
 
@@ -103,16 +102,6 @@ export const BrandDetailModal = ({
                 <div className="font-semibold text-gray-700">Description:</div>
                 <div className="col-span-2 text-gray-900 whitespace-pre-wrap">
                   {brand.description}
-                </div>
-              </div>
-            )}
-
-            {/* Logo URL */}
-            {brand.url && (
-              <div className="grid grid-cols-3 gap-4">
-                <div className="font-semibold text-gray-700">Logo Path:</div>
-                <div className="col-span-2 text-gray-600 text-sm break-all">
-                  {brand.url}
                 </div>
               </div>
             )}
