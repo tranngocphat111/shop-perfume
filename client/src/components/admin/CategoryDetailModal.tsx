@@ -21,8 +21,6 @@ export const CategoryDetailModal = ({
         return "Female";
       case "UNISEX":
         return "Unisex";
-      default:
-        return "N/A";
     }
   };
 

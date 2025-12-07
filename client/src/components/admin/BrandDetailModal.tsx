@@ -33,6 +33,17 @@ export const BrandDetailModal = ({
 
   const logoUrl = getLogoUrl();
 
+  const formatDate = (date?: string) => {
+    if (!date) return "N/A";
+    return new Date(date).toLocaleString("vi-VN", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
   return (
     <div
       className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto p-4"
@@ -103,6 +114,46 @@ export const BrandDetailModal = ({
                 <div className="font-semibold text-gray-700">Description:</div>
                 <div className="col-span-2 text-gray-900 whitespace-pre-wrap">
                   {brand.description}
+                </div>
+              </div>
+            )}
+
+            {/* Created At */}
+            {brand.createdAt && (
+              <div className="grid grid-cols-3 gap-4">
+                <div className="font-semibold text-gray-700">Created At:</div>
+                <div className="col-span-2 text-gray-900">
+                  {formatDate(brand.createdAt)}
+                </div>
+              </div>
+            )}
+
+            {/* Created By */}
+            {brand.createdBy && (
+              <div className="grid grid-cols-3 gap-4">
+                <div className="font-semibold text-gray-700">Created By:</div>
+                <div className="col-span-2 text-gray-900">
+                  {brand.createdBy}
+                </div>
+              </div>
+            )}
+
+            {/* Last Updated */}
+            {brand.lastUpdated && (
+              <div className="grid grid-cols-3 gap-4">
+                <div className="font-semibold text-gray-700">Last Updated:</div>
+                <div className="col-span-2 text-gray-900">
+                  {formatDate(brand.lastUpdated)}
+                </div>
+              </div>
+            )}
+
+            {/* Last Updated By */}
+            {brand.lastUpdatedBy && (
+              <div className="grid grid-cols-3 gap-4">
+                <div className="font-semibold text-gray-700">Updated By:</div>
+                <div className="col-span-2 text-gray-900">
+                  {brand.lastUpdatedBy}
                 </div>
               </div>
             )}
