@@ -8,8 +8,8 @@ import org.springframework.stereotype.Component;
 @Component
 public class PasswordResetEmailTemplate implements EmailTemplate {
     
-    private static final String SUBJECT = "Đặt lại mật khẩu - Shop Perfume";
-    
+    private static final String SUBJECT = "Đặt lại mật khẩu - SPTN";
+
     @Override
     public String getSubject(Object... data) {
         return SUBJECT;
@@ -29,7 +29,7 @@ public class PasswordResetEmailTemplate implements EmailTemplate {
                 <meta charset="UTF-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
                 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-                <title>Đặt lại mật khẩu - Shop Perfume</title>
+                <title>Đặt lại mật khẩu - SPTN</title>
             </head>
             <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333333; background-color: #f4f4f4; margin: 0; padding: 0;">
                 <table role="presentation" style="width: 100%%; border-collapse: collapse; background-color: #f4f4f4; padding: 20px;">
@@ -38,8 +38,9 @@ public class PasswordResetEmailTemplate implements EmailTemplate {
                             <table role="presentation" style="width: 600px; max-width: 100%%; border-collapse: collapse; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
                                 <!-- Header -->
                                 <tr>
-                                    <td style="padding: 40px 40px 20px; text-align: center; border-bottom: 1px solid #eeeeee;">
-                                        <h1 style="margin: 0; color: #000000; font-size: 28px; font-weight: 600;">Shop Perfume</h1>
+                                    <td style="padding: 24px 24px 12px; text-align: center; border-bottom: 1px solid #eeeeee;">
+                                        <img src="https://res.cloudinary.com/piin/image/upload/logo/sptn_den.png" alt="SPTN" style="width:140px;height:auto;display:block;margin:0 auto 8px;" />
+                                        <h1 style="margin: 0; color: #000000; font-size: 24px; font-weight: 700; letter-spacing: 1px;">SPTN</h1>
                                     </td>
                                 </tr>
                                 <!-- Content -->
@@ -48,7 +49,7 @@ public class PasswordResetEmailTemplate implements EmailTemplate {
                                         <h2 style="margin: 0 0 20px; color: #333333; font-size: 24px; font-weight: 500;">Đặt lại mật khẩu</h2>
                                         <p style="margin: 0 0 20px; color: #666666; font-size: 16px;">Xin chào,</p>
                                         <p style="margin: 0 0 30px; color: #666666; font-size: 16px;">
-                                            Bạn đã yêu cầu đặt lại mật khẩu cho tài khoản Shop Perfume của mình. 
+                                            Bạn đã yêu cầu đặt lại mật khẩu cho tài khoản SPTN của mình.
                                             Vui lòng nhấp vào nút bên dưới để đặt lại mật khẩu:
                                         </p>
                                         <!-- CTA Button -->
@@ -79,9 +80,9 @@ public class PasswordResetEmailTemplate implements EmailTemplate {
                                 </tr>
                                 <!-- Footer -->
                                 <tr>
-                                    <td style="padding: 20px 40px; background-color: #f8f9fa; border-top: 1px solid #eeeeee; text-align: center;">
+                                    <td style="padding: 20px 24px; background-color: #f8f9fa; border-top: 1px solid #eeeeee; text-align: center;">
                                         <p style="margin: 0; color: #999999; font-size: 12px;">
-                                            Email này được gửi tự động từ hệ thống Shop Perfume.<br>
+                                            Email này được gửi tự động từ hệ thống SPTN.<br>
                                             Vui lòng không trả lời email này.
                                         </p>
                                     </td>
@@ -121,4 +122,3 @@ public class PasswordResetEmailTemplate implements EmailTemplate {
             """.formatted(resetUrl);
     }
 }
-
