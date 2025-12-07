@@ -46,8 +46,9 @@ public class Order {
     @OneToOne(mappedBy = "order", cascade = CascadeType.ALL)
     private Shipment shipment;
 
-    @ManyToOne
-    @JoinColumn(name = "coupon_id")
-    private Coupon coupon;
+    // Số tiền đã được giảm (từ coupon hoặc khuyến mãi)
+    // Tính bằng: (tổng giá sản phẩm) - totalAmount
+    @Column(columnDefinition = "DOUBLE DEFAULT 0")
+    private Double discountAmount = 0.0;
 }
 

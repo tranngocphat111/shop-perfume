@@ -119,7 +119,9 @@ public class CouponServiceImpl implements CouponService {
 
         return coupons.stream()
                 .filter(c -> {
-                    // Filter WELCOME5: chỉ hiển thị cho user chưa từng đặt hàng và chưa sử dụng
+                    // Filter WELCOME5: chỉ hiển thị cho user chưa từng đặt hàng
+                    // NOTE: Không còn kiểm tra hasUserUsedCoupon vì Order không lưu coupon relationship nữa
+                    // User có thể dùng coupon nhiều lần miễn là đủ điểm
                     if ("WELCOME5".equalsIgnoreCase(c.getCode())) {
                         if (userId == null) {
                             return false; // Guest không được dùng

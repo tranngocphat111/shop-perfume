@@ -136,7 +136,7 @@ export const useCheckoutOrder = (): UseCheckoutOrderReturn => {
         paymentMethod: formData.paymentMethod,
         cartItems: mappedCartItems,
         totalAmount: finalTotal,
-        couponId: appliedCouponIdParam || undefined,
+        discountAmount: discount, // Gửi số tiền đã giảm để backend lưu
       };
 
       // Submit order
@@ -150,12 +150,6 @@ export const useCheckoutOrder = (): UseCheckoutOrderReturn => {
           subMessage: `Đơn hàng #${response.orderId} đã được tạo`,
         });
         setShowSuccessNotification(true);
-
-        // Refresh user info if points were used (coupon applied)
-        if (appliedCouponIdParam) {
-          // Dispatch event to refresh user info in Header
-          window.dispatchEvent(new Event('refreshUserInfo'));
-        }
 
         // Remove items khỏi cart ngay khi tạo đơn thành công (cho cả COD và QR)
         // Vì đơn hàng đã được tạo thành công, items đã được "reserve" cho đơn hàng này
@@ -343,11 +337,6 @@ export const useCheckoutOrder = (): UseCheckoutOrderReturn => {
                   subMessage: `Đơn hàng #${matchingOrder.orderId} đã được tạo`,
                 });
                 setShowSuccessNotification(true);
-                
-                // Refresh user info if points were used
-                if (appliedCouponIdParam) {
-                  window.dispatchEvent(new Event('refreshUserInfo'));
-                }
                 
                 // Remove items from cart (cho cả COD và QR)
                 const productIdsToRemove = cartItems.map(item => item.product.productId);

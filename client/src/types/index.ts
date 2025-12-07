@@ -229,13 +229,14 @@ export interface OrderRequest {
   paymentMethod: string;
   cartItems: OrderItemRequest[];
   totalAmount: number;
-  couponId?: number; // ID của coupon (nếu user đã chọn coupon)
+  discountAmount?: number; // Số tiền đã được giảm
 }
 
 export interface OrderResponse {
   orderId: number;
   orderDate: string;
   totalAmount: number;
+  discountAmount?: number; // Số tiền đã giảm
   guestName: string;
   guestEmail: string;
   guestPhone: string;
