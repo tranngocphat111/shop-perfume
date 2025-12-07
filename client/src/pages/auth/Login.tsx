@@ -17,6 +17,20 @@ const getErrorMessage = (error: unknown): string => {
   return "Đăng nhập thất bại. Vui lòng kiểm tra email và mật khẩu.";
 };
 
+// Lightweight types to avoid `any` and satisfy ESLint
+type GoogleWindow = {
+  accounts?: {
+    id?: {
+      cancel?: () => void;
+      disableAutoSelect?: () => void;
+    };
+  };
+};
+
+type CredentialResponse = {
+  credential?: string;
+};
+
 const Login: React.FC = () => {
   const [formData, setFormData] = useState({
     email: "",
@@ -28,12 +42,35 @@ const Login: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const navigate = useNavigate();
-  const { login, isAuthenticated } = useAuth();
+  const { login, isAuthenticated, isAdmin } = useAuth();
   const { mergeCartOnLogin } = useCart();
 
   // Auto scroll to top when component mounts
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "smooth" });
+
+    // Best-effort: cancel Google One Tap / credential prompt if it's present
+    try {
+      const g = (window as unknown as GoogleWindow).accounts?.id;
+      if (g) {
+        if (typeof g.disableAutoSelect === "function") {
+          try {
+            g.disableAutoSelect();
+          } catch (err) {
+            console.debug("disableAutoSelect failed:", err);
+          }
+        }
+        if (typeof g.cancel === "function") {
+          try {
+            g.cancel();
+          } catch (err) {
+            console.debug("g.cancel failed:", err);
+          }
+        }
+      }
+    } catch (err) {
+      console.debug("Google One Tap cancellation failed:", err);
+    }
   }, []);
 
   usePageTitle({
@@ -42,8 +79,12 @@ const Login: React.FC = () => {
     image: "https://res.cloudinary.com/piin/image/upload/v1762171215/banner.zip-2_gdvc0y.jpg"
   });
 
-  // Redirect if already logged in
-  if (isAuthenticated) {
+  // Redirect if already logged in: admins -> /admin, customers -> /
+  if (isAuthenticated && isAdmin) {
+    return <Navigate to="/admin" replace />;
+  }
+
+  if (isAuthenticated && !isAdmin) {
     return <Navigate to="/" replace />;
   }
 
@@ -89,23 +130,19 @@ const Login: React.FC = () => {
     try {
       const response = await authService.login(formData);
 
-      if (!response.token) {
-        setError("Login failed: No token received");
-        setLoading(false);
+      // If admin logs in from public login page, redirect them to admin dashboard
+      if (response.role === "ADMIN") {
+        // Perform normal login (no cart merge) and redirect to admin
+        await login(response.token, response);
+        navigate("/admin");
         return;
       }
 
-      // Admin redirect to admin dashboard, customer to home
-      if (response.role === "ADMIN") {
-        await login(response.token, response);
-        navigate("/admin");
-      } else {
-        // Merge cart before navigating for customers
-        await login(response.token, response, () =>
-          mergeCartOnLogin(response.userId)
-        );
-        navigate("/");
-      }
+      // Customer login: merge cart then navigate to home
+      await login(response.token, response, () =>
+        mergeCartOnLogin(response.userId)
+      );
+      navigate("/");
     } catch (err) {
       console.error("Login error:", err);
       setError(getErrorMessage(err));
@@ -114,7 +151,7 @@ const Login: React.FC = () => {
     }
   };
 
-  const handleGoogleSuccess = async (credentialResponse: any) => {
+  const handleGoogleSuccess = async (credentialResponse: CredentialResponse) => {
     if (!credentialResponse.credential) {
       setError("Không thể lấy thông tin từ Google. Vui lòng thử lại.");
       return;
@@ -128,23 +165,17 @@ const Login: React.FC = () => {
         credentialResponse.credential
       );
 
-      if (!response.token) {
-        setError("Google login failed: No token received");
-        setGoogleLoading(false);
-        return;
-      }
-
-      // Admin redirect to admin dashboard, customer to home
       if (response.role === "ADMIN") {
         await login(response.token, response);
         navigate("/admin");
-      } else {
-        // Merge cart before navigating for customers
-        await login(response.token, response, () =>
-          mergeCartOnLogin(response.userId)
-        );
-        navigate("/");
+        return;
       }
+
+      // Customer Google login
+      await login(response.token, response, () =>
+        mergeCartOnLogin(response.userId)
+      );
+      navigate("/");
     } catch (err) {
       console.error("Google Sign-In error:", err);
       setError(getErrorMessage(err));

@@ -25,7 +25,7 @@ public class JwtTokenProvider {
     @Value("${jwt.secret:mySecretKeyForJWTTokenGenerationAndValidation123456}")
     private String jwtSecret;
 
-    @Value("${jwt.expiration:86400000}") // 24 hours
+    @Value("${jwt.expiration:900000}") // 15 minutes
     private long jwtExpiration;
 
     @Value("${jwt.refresh-expiration:604800000}") // 7 days

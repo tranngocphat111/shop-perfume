@@ -1,5 +1,7 @@
 package iuh.fit.server.repository;
 
+import iuh.fit.server.model.entity.Brand;
+import iuh.fit.server.model.entity.Category;
 import iuh.fit.server.model.entity.Product;
 import iuh.fit.server.model.enums.ProductStatus;
 import org.springframework.data.domain.Page;
@@ -17,7 +19,7 @@ import java.util.List;
  */
 @Repository
 public interface ProductRepository extends JpaRepository<Product, Integer> {
-    
+
     // Tìm kiếm sản phẩm theo tên (case-insensitive)
     List<Product> findByNameContainingIgnoreCase(String name);
 
@@ -32,24 +34,24 @@ public interface ProductRepository extends JpaRepository<Product, Integer> {
 
     /**
      * Tìm kiếm sản phẩm theo tất cả các thuộc tính
-     * Hỗ trợ tìm kiếm theo: productId, name, description, perfumeLongevity, 
-     * perfumeConcentration, releaseYear, columeMl, status, unitPrice, 
+     * Hỗ trợ tìm kiếm theo: productId, name, description, perfumeLongevity,
+     * perfumeConcentration, releaseYear, columeMl, status, unitPrice,
      * createdBy, lastUpdatedBy, brand.name, category.name
      */
     @Query("SELECT p FROM Product p WHERE " +
-           "CAST(p.productId AS string) LIKE CONCAT('%', :searchTerm, '%') OR " +
-           "LOWER(p.name) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
-           "LOWER(p.description) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
-           "LOWER(p.perfumeLongevity) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
-           "LOWER(p.perfumeConcentration) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
-           "LOWER(p.releaseYear) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
-           "CAST(p.columeMl AS string) LIKE CONCAT('%', :searchTerm, '%') OR " +
-           "LOWER(CAST(p.status AS string)) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
-           "CAST(p.unitPrice AS string) LIKE CONCAT('%', :searchTerm, '%') OR " +
-           "LOWER(p.createdBy) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
-           "LOWER(p.lastUpdatedBy) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
-           "LOWER(p.brand.name) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
-           "LOWER(p.category.name) LIKE LOWER(CONCAT('%', :searchTerm, '%'))")
+            "CAST(p.productId AS string) LIKE CONCAT('%', :searchTerm, '%') OR " +
+            "LOWER(p.name) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
+            "LOWER(p.description) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
+            "LOWER(p.perfumeLongevity) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
+            "LOWER(p.perfumeConcentration) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
+            "LOWER(p.releaseYear) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
+            "CAST(p.columeMl AS string) LIKE CONCAT('%', :searchTerm, '%') OR " +
+            "LOWER(CAST(p.status AS string)) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
+            "CAST(p.unitPrice AS string) LIKE CONCAT('%', :searchTerm, '%') OR " +
+            "LOWER(p.createdBy) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
+            "LOWER(p.lastUpdatedBy) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
+            "LOWER(p.brand.name) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
+            "LOWER(p.category.name) LIKE LOWER(CONCAT('%', :searchTerm, '%'))")
     Page<Product> searchProducts(@Param("searchTerm") String searchTerm, Pageable pageable);
 
     /**
@@ -57,20 +59,29 @@ public interface ProductRepository extends JpaRepository<Product, Integer> {
      * Hỗ trợ filter kết hợp: có thể filter theo brand, category, status hoặc tất cả
      */
     @Query("SELECT p FROM Product p WHERE " +
-           "(:brandId IS NULL OR p.brand.brandId = :brandId) AND " +
-           "(:categoryId IS NULL OR p.category.categoryId = :categoryId) AND " +
-           "(:status IS NULL OR p.status = :status) AND " +
-           "(:searchTerm IS NULL OR :searchTerm = '' OR " +
-           "LOWER(p.name) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
-           "LOWER(p.brand.name) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
-           "LOWER(p.category.name) LIKE LOWER(CONCAT('%', :searchTerm, '%')))")
+            "(:brandId IS NULL OR p.brand.brandId = :brandId) AND " +
+            "(:categoryId IS NULL OR p.category.categoryId = :categoryId) AND " +
+            "(:status IS NULL OR p.status = :status) AND " +
+            "(:searchTerm IS NULL OR :searchTerm = '' OR " +
+            "LOWER(p.name) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
+            "LOWER(p.brand.name) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
+            "LOWER(p.category.name) LIKE LOWER(CONCAT('%', :searchTerm, '%')))")
     Page<Product> filterProducts(
-        @Param("brandId") Integer brandId,
-        @Param("categoryId") Integer categoryId,
-        @Param("status") ProductStatus status,
-        @Param("searchTerm") String searchTerm,
-        Pageable pageable
-    );
+            @Param("brandId") Integer brandId,
+            @Param("categoryId") Integer categoryId,
+            @Param("status") ProductStatus status,
+            @Param("searchTerm") String searchTerm,
+            Pageable pageable);
 
     List<Product> findByStatus(ProductStatus status);
+
+    /**
+     * Tìm sản phẩm theo brand và status
+     */
+    List<Product> findByBrandAndStatus(Brand brand, ProductStatus status);
+
+    /**
+     * Tìm sản phẩm theo category và status
+     */
+    List<Product> findByCategoryAndStatus(Category category, ProductStatus status);
 }
