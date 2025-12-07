@@ -11,13 +11,11 @@ import org.springframework.data.annotation.LastModifiedBy;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.util.Date;
-import java.util.List;
 
 @Entity
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-@lombok.ToString(exclude = { "orders" })
 @EntityListeners(AuditingEntityListener.class)
 public class Coupon {
     @Id
@@ -59,7 +57,4 @@ public class Coupon {
     @LastModifiedBy
     @Column(name = "last_updated_by")
     private String lastUpdatedBy;
-
-    @OneToMany(mappedBy = "coupon")
-    private List<Order> orders;
 }
