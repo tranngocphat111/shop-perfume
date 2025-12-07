@@ -325,10 +325,10 @@ public class SepayWebhookController {
         try {
             List<WebhookLog> logs;
             if (orderId != null) {
-                logs = webhookLogRepository.findByExtractedOrderIdOrderByReceivedAtDesc(orderId);
+                logs = webhookLogRepository.findByExtractedOrderIdOrderByCreatedAtDesc(orderId);
             } else {
                 Pageable pageable = PageRequest.of(0, limit);
-                Page<WebhookLog> page = webhookLogRepository.findAllByOrderByReceivedAtDesc(pageable);
+                Page<WebhookLog> page = webhookLogRepository.findAllByOrderByCreatedAtDesc(pageable);
                 logs = page.getContent();
             }
             return ResponseEntity.ok().body(logs);
