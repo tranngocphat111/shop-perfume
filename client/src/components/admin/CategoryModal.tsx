@@ -39,7 +39,7 @@ export const CategoryModal = ({
         setFormData({
           name: "",
           description: "",
-          gender: undefined,
+          gender: "" as any,
         });
       }
       setErrors({});
@@ -53,6 +53,10 @@ export const CategoryModal = ({
       newErrors.name = "Category name is required";
     } else if (formData.name.length < 2 || formData.name.length > 100) {
       newErrors.name = "Category name must be 2-100 characters";
+    }
+
+    if (!formData.gender) {
+      newErrors.gender = "Gender is required";
     }
 
     if (formData.description && formData.description.length > 5000) {
@@ -138,7 +142,7 @@ export const CategoryModal = ({
             {/* Gender */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-1">
-                Gender
+                Gender <span className="text-red-500">*</span>
               </label>
               <select
                 value={formData.gender || ""}
@@ -150,14 +154,18 @@ export const CategoryModal = ({
                       : undefined,
                   })
                 }
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  errors.gender ? "border-red-500" : "border-gray-300"
+                }`}
                 disabled={isSubmitting}
               >
-                <option value="">Select gender (optional)</option>
                 <option value="MALE">Male</option>
                 <option value="FEMALE">Female</option>
                 <option value="UNISEX">Unisex</option>
               </select>
+              {errors.gender && (
+                <p className="text-red-500 text-sm mt-1">{errors.gender}</p>
+              )}
             </div>
 
             {/* Description */}
