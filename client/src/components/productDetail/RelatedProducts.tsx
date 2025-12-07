@@ -42,8 +42,8 @@ export const RelatedProducts = ({
       );
     } else if (quantity <= 10) {
       return (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-orange-50 border border-orange-200 rounded-full text-xs font-medium text-orange-700">
-          <span className="w-1.5 h-1.5 bg-orange-500 rounded-full animate-pulse"></span>
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-yellow-50 border border-yellow-200 rounded-full text-xs font-medium text-yellow-700">
+          <span className="w-1.5 h-1.5 bg-yellow-500 rounded-full animate-pulse"></span>
           Sắp hết
         </span>
       );

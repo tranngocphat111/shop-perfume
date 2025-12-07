@@ -360,6 +360,34 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       throw new Error("Sản phẩm đã hết hàng");
     }
 
+    // Kiểm tra số lượng trong giỏ hiện tại
+    const existingItem = cart.items.find(
+      (item) => item.product.productId === product.productId
+    );
+
+    if (existingItem) {
+      const currentQuantity = existingItem.quantity;
+      const newQuantity = currentQuantity + quantity;
+
+      // Nếu số lượng trong giỏ + số lượng thêm > tồn kho, báo lỗi
+      if (stockQuantity !== undefined && newQuantity > stockQuantity) {
+        console.warn(
+          `Cannot add ${quantity} more of product ${product.productId}: would exceed stock (current: ${currentQuantity}, stock: ${stockQuantity})`
+        );
+        throw new Error(
+          `Chỉ còn ${stockQuantity} sản phẩm trong kho (bạn đã có ${currentQuantity} trong giỏ)`
+        );
+      }
+    } else {
+      // Sản phẩm mới, kiểm tra số lượng thêm có vượt quá tồn kho không
+      if (stockQuantity !== undefined && quantity > stockQuantity) {
+        console.warn(
+          `Cannot add ${quantity} of product ${product.productId}: exceeds stock (${stockQuantity})`
+        );
+        throw new Error(`Chỉ còn ${stockQuantity} sản phẩm trong kho`);
+      }
+    }
+
     setCart((prevCart) => {
       const existingItem = prevCart.items.find(
         (item) => item.product.productId === product.productId
@@ -368,28 +396,14 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       let newItems: CartItem[];
       if (existingItem) {
         const newQuantity = existingItem.quantity + quantity;
-        // Validate against stock
-        const finalQuantity =
-          stockQuantity !== undefined && newQuantity > stockQuantity
-            ? stockQuantity
-            : newQuantity;
 
         newItems = prevCart.items.map((item) =>
           item.product.productId === product.productId
-            ? { ...item, quantity: finalQuantity, stockQuantity }
+            ? { ...item, quantity: newQuantity, stockQuantity }
             : item
         );
       } else {
-        // Validate initial quantity against stock
-        const finalQuantity =
-          stockQuantity !== undefined && quantity > stockQuantity
-            ? stockQuantity
-            : quantity;
-
-        newItems = [
-          ...prevCart.items,
-          { product, quantity: finalQuantity, stockQuantity },
-        ];
+        newItems = [...prevCart.items, { product, quantity, stockQuantity }];
       }
 
       return {

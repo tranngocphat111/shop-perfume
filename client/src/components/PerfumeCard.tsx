@@ -58,15 +58,30 @@ export const PerfumeCard = ({ inventory, brands = [] }: ProductCardProps) => {
         window.dispatchEvent(new CustomEvent("addToCart"));
       }
 
-      // Show success notification (you can replace with toast later)
+      // Show success notification with stacking
+      let container = document.getElementById("notification-container");
+      if (!container) {
+        container = document.createElement("div");
+        container.id = "notification-container";
+        container.className = "fixed top-20 right-4 z-50 flex flex-col gap-2";
+        document.body.appendChild(container);
+      }
+
       const notification = document.createElement("div");
       notification.className =
-        "fixed top-20 right-4 bg-black text-white px-6 py-3 rounded-lg shadow-lg z-50 animate-fade-in";
+        "bg-black text-white px-6 py-3 rounded-lg shadow-lg animate-slide-down";
       notification.textContent = `✓ Đã thêm "${product.name}" vào giỏ hàng`;
-      document.body.appendChild(notification);
+      container.appendChild(notification);
 
       setTimeout(() => {
-        notification.remove();
+        notification.style.opacity = "0";
+        notification.style.transition = "opacity 0.3s";
+        setTimeout(() => {
+          notification.remove();
+          if (container && container.children.length === 0) {
+            container.remove();
+          }
+        }, 300);
       }, 3000);
     } catch (error) {
       console.error("Error adding to cart:", error);
@@ -75,15 +90,37 @@ export const PerfumeCard = ({ inventory, brands = [] }: ProductCardProps) => {
           ? error.message
           : "Có lỗi xảy ra khi thêm vào giỏ hàng";
 
-      // Show error notification
+      // Trigger header to show (white background) without scrolling
+      const currentScrollY = window.scrollY;
+      if (currentScrollY > 200) {
+        // Dispatch custom event to force show header
+        window.dispatchEvent(new CustomEvent("addToCart"));
+      }
+
+      // Show error notification with stacking
+      let container = document.getElementById("notification-container");
+      if (!container) {
+        container = document.createElement("div");
+        container.id = "notification-container";
+        container.className = "fixed top-20 right-4 z-50 flex flex-col gap-2";
+        document.body.appendChild(container);
+      }
+
       const notification = document.createElement("div");
       notification.className =
-        "fixed top-20 right-4 bg-red-600 text-white px-6 py-3 rounded-lg shadow-lg z-50 animate-fade-in";
+        "bg-red-600 text-white px-6 py-3 rounded-lg shadow-lg animate-slide-down";
       notification.textContent = `✗ ${errorMessage}`;
-      document.body.appendChild(notification);
+      container.appendChild(notification);
 
       setTimeout(() => {
-        notification.remove();
+        notification.style.opacity = "0";
+        notification.style.transition = "opacity 0.3s";
+        setTimeout(() => {
+          notification.remove();
+          if (container && container.children.length === 0) {
+            container.remove();
+          }
+        }, 300);
       }, 3000);
     } finally {
       setTimeout(() => setIsAdding(false), 500);
@@ -147,7 +184,7 @@ export const PerfumeCard = ({ inventory, brands = [] }: ProductCardProps) => {
         {/* --- PHẦN THÊM MỚI: SẮP HẾT HÀNG (Style giống mẫu) --- */}
         {!isOutOfStock && isLowStock && (
           <div className="absolute top-3 left-3 z-30">
-            <div className="bg-[#FF8C42] text-white px-3 py-1 uppercase tracking-[0.15em] text-[10px] font-semibold shadow-md">
+            <div className="bg-yellow-500 text-white px-3 py-1 uppercase tracking-[0.15em] text-[10px] font-semibold shadow-md">
               Sắp hết
             </div>
           </div>

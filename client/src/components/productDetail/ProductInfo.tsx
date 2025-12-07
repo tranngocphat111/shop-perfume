@@ -222,12 +222,12 @@ export const ProductInfo = ({
                 </span>
               </div>
             ) : isLowStock ? (
-              <div className="inline-flex items-center gap-2.5 px-4 py-2.5 bg-orange-50 border border-orange-200 rounded-full">
-                <div className="w-2.5 h-2.5 bg-orange-500 rounded-full animate-pulse"></div>
-                <span className="text-sm font-semibold text-orange-700">
+              <div className="inline-flex items-center gap-2.5 px-4 py-2.5 bg-yellow-50 border border-yellow-200 rounded-full">
+                <div className="w-2.5 h-2.5 bg-yellow-500 rounded-full animate-pulse"></div>
+                <span className="text-sm font-semibold text-yellow-700">
                   Sắp hết hàng
                 </span>
-                <span className="text-sm text-orange-600 font-semibold">
+                <span className="text-sm text-yellow-600 font-semibold">
                   ({inventory.quantity || 0} sản phẩm)
                 </span>
               </div>
