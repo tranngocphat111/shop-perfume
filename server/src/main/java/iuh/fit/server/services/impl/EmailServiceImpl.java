@@ -44,7 +44,7 @@ public class EmailServiceImpl implements EmailService {
     @Value("${resend.from-email}")
     private String fromEmail;
 
-    @Value("${app.frontend.url:${FRONTEND_URL:http://localhost:3000}}")
+    @Value("${app.frontend.url:${FRONTEND_URL:https://shop-perfume.vercel.app}}")
     private String frontendUrl;
 
     /**

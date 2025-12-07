@@ -53,7 +53,7 @@ public class AuthServiceImpl implements AuthService{
     private final PasswordResetTokenRepository passwordResetTokenRepository;
     private final EmailService emailService;
     
-    @Value("${frontend.url:${app.frontend.url:}}")
+    @Value("${app.frontend.url:${FRONTEND_URL:https://shop-perfume.vercel.app}}")
     private String frontendUrl;
     
     /**
