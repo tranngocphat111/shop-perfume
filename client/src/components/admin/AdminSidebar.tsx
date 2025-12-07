@@ -30,6 +30,11 @@ export const AdminSidebar = ({ isOpen }: AdminSidebarProps) => {
       label: "Categories",
     },
     {
+      path: "/admin/coupons",
+      icon: "fa-ticket-alt",
+      label: "Coupons",
+    },
+    {
       path: "/admin/suppliers",
       icon: "fa-truck",
       label: "Suppliers",

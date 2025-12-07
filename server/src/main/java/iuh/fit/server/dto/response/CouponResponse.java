@@ -19,5 +19,10 @@ public class CouponResponse {
     private Date endDate;
     private boolean isActive;
     private Boolean canUse; // Whether user has enough points to use this coupon
-}
 
+    // Audit fields
+    private Date createdAt;
+    private Date lastUpdated;
+    private String createdBy;
+    private String lastUpdatedBy;
+}

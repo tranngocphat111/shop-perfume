@@ -8,6 +8,8 @@ export { BrandModal, type BrandFormData } from "./BrandModal";
 export { BrandDetailModal } from "./BrandDetailModal";
 export { CategoryModal, type CategoryFormData } from "./CategoryModal";
 export { CategoryDetailModal } from "./CategoryDetailModal";
+export { CouponModal, type CouponFormData } from "./CouponModal";
+export { CouponDetailModal } from "./CouponDetailModal";
 export { SupplierModal, type SupplierFormData } from "./SupplierModal";
 export { SupplierDetailModal } from "./SupplierDetailModal";
 export { StockAdjustmentModal } from "./StockAdjustmentModal";
