@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useRef } from "react";
+import { createContext, useContext, useState, useEffect, useRef, useCallback } from "react";
 import type { ReactNode } from "react";
 import type { Cart, CartItem, Product } from "../types";
 import { useAuth } from "./AuthContext";
@@ -575,7 +575,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   };
 
   // Refresh stock quantities for all cart items
-  const refreshCartStock = async () => {
+  const refreshCartStock = useCallback(async () => {
     if (cart.items.length === 0) {
       return;
     }
@@ -605,7 +605,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     } catch (error) {
       console.error("Error refreshing cart stock:", error);
     }
-  };
+  }, [cart.items]);
 
   return (
     <CartContext.Provider

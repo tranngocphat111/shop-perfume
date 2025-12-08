@@ -51,7 +51,8 @@ export const Cart = () => {
     // Refresh stock quantities when entering cart page
     // This ensures stock is up-to-date, especially after checkout errors
     refreshCartStock().catch(console.error);
-  }, [location.pathname, refreshCartStock]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname]); // Only run when pathname changes, not when refreshCartStock changes
 
   usePageTitle({
     title: "Giỏ hàng - STPN Perfume",
