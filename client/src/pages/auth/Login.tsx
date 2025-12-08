@@ -42,7 +42,7 @@ const Login: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const navigate = useNavigate();
-  const { login, isAuthenticated, isAdmin } = useAuth();
+  const { login, isAuthenticated } = useAuth();
   const { mergeCartOnLogin } = useCart();
 
   // Auto scroll to top when component mounts
