@@ -31,7 +31,7 @@ export const HeaderLogo = ({ isScrolled, isCompact }: HeaderLogoProps) => {
       <div className="flex flex-col justify-center -space-y-0.5" style={{ fontFamily: "'Playfair Display', 'Cormorant Garamond', serif" }}>
         <span
           className={`font-semibold tracking-tight transition-all duration-300 leading-none italic ${
-            isCompact ? "text-base md:text-lg" : "text-lg md:text-xl"
+            isCompact ? "text-lg md:text-xl" : "text-xl md:text-2xl"
           } ${
             isScrolled ? "text-gray-900" : "text-white"
           }`}>
@@ -39,7 +39,7 @@ export const HeaderLogo = ({ isScrolled, isCompact }: HeaderLogoProps) => {
         </span>
         <span
           className={`font-light tracking-wider transition-all duration-300 leading-none italic ${
-            isCompact ? "text-[10px] md:text-xs" : "text-xs md:text-sm"
+            isCompact ? "text-xs md:text-sm" : "text-sm md:text-base"
           } ${
             isScrolled ? "text-gray-500" : "text-white/70"
           }`}>

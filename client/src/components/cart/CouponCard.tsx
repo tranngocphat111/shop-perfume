@@ -74,7 +74,7 @@ export default function CouponCard({
         </div>
         
         <div className="mt-3">
-          <p className="text-base text-gray-600 font-medium">{data.description}</p>
+          <p className="text-sm text-gray-600 font-normal">{data.description}</p>
           <div className="flex items-center justify-between mt-1.5">
             <p className="text-sm text-gray-400">HSD: {formatEndDate(data.endDate)}</p>
             <div className="flex items-center gap-1 text-sm">

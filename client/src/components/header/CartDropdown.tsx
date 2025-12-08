@@ -164,7 +164,7 @@ export const CartDropdown = ({ isVisible, onClose }: CartDropdownProps) => {
             {/* Summary */}
             <div className="p-4 space-y-2">
               <div className="flex items-center justify-between text-sm">
-                <span className="text-gray-600">Tổng sản phẩm</span>
+                <span className="text-gray-600">Tổng số lượng sản phẩm</span>
                 <span className="font-semibold text-gray-900">{availableQuantity}</span>
               </div>
               <div className="flex items-center justify-between">

@@ -59,7 +59,9 @@ export const HeaderNavigation = ({
                 window.scrollTo({ top: 0, behavior: "smooth" });
               }
             }}
-            className={`font-normal transition-all duration-300 relative group text-sm md:text-base ${
+            className={`font-normal transition-all duration-300 relative group ${
+              isCompact ? "text-sm" : "text-base"
+            } ${
               isScrolled
                 ? "text-gray-700 hover:text-black"
                 : "text-white hover:text-gray-200"

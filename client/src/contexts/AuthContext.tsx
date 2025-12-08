@@ -36,7 +36,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isLoading, setIsLoading] = useState(true);
 
   // Wrap logout trong useCallback để tránh dependency issues
-  const logout = useCallback(async (redirectTo?: string) => {
+  const logout = useCallback(async () => {
     setIsLoading(true);
     try {
       await authService.logout();
@@ -49,9 +49,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } finally {
       setUser(null);
       setIsLoading(false);
-      // Redirect to specified page or default login page
-      const redirectPath = redirectTo || "/login";
-      window.location.href = redirectPath;
+      // Just reload the current page, no redirect
+      window.location.reload();
     }
   }, []);
 

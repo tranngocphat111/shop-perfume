@@ -108,7 +108,7 @@ export const ProductInfo = ({
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, margin: "-50px" }}
         transition={{ duration: 0.4, delay: 0.4 }}
-        className="text-1xl md:text-2xl font-bold text-black leading-tight"
+        className="text-1xl md:text-2xl font-semibold text-black leading-tight"
       >
         {product.name}
       </motion.h1>
@@ -152,7 +152,7 @@ export const ProductInfo = ({
         className="flex items-center gap-4"
       >
         {showPrice ? (
-          <span className="text-2xl md:text-3xl lg:text-4xl font-bold text-black">
+          <span className="text-2xl md:text-3xl lg:text-4xl font-semibold text-black">
             {formatCurrency(product.unitPrice)} ₫
           </span>
         ) : (

@@ -279,9 +279,9 @@ export const PerfumeCard = ({ inventory, brands = [] }: ProductCardProps) => {
       </div>
 
       {/* Product Info */}
-      <div className="product-info space-y-1">
+      <div className="product-info space-y-0.5">
         <h3
-          className={`text-sm sm:text-base md:text-lg font-normal text-gray-900 line-clamp-2 min-h-[2rem] sm:min-h-[2.5rem] leading-relaxed transition-colors ${
+          className={` text-sm sm:text-base md:text-md font-normal text-gray-900 line-clamp-2  sm:min-h-[2rem] transition-colors ${
             isHovered ? "text-gray-600" : ""
           }`}
         >
@@ -290,11 +290,11 @@ export const PerfumeCard = ({ inventory, brands = [] }: ProductCardProps) => {
 
         <div className="product-price">
           {showPrice ? (
-            <span className="text-base sm:text-lg md:text-xl font-semibold text-black">
+            <span className="text-base sm:text-lg md:text-md font-medium text-black">
               {formatCurrency(product.unitPrice)}&nbsp;₫
             </span>
           ) : (
-            <span className="text-base sm:text-lg md:text-xl font-normal text-gray-500">
+            <span className="text-base sm:text-lg md:text-md font-normal text-gray-500">
               Liên hệ
             </span>
           )}
@@ -302,7 +302,7 @@ export const PerfumeCard = ({ inventory, brands = [] }: ProductCardProps) => {
 
         {/* Stock Status Text - Phần này giữ nguyên text bên dưới để người dùng vẫn đọc được chi tiết */}
         {isLowStock ? (
-          <div className="text-xs sm:text-sm text-orange-500 font-medium">
+          <div className="text-xs sm:text-sm text-orange-500 ">
             Chỉ còn {inventory.quantity} sản phẩm
           </div>
         ) : null}

@@ -29,7 +29,7 @@ export const OrderDetails: React.FC<OrderDetailsProps> = ({
 
       {/* Customer Info */}
       <div>
-        <h4 className="text-sm font-semibold text-gray-700 mb-2">Thông tin khách hàng</h4>
+        <h4 className="text-lg font-semibold text-gray-700 mb-4">Thông tin khách hàng</h4>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
           <div>
             <span className="text-gray-600">Họ tên:</span>

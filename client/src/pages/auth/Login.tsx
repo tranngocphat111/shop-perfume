@@ -79,12 +79,8 @@ const Login: React.FC = () => {
     image: "https://res.cloudinary.com/piin/image/upload/v1762171215/banner.zip-2_gdvc0y.jpg"
   });
 
-  // Redirect if already logged in: admins -> /admin, customers -> /
-  if (isAuthenticated && isAdmin) {
-    return <Navigate to="/admin" replace />;
-  }
-
-  if (isAuthenticated && !isAdmin) {
+  // Redirect if already logged in - always to home page for client login
+  if (isAuthenticated) {
     return <Navigate to="/" replace />;
   }
 
@@ -130,15 +126,7 @@ const Login: React.FC = () => {
     try {
       const response = await authService.login(formData);
 
-      // If admin logs in from public login page, redirect them to admin dashboard
-      if (response.role === "ADMIN") {
-        // Perform normal login (no cart merge) and redirect to admin
-        await login(response.token, response);
-        navigate("/admin");
-        return;
-      }
-
-      // Customer login: merge cart then navigate to home
+      // Always merge cart and navigate to home for client login page
       await login(response.token, response, () =>
         mergeCartOnLogin(response.userId)
       );
@@ -165,13 +153,7 @@ const Login: React.FC = () => {
         credentialResponse.credential
       );
 
-      if (response.role === "ADMIN") {
-        await login(response.token, response);
-        navigate("/admin");
-        return;
-      }
-
-      // Customer Google login
+      // Always merge cart and navigate to home for client login page
       await login(response.token, response, () =>
         mergeCartOnLogin(response.userId)
       );
