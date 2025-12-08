@@ -319,6 +319,38 @@ public class OrderController {
         }
     }
 
+    /**
+     * Update order item quantity (Admin only)
+     */
+    @PutMapping("/{orderId}/items/{orderItemId}/quantity")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Update order item quantity", description = "Update quantity for an order item (Admin only)")
+    public ResponseEntity<?> updateOrderItemQuantity(
+            @PathVariable Integer orderId,
+            @PathVariable Integer orderItemId,
+            @RequestParam Integer quantity) {
+        try {
+            log.info("REST request to update order item quantity for order: {}, item: {}, quantity: {}", 
+                    orderId, orderItemId, quantity);
+            
+            if (quantity <= 0) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(new ErrorResponse("Quantity must be greater than 0"));
+            }
+            
+            orderService.updateOrderItemQuantity(orderId, orderItemId, quantity);
+            return ResponseEntity.ok(new UpdateResponse(true, "Order item quantity updated successfully"));
+        } catch (RuntimeException e) {
+            log.error("Error updating order item quantity: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ErrorResponse(e.getMessage()));
+        } catch (Exception e) {
+            log.error("Error updating order item quantity", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ErrorResponse("Có lỗi xảy ra khi cập nhật số lượng sản phẩm: " + e.getMessage()));
+        }
+    }
+
     // Error Response DTO
     private record ErrorResponse(String message) {}
     

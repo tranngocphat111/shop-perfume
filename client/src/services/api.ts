@@ -15,6 +15,7 @@ const getApiBaseUrl = (): string => {
 };
 
 const API_BASE_URL = getApiBaseUrl();
+// const API_BASE_URL = "http://localhost:8080/api";
 
 console.log(
   "🌐 API Base URL:",

@@ -1,16 +1,27 @@
+import { useState } from "react";
 import type { OrderResponse } from "../../types";
+import { orderService } from "../../services/order.service";
+import { inventoryService } from "../../services/inventory.service";
 
 interface OrderDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
   order: OrderResponse | null;
+  onUpdate?: () => void;
+  readOnly?: boolean;
 }
 
 export const OrderDetailModal = ({
   isOpen,
   onClose,
   order,
+  onUpdate,
+  readOnly = false,
 }: OrderDetailModalProps) => {
+  const [editingItemId, setEditingItemId] = useState<number | null>(null);
+  const [editingQuantity, setEditingQuantity] = useState<number>(0);
+  const [isUpdating, setIsUpdating] = useState(false);
+
   if (!isOpen || !order) return null;
 
   const paymentStatusColors: Record<string, string> = {
@@ -24,6 +35,91 @@ export const OrderDetailModal = ({
     COD: "bg-blue-100 text-blue-800",
     BANK_TRANSFER: "bg-purple-100 text-purple-800",
     VNPAY: "bg-orange-100 text-orange-800",
+  };
+
+  const handleQuantityDoubleClick = (item: OrderResponse["orderItems"][0]) => {
+    setEditingItemId(item.orderItemId);
+    setEditingQuantity(item.quantity);
+  };
+
+  const handleQuantityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = parseInt(e.target.value);
+    if (!isNaN(value) && value > 0) {
+      setEditingQuantity(value);
+    }
+  };
+
+  const handleQuantityBlur = async () => {
+    if (editingItemId && editingQuantity > 0) {
+      setIsUpdating(true);
+      try {
+        // Find the current item being edited
+        const currentItem = order.orderItems.find(
+          (item) => item.orderItemId === editingItemId
+        );
+        if (!currentItem) {
+          alert("Item not found!");
+          return;
+        }
+
+        // Calculate the quantity difference
+        const quantityDiff = editingQuantity - currentItem.quantity;
+
+        // If increasing quantity, check inventory
+        if (quantityDiff > 0) {
+          const inventory = await inventoryService.getInventoryByProductId(
+            currentItem.productId
+          );
+
+          if (!inventory) {
+            alert(
+              `Không tìm thấy thông tin tồn kho cho sản phẩm "${currentItem.productName}"`
+            );
+            return;
+          }
+
+          // Check if there's enough stock
+          if (inventory.quantity < quantityDiff) {
+            alert(
+              `Không đủ hàng trong kho!\nSản phẩm: ${
+                currentItem.productName
+              }\nTồn kho hiện tại: ${
+                inventory.quantity
+              }\nSố lượng cần thêm: ${quantityDiff}\nVui lòng nhập số lượng nhỏ hơn hoặc bằng ${
+                currentItem.quantity + inventory.quantity
+              }`
+            );
+            return;
+          }
+        }
+
+        // Proceed with the update
+        await orderService.updateOrderItemQuantity(
+          order.orderId,
+          editingItemId,
+          editingQuantity
+        );
+        if (onUpdate) {
+          onUpdate();
+        }
+      } catch (error) {
+        console.error("Error updating quantity:", error);
+        alert("Failed to update quantity. Please try again.");
+      } finally {
+        setIsUpdating(false);
+      }
+    }
+    setEditingItemId(null);
+    setEditingQuantity(0);
+  };
+
+  const handleQuantityKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      handleQuantityBlur();
+    } else if (e.key === "Escape") {
+      setEditingItemId(null);
+      setEditingQuantity(0);
+    }
   };
 
   return (
@@ -243,6 +339,11 @@ export const OrderDetailModal = ({
                     <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Sub Total (đ)
                     </th>
+                    {!readOnly && (
+                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Actions
+                      </th>
+                    )}
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
@@ -260,7 +361,20 @@ export const OrderDetailModal = ({
                         </div>
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-medium text-gray-900">
-                        {item.quantity}
+                        {editingItemId === item.orderItemId ? (
+                          <input
+                            type="number"
+                            min="1"
+                            value={editingQuantity}
+                            onChange={handleQuantityChange}
+                            onKeyDown={handleQuantityKeyDown}
+                            autoFocus
+                            disabled={isUpdating}
+                            className="w-20 px-2 py-1 border border-blue-500 rounded text-right focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                        ) : (
+                          <span>{item.quantity}</span>
+                        )}
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-900">
                         {item.unitPrice.toLocaleString("vi-VN")}
@@ -268,6 +382,38 @@ export const OrderDetailModal = ({
                       <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-semibold text-blue-600">
                         {item.subTotal.toLocaleString("vi-VN")}
                       </td>
+                      {!readOnly && (
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-center">
+                          {editingItemId === item.orderItemId ? (
+                            <div className="flex justify-center gap-2">
+                              <button
+                                onClick={handleQuantityBlur}
+                                disabled={isUpdating}
+                                className="px-2 py-1 bg-green-500 text-white rounded hover:bg-green-600 disabled:opacity-50"
+                                title="Save">
+                                <i className="fas fa-check"></i>
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setEditingItemId(null);
+                                  setEditingQuantity(0);
+                                }}
+                                disabled={isUpdating}
+                                className="px-2 py-1 bg-red-500 text-white rounded hover:bg-red-600 disabled:opacity-50"
+                                title="Cancel">
+                                <i className="fas fa-times"></i>
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => handleQuantityDoubleClick(item)}
+                              className="text-yellow-600 hover:text-yellow-800"
+                              title="Edit">
+                              <i className="fas fa-edit"></i>
+                            </button>
+                          )}
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -275,20 +421,23 @@ export const OrderDetailModal = ({
                   {/* Hiển thị tổng giá sản phẩm trước giảm giá */}
                   <tr className="border-t">
                     <td
-                      colSpan={4}
+                      colSpan={readOnly ? 4 : 5}
                       className="px-4 py-3 text-right text-sm text-gray-700">
                       Tổng giá sản phẩm:
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-right text-sm text-gray-900">
-                      {order.orderItems.reduce((sum, item) => sum + item.subTotal, 0).toLocaleString("vi-VN")} đ
+                      {order.orderItems
+                        .reduce((sum, item) => sum + item.subTotal, 0)
+                        .toLocaleString("vi-VN")}{" "}
+                      đ
                     </td>
                   </tr>
-                  
+
                   {/* Hiển thị số tiền giảm nếu có */}
-                  {order.discountAmount && order.discountAmount > 0 && (
+                  {!!(order.discountAmount && order.discountAmount > 0) && (
                     <tr className="border-t">
                       <td
-                        colSpan={4}
+                        colSpan={readOnly ? 4 : 5}
                         className="px-4 py-3 text-right text-sm text-red-600">
                         Giảm giá:
                       </td>
@@ -297,11 +446,11 @@ export const OrderDetailModal = ({
                       </td>
                     </tr>
                   )}
-                  
+
                   {/* Tổng thanh toán */}
                   <tr className="border-t">
                     <td
-                      colSpan={4}
+                      colSpan={readOnly ? 4 : 5}
                       className="px-4 py-4 text-right text-sm font-bold text-gray-900">
                       Tổng thanh toán:
                     </td>
