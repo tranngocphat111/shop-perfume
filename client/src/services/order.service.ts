@@ -94,4 +94,9 @@ export const orderService = {
   updatePaymentStatus: async (orderId: number, status: string): Promise<void> => {
     return apiService.put(`/orders/${orderId}/payment-status?status=${status}`, {});
   },
+
+  // Update order item quantity (Admin)
+  updateOrderItemQuantity: async (orderId: number, orderItemId: number, quantity: number): Promise<void> => {
+    return apiService.put(`/orders/${orderId}/items/${orderItemId}/quantity?quantity=${quantity}`, {});
+  },
 };

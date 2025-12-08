@@ -46,6 +46,10 @@ export const Orders = () => {
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [detailOrder, setDetailOrder] = useState<OrderResponse | null>(null);
 
+  // Edit modal state
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editOrder, setEditOrder] = useState<OrderResponse | null>(null);
+
   // Inline edit payment status states
   const [editingPaymentId, setEditingPaymentId] = useState<number | null>(null);
   const [editingPaymentValue, setEditingPaymentValue] = useState<string>("");
@@ -335,6 +339,17 @@ export const Orders = () => {
     }
   };
 
+  const handleEdit = async (item: OrderData) => {
+    try {
+      const orderDetails = await orderService.getOrderById(item.id);
+      setEditOrder(orderDetails);
+      setIsEditModalOpen(true);
+    } catch (err) {
+      console.error("Error fetching order details:", err);
+      showError("Failed to load order details for editing.");
+    }
+  };
+
   if (loading && orders.length === 0) {
     return (
       <AdminLayout>
@@ -381,6 +396,7 @@ export const Orders = () => {
           pageSize={pageSize}
           title="Orders"
           onView={handleView}
+          onEdit={handleEdit}
           searchPlaceholder="Search by customer name, email, phone... (For ID search: 'ID 101')"
           onSearch={handleSearch}
           serverSide={true}
@@ -400,6 +416,34 @@ export const Orders = () => {
             setDetailOrder(null);
           }}
           order={detailOrder}
+          readOnly={true}
+        />
+
+        {/* Edit Modal */}
+        <OrderDetailModal
+          isOpen={isEditModalOpen}
+          onClose={() => {
+            setIsEditModalOpen(false);
+            setEditOrder(null);
+          }}
+          order={editOrder}
+          onUpdate={async () => {
+            // Refresh order details and table
+            if (editOrder) {
+              const updatedOrder = await orderService.getOrderById(
+                editOrder.orderId
+              );
+              setEditOrder(updatedOrder);
+            }
+            await fetchOrders(
+              currentPage,
+              pageSize,
+              sortField,
+              sortDirection,
+              searchQuery
+            );
+            success("Order item quantity updated successfully!");
+          }}
         />
 
         {/* Toast Container */}

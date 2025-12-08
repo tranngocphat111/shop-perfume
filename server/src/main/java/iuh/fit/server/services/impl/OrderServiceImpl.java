@@ -1011,5 +1011,54 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
         log.info("Payment status updated successfully for order: {}", orderId);
     }
 
+    @Override
+    @Transactional
+    public void updateOrderItemQuantity(Integer orderId, Integer orderItemId, Integer quantity) {
+        log.info("Updating order item quantity for order: {}, item: {}, new quantity: {}", 
+                orderId, orderItemId, quantity);
+        
+        // Validate quantity
+        if (quantity <= 0) {
+            throw new IllegalArgumentException("Quantity must be greater than 0");
+        }
+        
+        // Find order
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Order not found with id: " + orderId));
+        
+        // Find order item in this order
+        OrderItem orderItem = order.getOrderItems().stream()
+                .filter(item -> item.getOrderItemId() == orderItemId)
+                .findFirst()
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Order item not found with id: " + orderItemId + " in order: " + orderId));
+        
+        // Calculate old and new subtotal
+        double oldSubTotal = orderItem.getSubTotal();
+        int oldQuantity = orderItem.getQuantity();
+        double unitPrice = orderItem.getUnitPrice();
+        
+        // Update quantity and subtotal
+        orderItem.setQuantity(quantity);
+        double newSubTotal = unitPrice * quantity;
+        orderItem.setSubTotal(newSubTotal);
+        
+        // Update order total amount
+        double difference = newSubTotal - oldSubTotal;
+        order.setTotalAmount(order.getTotalAmount() + difference);
+        
+        // Update payment amount if exists
+        if (order.getPayment() != null) {
+            order.getPayment().setAmount(order.getTotalAmount());
+        }
+        
+        // Save order (cascade will save order items and payment)
+        orderRepository.save(order);
+        
+        log.info("Order item quantity updated successfully. Old quantity: {}, New quantity: {}, " +
+                "Old subtotal: {}, New subtotal: {}, Order total: {}", 
+                oldQuantity, quantity, oldSubTotal, newSubTotal, order.getTotalAmount());
+    }
+
 }
 

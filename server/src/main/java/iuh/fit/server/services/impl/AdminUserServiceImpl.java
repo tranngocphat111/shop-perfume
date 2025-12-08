@@ -5,6 +5,7 @@ import iuh.fit.server.model.entity.Role;
 import iuh.fit.server.model.entity.User;
 import iuh.fit.server.model.enums.PaymentStatus;
 import iuh.fit.server.repository.OrderRepository;
+import iuh.fit.server.repository.RoleRepository;
 import iuh.fit.server.repository.UserRepository;
 import iuh.fit.server.services.AdminUserService;
 import lombok.RequiredArgsConstructor;
@@ -14,7 +15,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -24,6 +27,7 @@ public class AdminUserServiceImpl implements AdminUserService {
     
     private final UserRepository userRepository;
     private final OrderRepository orderRepository;
+    private final RoleRepository roleRepository;
     
     @Override
     @Transactional(readOnly = true)
@@ -108,5 +112,37 @@ public class AdminUserServiceImpl implements AdminUserService {
         userRepository.save(user);
         
         log.info("User status updated successfully for id: {}", userId);
+    }
+    
+    @Override
+    @Transactional
+    public void updateUserRoles(Integer userId, List<String> roleNames) {
+        log.info("Updating user roles for id: {} to roles: {}", userId, roleNames);
+        
+        // Validate role list is not empty
+        if (roleNames == null || roleNames.isEmpty()) {
+            throw new IllegalArgumentException("At least one role must be specified");
+        }
+        
+        // Find user
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found with id: " + userId));
+        
+        // Find and validate all roles
+        Set<Role> roles = new HashSet<>();
+        for (String roleName : roleNames) {
+            Role role = roleRepository.findByName(roleName)
+                    .orElseThrow(() -> new IllegalArgumentException("Invalid role: " + roleName));
+            roles.add(role);
+        }
+        
+        // Update user roles
+        user.setRoles(roles);
+        user.setLastUpdated(new java.util.Date());
+        
+        // Save user
+        userRepository.save(user);
+        
+        log.info("User roles updated successfully for id: {}", userId);
     }
 }
