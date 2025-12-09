@@ -55,9 +55,10 @@ const ResetPassword: React.FC = () => {
   const [loading, setLoading] = useState(false);
 
   usePageTitle({
-    title: "Đặt lại mật khẩu - STPN Perfume",
+    title: "Đặt lại mật khẩu - SPTN Perfume",
     description: "Đặt lại mật khẩu mới cho tài khoản của bạn.",
-    image: "https://res.cloudinary.com/piin/image/upload/v1762171215/banner.zip-2_gdvc0y.jpg"
+    image:
+      "https://res.cloudinary.com/piin/image/upload/v1762171215/banner.zip-2_gdvc0y.jpg",
   });
 
   // Redirect if no token - must be before any early returns
@@ -176,7 +177,7 @@ const ResetPassword: React.FC = () => {
               whileHover={{ scale: 1.05 }}
               transition={{ duration: 0.2 }}
               src="https://res.cloudinary.com/piin/image/upload/v1763985017/logo/SPTN-BLACK.png"
-              alt="STPN Perfume"
+              alt="SPTN Perfume"
               className="h-16 mx-auto"
             />
           </Link>

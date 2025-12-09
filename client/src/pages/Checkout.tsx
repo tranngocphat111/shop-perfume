@@ -1,48 +1,49 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { useCart } from '../contexts/CartContext';
-import { useAuth } from '../contexts/AuthContext';
-import { 
-  ShippingForm, 
-  PaymentMethodSelector, 
-  OrderSummary, 
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
+import { useCart } from "../contexts/CartContext";
+import { useAuth } from "../contexts/AuthContext";
+import {
+  ShippingForm,
+  PaymentMethodSelector,
+  OrderSummary,
   CheckoutHeader,
-  CheckoutNotifications 
-} from '../components/checkout';
-import { CouponSelect } from '../components/checkout/CouponSelect';
-import { couponService, type Coupon } from '../services/coupon.service';
-import { userService, type UserInfo } from '../services/user.service';
-import { useCheckoutOrder } from '../hooks/useCheckoutOrder';
-import type { CheckoutFormData } from '../types';
-import { usePageTitle } from '../hooks/usePageTitle';
+  CheckoutNotifications,
+} from "../components/checkout";
+import { CouponSelect } from "../components/checkout/CouponSelect";
+import { couponService, type Coupon } from "../services/coupon.service";
+import { userService, type UserInfo } from "../services/user.service";
+import { useCheckoutOrder } from "../hooks/useCheckoutOrder";
+import type { CheckoutFormData } from "../types";
+import { usePageTitle } from "../hooks/usePageTitle";
 
 const initialFormData: CheckoutFormData = {
-  fullName: '',
-  phone: '',
-  email: '',
-  city: '',
-  cityCode: '',
-  district: '',
-  districtCode: '',
-  ward: '',
-  wardCode: '',
-  address: '',
-  note: '',
-  paymentMethod: 'cod',
+  fullName: "",
+  phone: "",
+  email: "",
+  city: "",
+  cityCode: "",
+  district: "",
+  districtCode: "",
+  ward: "",
+  wardCode: "",
+  address: "",
+  note: "",
+  paymentMethod: "cod",
 };
 
 export const Checkout: React.FC = () => {
   const navigate = useNavigate();
-  const { cart, appliedCouponId, discount, setAppliedCouponId, setDiscount } = useCart();
+  const { cart, appliedCouponId, discount, setAppliedCouponId, setDiscount } =
+    useCart();
   const { user, isAuthenticated } = useAuth();
-  
+
   // Filter out of stock items ngay từ đầu - chỉ lấy items còn hàng
-  const cartItems = cart.items.filter(item => 
-    item.stockQuantity === undefined || item.stockQuantity > 0
+  const cartItems = cart.items.filter(
+    (item) => item.stockQuantity === undefined || item.stockQuantity > 0
   );
   const [formData, setFormData] = useState<CheckoutFormData>(initialFormData);
-  
+
   // Use custom hook for order submission logic
   const {
     isProcessing,
@@ -55,40 +56,48 @@ export const Checkout: React.FC = () => {
     setIsErrorNotification,
     setValidationErrors,
   } = useCheckoutOrder();
-  
+
   // Coupon state
   const [coupons, setCoupons] = useState<Coupon[]>([]);
-  const [selectedCouponId, setSelectedCouponId] = useState<number | null>(appliedCouponId);
+  const [selectedCouponId, setSelectedCouponId] = useState<number | null>(
+    appliedCouponId
+  );
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
   const [isLoadingCoupons, setIsLoadingCoupons] = useState(false);
 
   // Scroll to top when component mounts
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
 
   usePageTitle({
-    title: "Thanh toán - STPN Perfume",
-    description: "Hoàn tất thông tin giao hàng và chọn phương thức thanh toán để đặt hàng.",
-    image: "https://res.cloudinary.com/piin/image/upload/v1762171215/banner.zip-2_gdvc0y.jpg"
+    title: "Thanh toán - SPTN Perfume",
+    description:
+      "Hoàn tất thông tin giao hàng và chọn phương thức thanh toán để đặt hàng.",
+    image:
+      "https://res.cloudinary.com/piin/image/upload/v1762171215/banner.zip-2_gdvc0y.jpg",
   });
 
   // Redirect if cart is empty (but allow navigation to payment page first)
   useEffect(() => {
     // Only redirect if we're still on checkout page and cart is empty
     // Don't redirect if notification is showing (user might be seeing error message)
-    if (cartItems.length === 0 && window.location.pathname === '/checkout' && !showSuccessNotification) {
-      navigate('/cart');
+    if (
+      cartItems.length === 0 &&
+      window.location.pathname === "/checkout" &&
+      !showSuccessNotification
+    ) {
+      navigate("/cart");
     }
   }, [cartItems, navigate, showSuccessNotification]);
 
   // Auto-fill user information if logged in
   useEffect(() => {
     if (isAuthenticated && user) {
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
-        fullName: prev.fullName || user.name || '',
-        email: prev.email || user.email || '',
+        fullName: prev.fullName || user.name || "",
+        email: prev.email || user.email || "",
         // Note: phone and address are not in AuthResponse, so we keep user input
       }));
     }
@@ -138,7 +147,7 @@ export const Checkout: React.FC = () => {
         setUserInfo(info);
       }
     } catch (error: any) {
-      console.error('Error loading user info:', error);
+      console.error("Error loading user info:", error);
     }
   };
 
@@ -148,7 +157,7 @@ export const Checkout: React.FC = () => {
       const availableCoupons = await couponService.getAvailableCoupons();
       setCoupons(availableCoupons);
     } catch (error: any) {
-      console.error('Error loading coupons:', error);
+      console.error("Error loading coupons:", error);
       setCoupons([]);
     } finally {
       setIsLoadingCoupons(false);
@@ -158,8 +167,11 @@ export const Checkout: React.FC = () => {
   // Validate and apply coupon
   const validateAndApplyCoupon = async (couponId: number) => {
     try {
-      const result = await couponService.validateCouponWithPoints(couponId, total);
-      
+      const result = await couponService.validateCouponWithPoints(
+        couponId,
+        total
+      );
+
       if (result.valid && result.discountAmount) {
         setDiscount(result.discountAmount);
         setAppliedCouponId(couponId);
@@ -167,7 +179,7 @@ export const Checkout: React.FC = () => {
         handleRemoveCoupon();
       }
     } catch (error) {
-      console.error('Error validating coupon:', error);
+      console.error("Error validating coupon:", error);
       handleRemoveCoupon();
     }
   };
@@ -178,12 +190,12 @@ export const Checkout: React.FC = () => {
       return;
     }
 
-    const coupon = coupons.find(c => c.couponId === couponId);
+    const coupon = coupons.find((c) => c.couponId === couponId);
     if (!coupon) return;
 
     // Check if user has enough points
     if (userInfo && userInfo.loyaltyPoints < coupon.requiredPoints) {
-      console.warn('Not enough loyalty points');
+      console.warn("Not enough loyalty points");
       return;
     }
 
@@ -197,28 +209,28 @@ export const Checkout: React.FC = () => {
   };
 
   const updateFormData = (data: Partial<CheckoutFormData>) => {
-    setFormData(prev => ({ ...prev, ...data }));
+    setFormData((prev) => ({ ...prev, ...data }));
     // Clear validation errors for all fields being updated
     const newErrors = { ...validationErrors };
     // Map frontend field names to backend field names
     const fieldMapping: Record<string, string[]> = {
-      fullName: ['fullName'],
-      phone: ['phone'],
-      email: ['email'],
-      cityCode: ['city'],
-      city: ['city'],
-      districtCode: ['district'],
-      district: ['district'],
-      wardCode: ['ward'],
-      ward: ['ward'],
-      address: ['address'],
-      paymentMethod: ['paymentMethod'],
+      fullName: ["fullName"],
+      phone: ["phone"],
+      email: ["email"],
+      cityCode: ["city"],
+      city: ["city"],
+      districtCode: ["district"],
+      district: ["district"],
+      wardCode: ["ward"],
+      ward: ["ward"],
+      address: ["address"],
+      paymentMethod: ["paymentMethod"],
     };
 
     // Clear errors for all related fields
-    Object.keys(data).forEach(field => {
+    Object.keys(data).forEach((field) => {
       const relatedFields = fieldMapping[field] || [field];
-      relatedFields.forEach(relatedField => {
+      relatedFields.forEach((relatedField) => {
         if (newErrors[relatedField]) {
           delete newErrors[relatedField];
         }
@@ -228,7 +240,9 @@ export const Checkout: React.FC = () => {
     setValidationErrors(newErrors);
   };
 
-  const handlePaymentMethodChange = (method: CheckoutFormData['paymentMethod']) => {
+  const handlePaymentMethodChange = (
+    method: CheckoutFormData["paymentMethod"]
+  ) => {
     updateFormData({ paymentMethod: method });
   };
 
@@ -238,61 +252,65 @@ export const Checkout: React.FC = () => {
 
     // Validate fullName
     if (!formData.fullName.trim()) {
-      errors.fullName = 'Họ và tên không được để trống';
+      errors.fullName = "Họ và tên không được để trống";
       hasError = true;
-    } else if (formData.fullName.trim().length < 2 || formData.fullName.trim().length > 100) {
-      errors.fullName = 'Họ và tên phải từ 2-100 ký tự';
+    } else if (
+      formData.fullName.trim().length < 2 ||
+      formData.fullName.trim().length > 100
+    ) {
+      errors.fullName = "Họ và tên phải từ 2-100 ký tự";
       hasError = true;
     } else if (!/^[\p{L}\s]+$/u.test(formData.fullName.trim())) {
-      errors.fullName = 'Họ và tên chỉ được chứa chữ cái và khoảng trắng';
+      errors.fullName = "Họ và tên chỉ được chứa chữ cái và khoảng trắng";
       hasError = true;
     }
 
     // Validate phone
     if (!formData.phone.trim()) {
-      errors.phone = 'Số điện thoại không được để trống';
+      errors.phone = "Số điện thoại không được để trống";
       hasError = true;
     } else if (!/^(\+84|0)[0-9]{9,10}$/.test(formData.phone.trim())) {
-      errors.phone = 'Số điện thoại không hợp lệ (VD: 0912345678 hoặc +84912345678)';
+      errors.phone =
+        "Số điện thoại không hợp lệ (VD: 0912345678 hoặc +84912345678)";
       hasError = true;
     }
 
     // Validate email
     if (!formData.email.trim()) {
-      errors.email = 'Email không được để trống';
+      errors.email = "Email không được để trống";
       hasError = true;
     } else if (formData.email.trim().length > 100) {
-      errors.email = 'Email không được quá 100 ký tự';
+      errors.email = "Email không được quá 100 ký tự";
       hasError = true;
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
-      errors.email = 'Email không hợp lệ';
+      errors.email = "Email không hợp lệ";
       hasError = true;
     }
 
     // Validate address fields
     if (!formData.cityCode) {
-      errors.city = 'Vui lòng chọn tỉnh/thành phố';
+      errors.city = "Vui lòng chọn tỉnh/thành phố";
       hasError = true;
     }
     if (!formData.districtCode) {
-      errors.district = 'Vui lòng chọn quận/huyện';
+      errors.district = "Vui lòng chọn quận/huyện";
       hasError = true;
     }
     if (!formData.wardCode) {
-      errors.ward = 'Vui lòng chọn xã/phường/thị trấn';
+      errors.ward = "Vui lòng chọn xã/phường/thị trấn";
       hasError = true;
     }
     if (!formData.address.trim()) {
-      errors.address = 'Địa chỉ không được để trống';
+      errors.address = "Địa chỉ không được để trống";
       hasError = true;
     } else if (formData.address.trim().length > 255) {
-      errors.address = 'Địa chỉ không được quá 255 ký tự';
+      errors.address = "Địa chỉ không được quá 255 ký tự";
       hasError = true;
     }
 
     // Validate note (optional but check max length)
     if (formData.note && formData.note.length > 500) {
-      errors.note = 'Ghi chú không được quá 500 ký tự';
+      errors.note = "Ghi chú không được quá 500 ký tự";
       hasError = true;
     }
 
@@ -313,7 +331,7 @@ export const Checkout: React.FC = () => {
 
     // Validate form
     if (!validateForm()) {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
 
@@ -323,9 +341,9 @@ export const Checkout: React.FC = () => {
   };
 
   const breadcrumbs = [
-    { label: 'Trang chủ', path: '/' },
-    { label: 'Giỏ hàng', path: '/cart' },
-    { label: 'Thanh toán' },
+    { label: "Trang chủ", path: "/" },
+    { label: "Giỏ hàng", path: "/cart" },
+    { label: "Thanh toán" },
   ];
 
   const handleCloseNotification = () => {
@@ -338,14 +356,16 @@ export const Checkout: React.FC = () => {
       {/* Header */}
       <CheckoutHeader breadcrumbs={breadcrumbs} />
       <div className="container mx-auto px-4 max-w-7xl">
-
-
         {/* Checkout Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Left Column: Shipping & Payment */}
           <div className="lg:col-span-2 space-y-6">
             {/* Shipping Form */}
-            <ShippingForm formData={formData} onUpdate={updateFormData} validationErrors={validationErrors} />
+            <ShippingForm
+              formData={formData}
+              onUpdate={updateFormData}
+              validationErrors={validationErrors}
+            />
 
             {/* Coupon Select */}
             {isAuthenticated && (

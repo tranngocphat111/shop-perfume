@@ -74,9 +74,11 @@ const Login: React.FC = () => {
   }, []);
 
   usePageTitle({
-    title: "Đăng nhập - STPN Perfume",
-    description: "Đăng nhập vào tài khoản của bạn để mua sắm và quản lý đơn hàng.",
-    image: "https://res.cloudinary.com/piin/image/upload/v1762171215/banner.zip-2_gdvc0y.jpg"
+    title: "Đăng nhập - SPTN Perfume",
+    description:
+      "Đăng nhập vào tài khoản của bạn để mua sắm và quản lý đơn hàng.",
+    image:
+      "https://res.cloudinary.com/piin/image/upload/v1762171215/banner.zip-2_gdvc0y.jpg",
   });
 
   // Redirect if already logged in - always to home page for client login
@@ -139,7 +141,9 @@ const Login: React.FC = () => {
     }
   };
 
-  const handleGoogleSuccess = async (credentialResponse: CredentialResponse) => {
+  const handleGoogleSuccess = async (
+    credentialResponse: CredentialResponse
+  ) => {
     if (!credentialResponse.credential) {
       setError("Không thể lấy thông tin từ Google. Vui lòng thử lại.");
       return;
@@ -191,7 +195,7 @@ const Login: React.FC = () => {
               whileHover={{ scale: 1.05 }}
               transition={{ duration: 0.2 }}
               src="https://res.cloudinary.com/piin/image/upload/v1763985017/logo/SPTN-BLACK.png"
-              alt="STPN Perfume"
+              alt="SPTN Perfume"
               className="h-16 mx-auto brightness-0 invert"
             />
           </Link>
@@ -430,7 +434,9 @@ const Login: React.FC = () => {
                 <div className="w-full border-t border-gray-200"></div>
               </div>
               <div className="relative flex justify-center text-xs">
-                <span className="px-2 bg-white text-gray-500 font-medium">Hoặc</span>
+                <span className="px-2 bg-white text-gray-500 font-medium">
+                  Hoặc
+                </span>
               </div>
             </div>
           </div>
@@ -439,7 +445,9 @@ const Login: React.FC = () => {
           <motion.div
             whileHover={{ scale: 1.01 }}
             whileTap={{ scale: 0.99 }}
-            className={`mb-5 ${loading || googleLoading ? 'opacity-50 pointer-events-none' : ''}`}
+            className={`mb-5 ${
+              loading || googleLoading ? "opacity-50 pointer-events-none" : ""
+            }`}
           >
             <button
               type="button"
@@ -447,7 +455,9 @@ const Login: React.FC = () => {
               className="w-full flex items-center justify-center gap-3 px-4 py-2 border border-gray-300 rounded-lg bg-white hover:bg-gray-50 transition-all duration-200 shadow-sm hover:shadow-md group"
               onClick={() => {
                 // Google login will be triggered by GoogleLogin component
-                const googleBtn = document.querySelector('[role="button"]') as HTMLElement;
+                const googleBtn = document.querySelector(
+                  '[role="button"]'
+                ) as HTMLElement;
                 if (googleBtn) googleBtn.click();
               }}
             >

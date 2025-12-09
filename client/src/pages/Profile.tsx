@@ -13,34 +13,46 @@ const Profile: React.FC = () => {
   const location = useLocation();
   const { isAuthenticated } = useAuth();
   // Default to "orders" if authenticated, otherwise "account"
-  const [active, setActive] = useState<string>(isAuthenticated ? "orders" : "account");
-  
+  const [active, setActive] = useState<string>(
+    isAuthenticated ? "orders" : "account"
+  );
+
   // Scroll to top when component mounts or location changes
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-    
+    window.scrollTo({ top: 0, behavior: "smooth" });
+
     // Refresh user info (including loyalty points) when entering profile page
     if (isAuthenticated) {
-      window.dispatchEvent(new Event('refreshUserInfo'));
+      window.dispatchEvent(new Event("refreshUserInfo"));
     }
   }, [location.pathname, isAuthenticated]);
 
   usePageTitle({
-    title: "Tài khoản - STPN Perfume",
-    description: "Quản lý thông tin tài khoản, địa chỉ giao hàng, đơn hàng và thay đổi mật khẩu.",
-    image: "https://res.cloudinary.com/piin/image/upload/v1762171215/banner.zip-2_gdvc0y.jpg"
+    title: "Tài khoản - SPTN Perfume",
+    description:
+      "Quản lý thông tin tài khoản, địa chỉ giao hàng, đơn hàng và thay đổi mật khẩu.",
+    image:
+      "https://res.cloudinary.com/piin/image/upload/v1762171215/banner.zip-2_gdvc0y.jpg",
   });
-  
+
   // Check if navigating with activeTab state
   useEffect(() => {
-    const state = location.state as { activeTab?: string; action?: string } | null;
+    const state = location.state as {
+      activeTab?: string;
+      action?: string;
+    } | null;
     if (state?.activeTab) {
-      if (state.activeTab === 'account' || state.activeTab === 'addresses' || state.activeTab === 'orders' || state.activeTab === 'password') {
+      if (
+        state.activeTab === "account" ||
+        state.activeTab === "addresses" ||
+        state.activeTab === "orders" ||
+        state.activeTab === "password"
+      ) {
         setActive(state.activeTab);
       }
     }
   }, [location]);
-  
+
   // Update active tab when authentication status changes
   useEffect(() => {
     if (isAuthenticated && active === "account") {
@@ -64,9 +76,7 @@ const Profile: React.FC = () => {
             Trang chủ
           </Link>
           <span className="text-gray-400">/</span>
-          <span className="text-black font-medium">
-            Tài khoản
-          </span>
+          <span className="text-black font-medium">Tài khoản</span>
         </nav>
       </motion.div>
 
