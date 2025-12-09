@@ -70,7 +70,7 @@ export const AdminSidebar = ({ isOpen }: AdminSidebarProps) => {
 
   return (
     <aside
-      className={`fixed left-0 top-16 h-[calc(100vh-4rem)] w-64 bg-white shadow-lg overflow-y-auto transition-transform duration-300 ${
+      className={`fixed left-0 top-16 h-full w-64 bg-white shadow-lg overflow-y-auto transition-transform duration-300 ${
         isOpen ? "translate-x-0" : "-translate-x-full"
       }`}
     >

@@ -56,18 +56,23 @@ export const CouponModal = ({
         });
       } else {
         const now = new Date();
-        const tomorrow = new Date(now);
-        tomorrow.setDate(tomorrow.getDate() + 1);
+        // Convert to local time for datetime-local input
+        const localNow = new Date(
+          now.getTime() - now.getTimezoneOffset() * 60000
+        );
         const nextMonth = new Date(now);
         nextMonth.setMonth(nextMonth.getMonth() + 1);
+        const localNextMonth = new Date(
+          nextMonth.getTime() - nextMonth.getTimezoneOffset() * 60000
+        );
 
         setFormData({
           code: "",
           description: "",
           discountPercent: 5,
           requiredPoints: 0,
-          startDate: tomorrow.toISOString().slice(0, 16),
-          endDate: nextMonth.toISOString().slice(0, 16),
+          startDate: localNow.toISOString().slice(0, 16),
+          endDate: localNextMonth.toISOString().slice(0, 16),
           isActive: true,
         });
       }
@@ -118,8 +123,23 @@ export const CouponModal = ({
     if (formData.startDate && formData.endDate) {
       const start = new Date(formData.startDate);
       const end = new Date(formData.endDate);
+      const now = new Date();
+
+      // Check if end date is after start date
       if (end <= start) {
         newErrors.endDate = "End date must be after start date";
+      }
+
+      // Check if end date is in the past
+      if (end < now) {
+        newErrors.endDate = "End date cannot be in the past";
+      }
+
+      // Check if duration is at least 1 hour
+      const duration = end.getTime() - start.getTime();
+      const oneHour = 60 * 60 * 1000;
+      if (duration < oneHour) {
+        newErrors.endDate = "Coupon must be valid for at least 1 hour";
       }
     }
 
@@ -209,7 +229,7 @@ export const CouponModal = ({
                 className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                   errors.code ? "border-red-500" : "border-gray-300"
                 }`}
-                placeholder="e.g., SUMMER2024"
+                placeholder="SUMMER2024"
                 disabled={isSubmitting}
               />
               {errors.code && (

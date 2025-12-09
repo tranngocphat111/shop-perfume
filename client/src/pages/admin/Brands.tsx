@@ -387,22 +387,21 @@ export const Brands = () => {
   return (
     <AdminLayout>
       <div className="space-y-6">
-        <ToastContainer toasts={toasts} onRemove={removeToast} />
-
-        {/* Header */}
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Brands</h1>
-          <p className="text-gray-600 mt-1">Manage perfume brands</p>
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 p-6">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-800">Brands</h1>
+            <p className="text-gray-600 mt-1">Manage perfume brands</p>
+          </div>
         </div>
 
-        {/* Data Table */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex items-center gap-2">
+            <i className="fas fa-exclamation-circle"></i>
+            <span>{error}</span>
+          </div>
+        )}
+
         <div className="bg-white rounded-lg shadow-md">
-          {error && (
-            <div className="p-4 bg-red-50 border-l-4 border-red-500 text-red-700">
-              <p className="font-medium">Error</p>
-              <p className="text-sm">{error}</p>
-            </div>
-          )}
           <DataTable
             columns={columns}
             onAdd={handleAdd}
@@ -437,6 +436,8 @@ export const Brands = () => {
           onClose={handleDetailModalClose}
           brand={detailBrand}
         />
+
+        <ToastContainer toasts={toasts} onRemove={removeToast} />
       </div>
     </AdminLayout>
   );
