@@ -74,5 +74,13 @@ public interface OrderService {
      * @param status The new payment status
      */
     void updatePaymentStatus(Integer orderId, String status);
+
+    /**
+     * Update order item quantity
+     * @param orderId The order ID
+     * @param orderItemId The order item ID
+     * @param quantity The new quantity
+     */
+    void updateOrderItemQuantity(Integer orderId, Integer orderItemId, Integer quantity);
 }
 

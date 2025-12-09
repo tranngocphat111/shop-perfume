@@ -310,6 +310,7 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
         Order order = new Order();
         order.setOrderDate(new Date());
         order.setTotalAmount(request.getTotalAmount());
+        order.setDiscountAmount(request.getDiscountAmount() != null ? request.getDiscountAmount() : 0.0);
         order.setGuestName(request.getFullName());
         order.setGuestEmail(request.getEmail());
         order.setGuestPhone(request.getPhone());
@@ -401,52 +402,9 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
         shipment.setOrder(order);
         order.setShipment(shipment);
 
-        // Xử lý coupon và điểm tích lũy nếu user đã đăng nhập
-        User orderUser = order.getUser();
-        if (orderUser != null && request.getCouponId() != null) {
-            try {
-                log.info("Processing coupon: couponId={}, userId={}", 
-                        request.getCouponId(), orderUser.getUserId());
-                
-                Optional<Coupon> couponOpt = couponRepository.findById(request.getCouponId());
-                
-                if (couponOpt.isPresent()) {
-                    Coupon coupon = couponOpt.get();
-                    Date currentDate = new Date();
-                    
-                    // Validate coupon
-                    if (!coupon.isActive()) {
-                        log.warn("⚠️ Coupon is not active: {}", request.getCouponId());
-                    } else if (currentDate.before(coupon.getStartDate()) || currentDate.after(coupon.getEndDate())) {
-                        log.warn("⚠️ Coupon is expired or not yet valid: {}", request.getCouponId());
-                    } else if (orderUser.getLoyaltyPoints() < coupon.getRequiredPoints()) {
-                        log.warn("⚠️ User has {} points, but coupon requires {} points", 
-                                orderUser.getLoyaltyPoints(), coupon.getRequiredPoints());
-                    } else {
-                        // Apply coupon discount
-                        double discountAmount = (request.getTotalAmount() * coupon.getDiscountPercent()) / 100.0;
-                        double finalAmount = request.getTotalAmount() - discountAmount;
-                        order.setTotalAmount(finalAmount);
-                        
-                        // Set coupon reference
-                        order.setCoupon(coupon);
-                        
-                        // Deduct loyalty points
-                        int newPoints = orderUser.getLoyaltyPoints() - coupon.getRequiredPoints();
-                        orderUser.setLoyaltyPoints(newPoints);
-                        userRepository.save(orderUser);
-                        
-                        log.info("✅ Coupon applied: discount={}, points deducted={}, remaining points={}", 
-                                discountAmount, coupon.getRequiredPoints(), newPoints);
-                    }
-                } else {
-                    log.warn("⚠️ Coupon not found: {}", request.getCouponId());
-                }
-            } catch (Exception e) {
-                log.error("❌ Error processing coupon", e);
-                // Don't fail order creation if coupon processing fails
-            }
-        }
+        // Note: Coupon discount đã được tính từ frontend và truyền vào qua totalAmount và discountAmount
+        // Không cần xử lý coupon ở backend nữa, chỉ lưu thông tin đơn hàng
+        // discountAmount đã được set ở trên khi tạo order
 
         // Save order first (cascade will save orderItems, payment, and shipment)
         Order savedOrder = orderRepository.save(order);
@@ -1051,6 +1009,55 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
         orderRepository.save(order);
         
         log.info("Payment status updated successfully for order: {}", orderId);
+    }
+
+    @Override
+    @Transactional
+    public void updateOrderItemQuantity(Integer orderId, Integer orderItemId, Integer quantity) {
+        log.info("Updating order item quantity for order: {}, item: {}, new quantity: {}", 
+                orderId, orderItemId, quantity);
+        
+        // Validate quantity
+        if (quantity <= 0) {
+            throw new IllegalArgumentException("Quantity must be greater than 0");
+        }
+        
+        // Find order
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Order not found with id: " + orderId));
+        
+        // Find order item in this order
+        OrderItem orderItem = order.getOrderItems().stream()
+                .filter(item -> item.getOrderItemId() == orderItemId)
+                .findFirst()
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Order item not found with id: " + orderItemId + " in order: " + orderId));
+        
+        // Calculate old and new subtotal
+        double oldSubTotal = orderItem.getSubTotal();
+        int oldQuantity = orderItem.getQuantity();
+        double unitPrice = orderItem.getUnitPrice();
+        
+        // Update quantity and subtotal
+        orderItem.setQuantity(quantity);
+        double newSubTotal = unitPrice * quantity;
+        orderItem.setSubTotal(newSubTotal);
+        
+        // Update order total amount
+        double difference = newSubTotal - oldSubTotal;
+        order.setTotalAmount(order.getTotalAmount() + difference);
+        
+        // Update payment amount if exists
+        if (order.getPayment() != null) {
+            order.getPayment().setAmount(order.getTotalAmount());
+        }
+        
+        // Save order (cascade will save order items and payment)
+        orderRepository.save(order);
+        
+        log.info("Order item quantity updated successfully. Old quantity: {}, New quantity: {}, " +
+                "Old subtotal: {}, New subtotal: {}, Order total: {}", 
+                oldQuantity, quantity, oldSubTotal, newSubTotal, order.getTotalAmount());
     }
 
 }

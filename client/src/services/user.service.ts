@@ -123,4 +123,11 @@ export const userService = {
   updateUserStatus: async (userId: number, status: string): Promise<void> => {
     return apiService.put(`/admin/users/${userId}/status?status=${status}`, {});
   },
+
+  /**
+   * Update user roles (Admin)
+   */
+  updateUserRoles: async (userId: number, roles: string[]): Promise<void> => {
+    return apiService.put(`/admin/users/${userId}/roles`, { roles });
+  },
 };

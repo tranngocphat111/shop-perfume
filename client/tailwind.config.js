@@ -7,16 +7,16 @@ export default {
   theme: {
     extend: {
       fontSize: {
-        'xs': ['0.875rem', { lineHeight: '1.25rem' }],      // 14px (tăng từ 12px)
-        'sm': ['1rem', { lineHeight: '1.5rem' }],            // 16px (tăng từ 14px)
-        'base': ['1.125rem', { lineHeight: '1.75rem' }],   // 18px (tăng từ 16px)
-        'lg': ['1.25rem', { lineHeight: '1.875rem' }],      // 20px (tăng từ 18px)
-        'xl': ['1.5rem', { lineHeight: '2rem' }],           // 24px (tăng từ 20px)
-        '2xl': ['1.875rem', { lineHeight: '2.25rem' }],    // 30px (tăng từ 24px)
-        '3xl': ['2.25rem', { lineHeight: '2.5rem' }],       // 36px (tăng từ 30px)
-        '4xl': ['3rem', { lineHeight: '1' }],               // 48px (tăng từ 36px)
-        '5xl': ['3.75rem', { lineHeight: '1' }],            // 60px (tăng từ 48px)
-        '6xl': ['4.5rem', { lineHeight: '1' }],             // 72px (tăng từ 60px)
+        'xs': ['0.75rem', { lineHeight: '1rem' }],          // 12px (giảm từ 14px)
+        'sm': ['0.875rem', { lineHeight: '1.25rem' }],      // 14px (giảm từ 16px)
+        'base': ['1rem', { lineHeight: '1.5rem' }],         // 16px (giảm từ 18px)
+        'lg': ['1.125rem', { lineHeight: '1.75rem' }],      // 18px (giảm từ 20px)
+        'xl': ['1.25rem', { lineHeight: '1.75rem' }],       // 20px (giảm từ 24px)
+        '2xl': ['1.5rem', { lineHeight: '2rem' }],          // 24px (giảm từ 30px)
+        '3xl': ['1.875rem', { lineHeight: '2.25rem' }],     // 30px (giảm từ 36px)
+        '4xl': ['2.25rem', { lineHeight: '2.5rem' }],       // 36px (giảm từ 48px)
+        '5xl': ['3rem', { lineHeight: '1' }],               // 48px (giảm từ 60px)
+        '6xl': ['3.75rem', { lineHeight: '1' }],            // 60px (giảm từ 72px)
       },
       colors: {
         primary: {

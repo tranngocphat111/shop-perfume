@@ -1,4 +1,4 @@
-import { apiService } from './api';
+import { apiService } from "./api";
 
 export interface Coupon {
   couponId: number;
@@ -8,8 +8,30 @@ export interface Coupon {
   requiredPoints: number;
   startDate: string;
   endDate: string;
-  isActive: boolean;
-  canUse?: boolean; // Whether user has enough points to use this coupon
+  active: boolean;
+  canUse?: boolean;
+  createdAt?: string;
+  lastUpdated?: string;
+  createdBy?: string;
+  lastUpdatedBy?: string;
+}
+
+export interface CouponRequest {
+  code: string;
+  description?: string;
+  discountPercent: number;
+  requiredPoints?: number;
+  startDate: string;
+  endDate: string;
+  isActive: boolean; // Backend nhận 'isActive'
+}
+
+export interface CouponPageResponse {
+  content: Coupon[];
+  totalElements: number;
+  totalPages: number;
+  size: number;
+  number: number;
 }
 
 export interface CouponValidationResponse {
@@ -23,7 +45,7 @@ export const couponService = {
   // Get all available coupons (with loyalty points check if authenticated)
   getAvailableCoupons: async (): Promise<Coupon[]> => {
     try {
-      const coupons = await apiService.get<Coupon[]>('/coupons/available');
+      const coupons = await apiService.get<Coupon[]>("/coupons/available");
       // Sort: coupons user can use (canUse = true) first, then by discountPercent desc
       return coupons.sort((a, b) => {
         if (a.canUse && !b.canUse) return -1;
@@ -31,37 +53,44 @@ export const couponService = {
         return b.discountPercent - a.discountPercent;
       });
     } catch (error) {
-      console.error('Error fetching available coupons:', error);
+      console.error("Error fetching available coupons:", error);
       return [];
     }
   },
-  
+
   // Validate coupon with loyalty points
-  validateCouponWithPoints: async (couponId: number, totalAmount: number): Promise<CouponValidationResponse> => {
+  validateCouponWithPoints: async (
+    couponId: number,
+    totalAmount: number
+  ): Promise<CouponValidationResponse> => {
     try {
       return await apiService.post<CouponValidationResponse>(
         `/coupons/${couponId}/validate?totalAmount=${totalAmount}`,
         {}
       );
     } catch (error: any) {
-      console.error('Error validating coupon:', error);
+      console.error("Error validating coupon:", error);
       return {
         valid: false,
-        message: error?.response?.data?.message || 'Không thể validate mã giảm giá',
+        message:
+          error?.response?.data?.message || "Không thể validate mã giảm giá",
       };
     }
   },
 
   // Validate coupon code (client-side validation)
-  validateCoupon: async (code: string, totalAmount: number): Promise<CouponValidationResponse> => {
+  validateCoupon: async (
+    code: string,
+    totalAmount: number
+  ): Promise<CouponValidationResponse> => {
     try {
       // Get coupon information from backend
       const coupon = await apiService.get<Coupon>(`/coupons/code/${code}`);
-      
+
       if (!coupon) {
         return {
           valid: false,
-          message: 'Mã khuyến mãi không tồn tại',
+          message: "Mã khuyến mãi không tồn tại",
         };
       }
 
@@ -71,10 +100,10 @@ export const couponService = {
       const endDate = new Date(coupon.endDate);
 
       // Check if coupon is active
-      if (!coupon.isActive) {
+      if (!coupon.active) {
         return {
           valid: false,
-          message: 'Mã khuyến mãi không còn hiệu lực',
+          message: "Mã khuyến mãi không còn hiệu lực",
         };
       }
 
@@ -82,14 +111,14 @@ export const couponService = {
       if (now < startDate) {
         return {
           valid: false,
-          message: 'Mã khuyến mãi chưa có hiệu lực',
+          message: "Mã khuyến mãi chưa có hiệu lực",
         };
       }
 
       if (now > endDate) {
         return {
           valid: false,
-          message: 'Mã khuyến mãi đã hết hạn',
+          message: "Mã khuyến mãi đã hết hạn",
         };
       }
 
@@ -101,14 +130,14 @@ export const couponService = {
       return {
         valid: true,
         coupon,
-        message: 'Mã khuyến mãi hợp lệ',
+        message: "Mã khuyến mãi hợp lệ",
         discountAmount,
       };
     } catch (error: any) {
-      console.error('Error validating coupon:', error);
+      console.error("Error validating coupon:", error);
       return {
         valid: false,
-        message: 'Mã khuyến mãi không tồn tại',
+        message: "Mã khuyến mãi không tồn tại",
       };
     }
   },
@@ -118,9 +147,50 @@ export const couponService = {
     try {
       return await apiService.get<Coupon>(`/coupons/code/${code}`);
     } catch (error) {
-      console.error('Error fetching coupon by code:', error);
+      console.error("Error fetching coupon by code:", error);
       return null;
     }
   },
-};
 
+  // Admin APIs
+  getAllCoupons: async (
+    page: number = 0,
+    size: number = 10,
+    sortBy: string = "couponId",
+    direction: string = "desc"
+  ): Promise<CouponPageResponse> => {
+    return await apiService.get<CouponPageResponse>(
+      `/coupons/admin?page=${page}&size=${size}&sortBy=${sortBy}&direction=${direction}`
+    );
+  },
+
+  searchCoupons: async (
+    query: string,
+    page: number = 0,
+    size: number = 10,
+    sortBy: string = "couponId",
+    direction: string = "desc"
+  ): Promise<CouponPageResponse> => {
+    return await apiService.get<CouponPageResponse>(
+      `/coupons/admin/search?query=${encodeURIComponent(
+        query
+      )}&page=${page}&size=${size}&sortBy=${sortBy}&direction=${direction}`
+    );
+  },
+
+  getCouponById: async (id: number): Promise<Coupon> => {
+    return await apiService.get<Coupon>(`/coupons/admin/${id}`);
+  },
+
+  createCoupon: async (coupon: CouponRequest): Promise<Coupon> => {
+    return await apiService.post<Coupon>("/coupons/admin", coupon);
+  },
+
+  updateCoupon: async (id: number, coupon: CouponRequest): Promise<Coupon> => {
+    return await apiService.put<Coupon>(`/coupons/admin/${id}`, coupon);
+  },
+
+  deleteCoupon: async (id: number): Promise<void> => {
+    await apiService.delete(`/coupons/admin/${id}`);
+  },
+};

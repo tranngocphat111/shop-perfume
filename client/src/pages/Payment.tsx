@@ -143,6 +143,12 @@ export const Payment: React.FC = () => {
     // Set order from state
     setOrder(state.order);
     setIsLoading(false);
+    
+    // Check if payment is already completed and refresh user info if needed
+    if (state.order.payment?.status === 'PAID') {
+      console.log('[Payment] ✅ Payment already completed, refreshing user info');
+      window.dispatchEvent(new Event('refreshUserInfo'));
+    }
 
     // Generate QR code if needed - sử dụng order.totalAmount (giá cuối cùng sau discount)
     if (state.paymentMethod === 'qr-payment') {
@@ -195,6 +201,10 @@ export const Payment: React.FC = () => {
         console.log('[Payment] Payment Date:', data.paymentDate);
         console.log('[Payment] Webhook đã xử lý thành công!');
         setIsPaid(true);
+        
+        // Refresh user info to update loyalty points
+        window.dispatchEvent(new Event('refreshUserInfo'));
+        console.log('[Payment] ✅ Dispatched refreshUserInfo event to update loyalty points');
         
         // Lưu ý: Items đã được xóa khỏi cart khi tạo đơn thành công (trong useCheckoutOrder)
         // Không cần xóa lại ở đây

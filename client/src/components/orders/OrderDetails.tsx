@@ -29,7 +29,7 @@ export const OrderDetails: React.FC<OrderDetailsProps> = ({
 
       {/* Customer Info */}
       <div>
-        <h4 className="text-sm font-semibold text-gray-700 mb-2">Thông tin khách hàng</h4>
+        <h4 className="text-lg font-semibold text-gray-700 mb-4">Thông tin khách hàng</h4>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
           <div>
             <span className="text-gray-600">Họ tên:</span>
@@ -76,11 +76,21 @@ export const OrderDetails: React.FC<OrderDetailsProps> = ({
       </div>
 
       {/* Total */}
-      <div className="flex items-center justify-between pt-3 border-t border-gray-200">
-        <span className="text-lg font-semibold text-gray-700">Tổng tiền:</span>
-        <span className="text-xl font-bold text-black">
-          {formatCurrency(order.totalAmount)} ₫
-        </span>
+      <div className="pt-3 border-t border-gray-200 space-y-2">
+        {order.discountAmount && order.discountAmount > 0 && (
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium text-gray-600">Giảm giá:</span>
+            <span className="text-lg font-semibold text-red-600">
+              -{formatCurrency(order.discountAmount)} ₫
+            </span>
+          </div>
+        )}
+        <div className="flex items-center justify-between">
+          <span className="text-lg font-semibold text-gray-700">Tổng tiền:</span>
+          <span className="text-xl font-bold text-black">
+            {formatCurrency(order.totalAmount)} ₫
+          </span>
+        </div>
       </div>
     </div>
   );

@@ -17,28 +17,28 @@ public interface WebhookLogRepository extends JpaRepository<WebhookLog, Long> {
     /**
      * Find webhook logs by order ID
      */
-    List<WebhookLog> findByExtractedOrderIdOrderByReceivedAtDesc(Integer orderId);
+    List<WebhookLog> findByExtractedOrderIdOrderByCreatedAtDesc(Integer orderId);
     
     /**
      * Find recent webhook logs
      */
-    Page<WebhookLog> findAllByOrderByReceivedAtDesc(Pageable pageable);
+    Page<WebhookLog> findAllByOrderByCreatedAtDesc(Pageable pageable);
     
     /**
      * Find webhook logs by date range
      */
-    @Query("SELECT w FROM WebhookLog w WHERE w.receivedAt BETWEEN :startDate AND :endDate ORDER BY w.receivedAt DESC")
+    @Query("SELECT w FROM WebhookLog w WHERE w.createdAt BETWEEN :startDate AND :endDate ORDER BY w.createdAt DESC")
     List<WebhookLog> findByDateRange(@Param("startDate") Date startDate, @Param("endDate") Date endDate);
     
     /**
      * Find failed webhook logs
      */
-    @Query("SELECT w FROM WebhookLog w WHERE w.processed = false OR w.errorMessage IS NOT NULL ORDER BY w.receivedAt DESC")
+    @Query("SELECT w FROM WebhookLog w WHERE w.processed = false OR w.errorMessage IS NOT NULL ORDER BY w.createdAt DESC")
     List<WebhookLog> findFailedWebhooks(Pageable pageable);
     
     /**
      * Find webhook logs by content (for searching)
      */
-    List<WebhookLog> findByContentContainingIgnoreCaseOrderByReceivedAtDesc(String content);
+    List<WebhookLog> findByContentContainingIgnoreCaseOrderByCreatedAtDesc(String content);
 }
 

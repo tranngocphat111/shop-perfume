@@ -18,7 +18,12 @@ const Profile: React.FC = () => {
   // Scroll to top when component mounts or location changes
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [location.pathname]);
+    
+    // Refresh user info (including loyalty points) when entering profile page
+    if (isAuthenticated) {
+      window.dispatchEvent(new Event('refreshUserInfo'));
+    }
+  }, [location.pathname, isAuthenticated]);
 
   usePageTitle({
     title: "Tài khoản - STPN Perfume",

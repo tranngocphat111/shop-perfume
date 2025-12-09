@@ -125,7 +125,7 @@ export const ProductTabs = ({ product }: ProductTabsProps) => {
         <nav className="flex gap-8 -mb-px">
           <button
             onClick={() => setActiveTab("description")}
-            className={`flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-lg transition-colors ${
+            className={`flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-md transition-colors ${
               activeTab === "description"
                 ? "border-black text-black"
                 : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
@@ -136,7 +136,7 @@ export const ProductTabs = ({ product }: ProductTabsProps) => {
           </button>
           <button
             onClick={() => setActiveTab("usage")}
-            className={`flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-lg transition-colors ${
+            className={`flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-md transition-colors ${
               activeTab === "usage"
                 ? "border-black text-black"
                 : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
@@ -147,7 +147,7 @@ export const ProductTabs = ({ product }: ProductTabsProps) => {
           </button>
           <button
             onClick={() => setActiveTab("policy")}
-            className={`flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-lg transition-colors ${
+            className={`flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-md transition-colors ${
               activeTab === "policy"
                 ? "border-black text-black"
                 : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
@@ -159,7 +159,7 @@ export const ProductTabs = ({ product }: ProductTabsProps) => {
           {hasReviews && (
             <button
               onClick={() => setActiveTab("reviews")}
-              className={`flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-lg transition-colors ${
+              className={`flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-md transition-colors ${
                 activeTab === "reviews"
                   ? "border-black text-black"
                   : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"

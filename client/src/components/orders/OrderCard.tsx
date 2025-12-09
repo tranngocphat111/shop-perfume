@@ -38,19 +38,19 @@ export const OrderCard: React.FC<OrderCardProps> = ({
         <div className="flex items-start justify-between mb-5 pb-4 border-b border-gray-100">
           <div className="flex-1">
             <div className="flex items-center gap-3 mb-3 flex-wrap">
-              <h3 className="text-lg sm:text-xl font-bold text-gray-900">
+              <h3 className="text-lg sm:text-md font-bold text-gray-900">
                 Đơn hàng #{order.orderId}
               </h3>
               <OrderStatusBadge status={order.payment?.status || 'PENDING'} />
             </div>
-            <div className="flex items-center gap-5 text-sm sm:text-base text-gray-600 flex-wrap">
+            <div className="flex items-center gap-5 text-sm sm:text-sm text-gray-600 flex-wrap">
               <div className="flex items-center gap-2">
                 <Calendar size={16} className="text-gray-400" />
                 <span>{formatDate(order.orderDate)}</span>
               </div>
-              <div className="flex items-center gap-2">
-                <DollarSign size={16} className="text-gray-400 " />
-                <span className="font-semibold text-gray-900 text-xl mt-[-2px]">
+              <div className="flex items-center gap-1">
+                <DollarSign size={16} className="text-gray-900 " />
+                <span className="font-semibold text-gray-900 text-lg mt-[-2px]">
                   {formatCurrency(order.totalAmount)} ₫
                 </span>
               </div>
@@ -86,7 +86,7 @@ export const OrderCard: React.FC<OrderCardProps> = ({
 
         {/* Order Items Preview */}
         <div className="mb-4">
-          <div className="flex items-center gap-2 text-sm sm:text-base text-gray-600 mb-3">
+          <div className="flex items-center gap-2 text-sm sm:text-md text-gray-600 mb-3">
             <Truck size={16} className="text-gray-400" />
             <span className="font-medium">Sản phẩm ({order.orderItems?.length || 0})</span>
           </div>
@@ -99,7 +99,7 @@ export const OrderCard: React.FC<OrderCardProps> = ({
                   className="flex items-start justify-between gap-3 p-3 bg-gray-50 border border-gray-100 rounded-lg hover:bg-gray-100 transition-colors"
                 >
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm sm:text-base font-medium text-gray-800 truncate">{item.productName}</p>
+                    <p className="text-sm sm:text-md font-medium text-gray-800 truncate">{item.productName}</p>
                     <p className="text-xs sm:text-sm text-gray-500 mt-1">
                       SL: {item.quantity} × {formatCurrency(item.unitPrice || 0)} ₫
                     </p>
@@ -135,7 +135,7 @@ export const OrderCard: React.FC<OrderCardProps> = ({
         {/* Payment Info */}
         {order.payment && (
           <div className="mb-4 p-4 bg-gray-50 border border-gray-100 rounded-lg">
-            <div className="flex items-center justify-between text-sm sm:text-base">
+            <div className="flex items-center justify-between text-sm sm:text-md">
               <span className="text-gray-600">Phương thức thanh toán:</span>
               <span className="font-semibold text-gray-800">
                 {getPaymentMethodLabel(order.payment.method)}

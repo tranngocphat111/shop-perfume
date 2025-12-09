@@ -15,6 +15,7 @@ const getApiBaseUrl = (): string => {
 };
 
 const API_BASE_URL = getApiBaseUrl();
+// const API_BASE_URL = "http://localhost:8080/api";
 
 console.log(
   "🌐 API Base URL:",
@@ -153,6 +154,7 @@ const isPublicEndpoint = (endpoint: string, method: string = "GET"): boolean => 
     "/auth/reset-password",
     "/auth/google-signin",
     "/payment/check-qr",
+    "/contact/send-email", // Contact form - public
     "/webhooks/",
   ];
 

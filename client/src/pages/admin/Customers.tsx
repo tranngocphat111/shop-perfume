@@ -24,7 +24,7 @@ interface CustomerData extends Record<string, unknown> {
 }
 
 export const Customers = () => {
-  const { toasts, removeToast, success, error: showError } = useToast();
+  const { toasts, removeToast, success, error: showError, warning } = useToast();
 
   const [customers, setCustomers] = useState<CustomerData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -46,6 +46,10 @@ export const Customers = () => {
   // Inline edit status states
   const [editingStatusId, setEditingStatusId] = useState<number | null>(null);
   const [editingStatusValue, setEditingStatusValue] = useState<string>("");
+
+  // Inline edit roles states
+  const [editingRoleId, setEditingRoleId] = useState<number | null>(null);
+  const [editingRoleValue, setEditingRoleValue] = useState<string[]>([]);
 
   const fetchCustomers = async (
     page: number,
@@ -278,6 +282,96 @@ export const Customers = () => {
       key: "roles",
       label: "Roles",
       sortable: false,
+      render: (value: string, row: CustomerData) => {
+        if (editingRoleId === row.id) {
+          const availableRoles = ["CUSTOMER", "ADMIN"];
+          const currentRoles = editingRoleValue;
+
+          return (
+            <div className="flex flex-wrap gap-1">
+              {availableRoles.map((role) => (
+                <label
+                  key={role}
+                  className="inline-flex items-center gap-1 px-2 py-1 text-xs border rounded cursor-pointer hover:bg-gray-50"
+                  onClick={(e) => e.stopPropagation()}>
+                  <input
+                    type="checkbox"
+                    checked={currentRoles.includes(role)}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setEditingRoleValue([...currentRoles, role]);
+                      } else {
+                        // Don't allow removing all roles
+                        if (currentRoles.length > 1) {
+                          setEditingRoleValue(
+                            currentRoles.filter((r) => r !== role)
+                          );
+                        } else {
+                          warning("User must have at least one role!");
+                        }
+                      }
+                    }}
+                    className="w-3 h-3"
+                  />
+                  <span>{role}</span>
+                </label>
+              ))}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleRoleBlur();
+                }}
+                className="px-2 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600"
+                title="Save">
+                <i className="fas fa-check"></i>
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setEditingRoleId(null);
+                  setEditingRoleValue([]);
+                }}
+                className="px-2 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600"
+                title="Cancel">
+                <i className="fas fa-times"></i>
+              </button>
+            </div>
+          );
+        }
+
+        const roleArray = value
+          .split(", ")
+          .map((r) => r.trim())
+          .filter((r) => r !== "");
+        const roleColors: Record<string, string> = {
+          CUSTOMER: "bg-blue-100 text-blue-800",
+          ADMIN: "bg-purple-100 text-purple-800",
+        };
+
+        return (
+          <div
+            className="flex flex-wrap gap-1 cursor-pointer"
+            onDoubleClick={(e) => {
+              e.stopPropagation();
+              handleRoleDoubleClick(row);
+            }}
+            title="Double-click to edit">
+            {roleArray.length > 0 ? (
+              roleArray.map((role) => (
+                <span
+                  key={role}
+                  className={`inline-block whitespace-nowrap px-2 py-1 text-xs rounded font-semibold ${
+                    roleColors[role] || "bg-gray-100 text-gray-800"
+                  }`}>
+                  {role}
+                </span>
+              ))
+            ) : (
+              <span className="text-gray-400 text-xs italic">No roles</span>
+            )}
+          </div>
+        );
+      },
     },
     {
       key: "createdAt",
@@ -327,6 +421,41 @@ export const Customers = () => {
       setEditingStatusId(null);
       setEditingStatusValue("");
     }
+  };
+
+  const handleRoleDoubleClick = (item: CustomerData) => {
+    setEditingRoleId(item.id);
+    // Parse current roles from string to array, filter out empty strings
+    const rolesArray = item.roles
+      .split(", ")
+      .map((r) => r.trim())
+      .filter((r) => r !== "");
+    // If no roles, default to CUSTOMER role
+    setEditingRoleValue(rolesArray.length > 0 ? rolesArray : ["CUSTOMER"]);
+  };
+
+  const handleRoleBlur = async () => {
+    if (editingRoleId && editingRoleValue.length > 0) {
+      try {
+        await userService.updateUserRoles(editingRoleId, editingRoleValue);
+
+        // Refresh the list
+        await fetchCustomers(
+          currentPage,
+          pageSize,
+          sortField,
+          sortDirection,
+          searchQuery
+        );
+
+        success("User roles updated successfully!");
+      } catch (err) {
+        console.error("Error updating user roles:", err);
+        showError("Failed to update user roles. Please try again.");
+      }
+    }
+    setEditingRoleId(null);
+    setEditingRoleValue([]);
   };
 
   const handleView = async (item: CustomerData) => {

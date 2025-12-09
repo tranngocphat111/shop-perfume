@@ -19,4 +19,9 @@ public interface AdminUserService {
      * Update user status
      */
     void updateUserStatus(Integer userId, String status);
+    
+    /**
+     * Update user roles
+     */
+    void updateUserRoles(Integer userId, java.util.List<String> roles);
 }

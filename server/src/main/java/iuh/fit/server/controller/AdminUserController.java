@@ -97,7 +97,31 @@ public class AdminUserController {
         }
     }
     
+    /**
+     * PUT /api/admin/users/{id}/roles - Update user roles
+     */
+    @PutMapping("/{id}/roles")
+    @Operation(summary = "Update user roles", description = "Update user roles (Admin only)")
+    public ResponseEntity<?> updateUserRoles(
+            @PathVariable Integer id,
+            @RequestBody UpdateRolesRequest request) {
+        try {
+            log.info("REST request to update user roles for id: {} to roles: {}", id, request.roles());
+            adminUserService.updateUserRoles(id, request.roles());
+            return ResponseEntity.ok(new UpdateResponse(true, "User roles updated successfully"));
+        } catch (RuntimeException e) {
+            log.error("Error updating user roles: {}", e.getMessage());
+            return ResponseEntity.badRequest()
+                    .body(new ErrorResponse(e.getMessage()));
+        } catch (Exception e) {
+            log.error("Error updating user roles", e);
+            return ResponseEntity.internalServerError()
+                    .body(new ErrorResponse("Có lỗi xảy ra khi cập nhật roles người dùng: " + e.getMessage()));
+        }
+    }
+    
     // Response DTOs
     private record ErrorResponse(String message) {}
     private record UpdateResponse(boolean success, String message) {}
+    private record UpdateRolesRequest(java.util.List<String> roles) {}
 }
