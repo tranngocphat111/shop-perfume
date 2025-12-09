@@ -34,7 +34,7 @@ export const useCheckoutOrder = (): UseCheckoutOrderReturn => {
     formData: CheckoutFormData,
     cartItems: any[],
     discount: number,
-    appliedCouponIdParam: number | null
+    _appliedCouponIdParam: number | null
   ) => {
     // Set loading state ngay từ đầu để disable nút và hiển thị loading
     setIsProcessing(true);
@@ -211,10 +211,10 @@ export const useCheckoutOrder = (): UseCheckoutOrderReturn => {
                                 errorMessage.includes('Lock timeout');
 
       if (isOutOfStockError) {
-        // Refresh cart stock (không block UI) để cập nhật số lượng mới nhất
-        refreshCartStock().catch(console.error);
+        // Refresh cart stock để cập nhật số lượng mới nhất
+        await refreshCartStock().catch(console.error);
         
-        // Show out of stock modal (blocks interaction)
+        // Show out of stock notification
         setIsErrorNotification(true);
         
         // Xác định thông báo phù hợp dựa trên loại lỗi
@@ -234,13 +234,15 @@ export const useCheckoutOrder = (): UseCheckoutOrderReturn => {
         
         setSuccessMessage({
           message: displayMessage,
-          subMessage: displaySubMessage,
+          subMessage: displaySubMessage + ' Đang chuyển về giỏ hàng...',
         });
         setShowSuccessNotification(true);
-        // Scroll chỉ khi có response từ backend (có lỗi thực sự)
-        if (err.response?.data) {
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
+        
+        // Redirect về trang giỏ hàng sau 2 giây để user đọc được thông báo
+        setTimeout(() => {
+          navigate('/cart', { replace: true });
+        }, 2000);
+        
         // setIsProcessing(false) sẽ được gọi trong finally block
         return;
       }
@@ -388,14 +390,18 @@ export const useCheckoutOrder = (): UseCheckoutOrderReturn => {
             return; // Return sớm, KHÔNG làm gì cả - nút tiếp tục loading
           } else {
             // Timeout từ backend - có response từ backend với status 408
-            refreshCartStock().catch(console.error);
+            await refreshCartStock().catch(console.error);
             setIsErrorNotification(true);
             setSuccessMessage({
               message: 'Request timeout',
-              subMessage: 'Yêu cầu đặt hàng bị timeout. Có thể do hệ thống đang quá tải. Vui lòng thử lại sau vài phút.',
+              subMessage: 'Yêu cầu đặt hàng bị timeout. Vui lòng kiểm tra lại giỏ hàng và thử lại.',
             });
             setShowSuccessNotification(true);
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+            
+            // Redirect về trang giỏ hàng sau 2 giây
+            setTimeout(() => {
+              navigate('/cart', { replace: true });
+            }, 2000);
             return; // Return sớm sau khi hiển thị modal timeout
           }
         }

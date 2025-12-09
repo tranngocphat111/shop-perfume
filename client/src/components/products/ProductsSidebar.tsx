@@ -199,7 +199,7 @@ export const ProductsSidebar = ({
           <button
             onClick={() => setIsCategoriesOpen(!isCategoriesOpen)}
             className="w-full flex items-center justify-between text-xs font-bold mb-4 text-black uppercase tracking-wider hover:opacity-70 transition-opacity">
-            <span>DANH MỤC</span>
+            <span className="text-sm font-semibold" >DANH MỤC</span>
             <svg 
               className={`w-4 h-4 text-gray-600 transition-transform ${isCategoriesOpen ? 'rotate-180' : ''}`}
               fill="none" 
@@ -262,7 +262,7 @@ export const ProductsSidebar = ({
           <button
             onClick={() => setIsBrandsOpen(!isBrandsOpen)}
             className="w-full flex items-center justify-between text-xs font-bold mb-4 text-black uppercase tracking-wider hover:opacity-70 transition-opacity">
-            <span>THƯƠNG HIỆU</span>
+            <span className="text-sm font-semibold">THƯƠNG HIỆU</span>
             <svg 
               className={`w-4 h-4 text-gray-600 transition-transform ${isBrandsOpen ? 'rotate-180' : ''}`}
               fill="none" 
@@ -318,7 +318,7 @@ export const ProductsSidebar = ({
             <button
               onClick={() => setIsPriceOpen(!isPriceOpen)}
               className="w-full flex items-center justify-between text-xs font-bold mb-4 text-black uppercase tracking-wider hover:opacity-70 transition-opacity">
-              <span>GIÁ</span>
+              <span className="text-sm font-semibold">GIÁ</span>
               <svg 
                 className={`w-4 h-4 text-gray-600 transition-transform ${isPriceOpen ? 'rotate-180' : ''}`}
                 fill="none" 
@@ -367,7 +367,7 @@ export const ProductsSidebar = ({
                       </div>
                       {/* Display selected price range */}
                       <div className="text-center">
-                        <span className="text-lg font-semibold text-gray-900">
+                        <span className="text-md font-semibold text-gray-900">
                           {formatCurrency(priceRange[0])} đ - {formatCurrency(priceRange[1])} ₫
                         </span>
                       </div>

@@ -71,7 +71,7 @@ export const HeroCarousel = ({ slides }: HeroCarouselProps) => {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: currentSlide === index ? 0.8 : 0 }}
                   transition={{ delay: 0.8, duration: 0.8 }}
-                  className="text-subtitle"
+                  className="text-subtitle "
                 >
                   {slide.subtitle}
                 </motion.p>
@@ -83,7 +83,7 @@ export const HeroCarousel = ({ slides }: HeroCarouselProps) => {
                     y: currentSlide === index ? 0 : 20,
                   }}
                   transition={{ delay: 1.1, duration: 1 }}
-                  className="text-5xl md:text-7xl lg:text-8xl whitespace-nowrap tracking-tight font-normal"
+                  className="text-5xl md:text-7xl lg:text-8xl whitespace-nowrap tracking-tight font-normal font-sans"
                 >
                   {slide.title}
                 </motion.h1>

@@ -24,7 +24,7 @@ interface CustomerData extends Record<string, unknown> {
 }
 
 export const Customers = () => {
-  const { toasts, removeToast, success, error: showError } = useToast();
+  const { toasts, removeToast, success, error: showError, warning } = useToast();
 
   const [customers, setCustomers] = useState<CustomerData[]>([]);
   const [loading, setLoading] = useState(true);

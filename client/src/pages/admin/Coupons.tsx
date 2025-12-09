@@ -36,8 +36,8 @@ export const Coupons = () => {
   const [pageSize, setPageSize] = useState(25);
 
   // Sort and search states
-  const [sortField, setSortField] = useState<string>("couponId");
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
+  const [sortField] = useState<string>("couponId");
+  const [sortDirection] = useState<"asc" | "desc">("desc");
   const [searchQuery, setSearchQuery] = useState<string>("");
 
   // Modal states
