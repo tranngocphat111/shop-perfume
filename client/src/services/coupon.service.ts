@@ -8,8 +8,8 @@ export interface Coupon {
   requiredPoints: number;
   startDate: string;
   endDate: string;
-  isActive: boolean;
-  canUse?: boolean; // Whether user has enough points to use this coupon
+  active: boolean;
+  canUse?: boolean;
   createdAt?: string;
   lastUpdated?: string;
   createdBy?: string;
@@ -23,7 +23,7 @@ export interface CouponRequest {
   requiredPoints?: number;
   startDate: string;
   endDate: string;
-  isActive: boolean;
+  isActive: boolean; // Backend nhận 'isActive'
 }
 
 export interface CouponPageResponse {
@@ -100,7 +100,7 @@ export const couponService = {
       const endDate = new Date(coupon.endDate);
 
       // Check if coupon is active
-      if (!coupon.isActive) {
+      if (!coupon.active) {
         return {
           valid: false,
           message: "Mã khuyến mãi không còn hiệu lực",
@@ -172,7 +172,9 @@ export const couponService = {
     direction: string = "desc"
   ): Promise<CouponPageResponse> => {
     return await apiService.get<CouponPageResponse>(
-      `/coupons/admin/search?query=${encodeURIComponent(query)}&page=${page}&size=${size}&sortBy=${sortBy}&direction=${direction}`
+      `/coupons/admin/search?query=${encodeURIComponent(
+        query
+      )}&page=${page}&size=${size}&sortBy=${sortBy}&direction=${direction}`
     );
   },
 

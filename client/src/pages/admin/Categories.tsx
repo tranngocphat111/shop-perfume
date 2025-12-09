@@ -354,12 +354,11 @@ export const Categories = () => {
   return (
     <AdminLayout>
       <div className="space-y-6">
-        <ToastContainer toasts={toasts} onRemove={removeToast} />
-
-        {/* Header */}
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Categories</h1>
-          <p className="text-gray-600 mt-1">Manage perfume categories</p>
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 p-6">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-800">Categories</h1>
+            <p className="text-gray-600 mt-1">Manage perfume categories</p>
+          </div>
         </div>
 
         {/* Data Table */}
@@ -404,6 +403,8 @@ export const Categories = () => {
           onClose={handleDetailModalClose}
           category={detailCategory}
         />
+
+        <ToastContainer toasts={toasts} onRemove={removeToast} />
       </div>
     </AdminLayout>
   );
