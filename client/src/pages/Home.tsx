@@ -13,13 +13,13 @@ export const Home = () => {
     description:
       "Khám phá bộ sưu tập nước hoa chính hãng đa dạng với các thương hiệu cao cấp. Tìm kiếm hương thơm phù hợp với phong cách của bạn.",
     image:
-      "https://res.cloudinary.com/piin/image/upload/v1762171215/banner.zip-2_gdvc0y.jpg",
+      "https://res.cloudinary.com/piin/image/upload/banner.zip-2_gdvc0y.jpg",
   });
 
   const heroSlides: HeroSlide[] = [
     {
       image:
-        "https://res.cloudinary.com/piin/image/upload/v1762171215/banner.zip-2_gdvc0y.jpg",
+        "https://res.cloudinary.com/piin/image/upload/banner.zip-2_gdvc0y.jpg",
       title: "SPTN Perfume",
       subtitle: "Bộ sưu tập nước hoa",
       description:
@@ -27,7 +27,7 @@ export const Home = () => {
     },
     {
       image:
-        "https://res.cloudinary.com/piin/image/upload/v1762171216/banner.zip-1_hdpnjf.jpg",
+        "https://res.cloudinary.com/piin/image/upload/banner.zip-1_hdpnjf.jpg",
       title: "SPTN Perfume",
       subtitle: "Bộ sưu tập nước hoa",
       description:
@@ -35,7 +35,7 @@ export const Home = () => {
     },
     {
       image:
-        "https://res.cloudinary.com/piin/image/upload/v1762171216/banner.zip-3_kwubol.jpg",
+        "https://res.cloudinary.com/piin/image/upload/banner.zip-3_kwubol.jpg",
       title: "SPTN Perfume",
       subtitle: "Bộ sưu tập nước hoa",
       description:
