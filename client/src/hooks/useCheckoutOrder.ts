@@ -22,7 +22,7 @@ interface UseCheckoutOrderReturn {
 export const useCheckoutOrder = (): UseCheckoutOrderReturn => {
   const navigate = useNavigate();
   const { removeMultipleFromCart, refreshCartStock, cart } = useCart();
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, refreshUser } = useAuth();
   
   const [isProcessing, setIsProcessing] = useState(false);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
@@ -145,6 +145,24 @@ export const useCheckoutOrder = (): UseCheckoutOrderReturn => {
       const response = await apiService.post<OrderResponse>('/orders/create', orderRequest);
 
       if (response) {
+        console.log('[useCheckoutOrder] 📦 Order created successfully:', response.orderId);
+        console.log('[useCheckoutOrder] 🎟️ Coupon code used:', appliedCouponCode);
+        console.log('[useCheckoutOrder] 🔐 Is authenticated:', isAuthenticated);
+        
+        // Refresh user info to update loyalty points if coupon was used
+        if (isAuthenticated && appliedCouponCode) {
+          console.log('[useCheckoutOrder] 🔄 Refreshing user info to update loyalty points...');
+          try {
+            await refreshUser();
+            console.log('[useCheckoutOrder] ✅ User info refreshed successfully');
+          } catch (refreshError) {
+            console.error('[useCheckoutOrder] ⚠️ Error refreshing user info:', refreshError);
+            // Don't fail the order if refresh fails - user can refresh manually
+          }
+        } else {
+          console.log('[useCheckoutOrder] ⏭️ Skipping user refresh (isAuthenticated:', isAuthenticated, ', appliedCouponCode:', appliedCouponCode, ')');
+        }
+
         // Show success notification
         setIsErrorNotification(false);
         setSuccessMessage({
