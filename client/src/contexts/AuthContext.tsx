@@ -259,9 +259,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             ...currentUser,
             name: userInfo.name,
             email: userInfo.email,
+            loyaltyPoints: userInfo.loyaltyPoints,
           };
           authService.setUser(updatedUser);
           setUser(updatedUser);
+          console.log('[AuthContext] ✅ User refreshed, loyaltyPoints:', userInfo.loyaltyPoints);
         }
       }
     } catch (error) {
