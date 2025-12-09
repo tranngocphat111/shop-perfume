@@ -80,7 +80,7 @@ export const Coupons = () => {
           requiredPoints: item.requiredPoints || 0,
           startDate: item.startDate,
           endDate: item.endDate,
-          isActive: item.isActive,
+          isActive: item.active, // Backend trả về 'active'
           lastUpdated: item.lastUpdated || "",
           updatedBy: item.lastUpdatedBy || "N/A",
         })
@@ -120,7 +120,7 @@ export const Coupons = () => {
         requiredPoints: coupon.requiredPoints,
         startDate: coupon.startDate,
         endDate: coupon.endDate,
-        isActive: coupon.isActive,
+        isActive: coupon.active, // Backend trả về 'active'
       });
       setModalMode("edit");
       setIsModalOpen(true);
@@ -142,10 +142,6 @@ export const Coupons = () => {
   };
 
   const handleDelete = async (item: CouponData) => {
-    if (!confirm("Are you sure you want to delete this coupon?")) {
-      return;
-    }
-
     try {
       await couponService.deleteCoupon(item.id);
       success("Coupon deleted successfully");
@@ -187,8 +183,23 @@ export const Coupons = () => {
       );
     } catch (err: any) {
       console.error("Error saving coupon:", err);
-      const errorMessage =
-        err.response?.data || err.message || "Failed to save coupon";
+
+      // Extract error message from response
+      let errorMessage = "Failed to save coupon";
+      if (err.response?.data) {
+        const errorData = err.response.data;
+        if (typeof errorData === "string") {
+          errorMessage = errorData;
+        } else if (errorData.message) {
+          errorMessage = errorData.message;
+        } else if (errorData.errors) {
+          // Handle validation errors
+          errorMessage = Object.values(errorData.errors).join(", ");
+        }
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+
       showError(errorMessage);
       throw err;
     }
@@ -302,7 +313,12 @@ export const Coupons = () => {
       label: "Updated By",
       sortable: true,
       render: (value: any) => (
-        <span className="text-sm text-gray-600">{value}</span>
+        <span
+          className="text-sm text-gray-600 truncate max-w-[120px] inline-block"
+          title={value}
+        >
+          {value}
+        </span>
       ),
     },
   ];

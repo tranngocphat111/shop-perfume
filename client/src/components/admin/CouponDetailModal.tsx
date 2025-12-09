@@ -104,17 +104,17 @@ export const CouponDetailModal = ({
               <div className="col-span-2">
                 <span
                   className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold ${
-                    coupon.isActive
+                    coupon.active
                       ? "bg-green-100 text-green-800"
                       : "bg-red-100 text-red-800"
                   }`}
                 >
                   <i
                     className={`fas fa-circle text-xs mr-2 ${
-                      coupon.isActive ? "text-green-500" : "text-red-500"
+                      coupon.active ? "text-green-500" : "text-red-500"
                     }`}
                   ></i>
-                  {coupon.isActive ? "Active" : "Inactive"}
+                  {coupon.active ? "Active" : "Inactive"}
                 </span>
               </div>
             </div>
