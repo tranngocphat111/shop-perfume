@@ -46,7 +46,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     }
   }
   
-  const [cart, setCart] = useState<Cart>(initialCartRef.current);
+  const [cart, setCart] = useState<Cart>(initialCartRef.current!);
 
   // Track if cart is still loading (from DB or fetching stock)
   const [isCartLoading, setIsCartLoading] = useState(true);
