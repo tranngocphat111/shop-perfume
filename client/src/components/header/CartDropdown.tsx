@@ -61,9 +61,10 @@ export const CartDropdown = ({ isVisible, onClose }: CartDropdownProps) => {
     );
   }
 
-  // Filter items còn hàng để tính tổng
+  // Filter items còn hàng và đang bán (ACTIVE) để tính tổng
   const availableItems = cart.items.filter(item => 
-    item.stockQuantity === undefined || item.stockQuantity > 0
+    item.product.status === 'ACTIVE' &&
+    (item.stockQuantity === undefined || item.stockQuantity > 0)
   );
 
   // Tính tổng và số lượng chỉ từ items còn hàng
@@ -117,7 +118,11 @@ export const CartDropdown = ({ isVisible, onClose }: CartDropdownProps) => {
                     <h4 className="text-sm font-medium text-gray-900 mb-1 line-clamp-2 leading-snug group-hover:text-gray-950 transition-colors">
                       {item.product.name}
                     </h4>
-                    {item.stockQuantity !== undefined && item.stockQuantity === 0 ? (
+                    {item.product.status === 'INACTIVE' ? (
+                      <p className="text-xs text-orange-600 font-semibold">
+                        Ngừng bán
+                      </p>
+                    ) : item.stockQuantity !== undefined && item.stockQuantity === 0 ? (
                       <p className="text-xs text-red-600 font-semibold">
                         Hết hàng
                       </p>
