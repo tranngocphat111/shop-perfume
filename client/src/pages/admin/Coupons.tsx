@@ -313,10 +313,7 @@ export const Coupons = () => {
       label: "Updated By",
       sortable: true,
       render: (value: any) => (
-        <span
-          className="text-sm text-gray-600 truncate max-w-[120px] inline-block"
-          title={value}
-        >
+        <span className="text-sm text-gray-600 truncate " title={value}>
           {value}
         </span>
       ),
@@ -325,15 +322,15 @@ export const Coupons = () => {
 
   return (
     <AdminLayout>
-      <div className="p-6">
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-800 flex items-center gap-3">
-            <i className="fas fa-ticket-alt text-blue-600"></i>
-            Coupons Management
-          </h1>
-          <p className="text-gray-600 mt-2">
-            Manage promotional coupons and discount codes
-          </p>
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 p-6">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-800">Coupons</h1>
+            <p className="text-gray-600 mt-1">
+              Manage promotional coupons and discount codes
+            </p>
+          </div>
         </div>
 
         {error && (
