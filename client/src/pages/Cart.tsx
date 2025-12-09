@@ -25,10 +25,11 @@ export const Cart = () => {
   const location = useLocation();
   const [isLoading, setIsLoading] = useState(true);
 
-  // Tính tổng và số lượng chỉ từ items còn hàng (nhưng vẫn hiển thị tất cả items)
+  // Tính tổng và số lượng chỉ từ items còn hàng VÀ sản phẩm ACTIVE (nhưng vẫn hiển thị tất cả items)
   const availableItems = useMemo(() => {
     return cart.items.filter(item => 
-      item.stockQuantity === undefined || item.stockQuantity > 0
+      item.product.status === 'ACTIVE' && // Chỉ tính sản phẩm ACTIVE
+      (item.stockQuantity === undefined || item.stockQuantity > 0)
     );
   }, [cart.items]);
 

@@ -41,6 +41,8 @@ export const ProductInfo = ({
   const isLowStock = inventory
     ? inventory.quantity > 0 && inventory.quantity <= 10
     : false;
+  const isInactive = product.status === 'INACTIVE'; // Kiểm tra sản phẩm ngừng bán
+  const isAvailable = !isInactive && isInStock; // Sản phẩm khả dụng khi ACTIVE và còn hàng
   const showPrice = product.unitPrice > 0;
 
   // Fetch reviews for this product
@@ -214,7 +216,14 @@ export const ProductInfo = ({
       >
         {inventory && (
           <div className="flex items-center gap-3">
-            {!isInStock ? (
+            {isInactive ? (
+              <div className="inline-flex items-center gap-2 px-4 py-2.5 bg-gray-50 border border-gray-300 rounded-full">
+                <Package className="w-4 h-4 text-gray-600" />
+                <span className="text-sm font-semibold text-gray-700">
+                  Ngừng bán
+                </span>
+              </div>
+            ) : !isInStock ? (
               <div className="inline-flex items-center gap-2 px-4 py-2.5 bg-red-50 border border-red-200 rounded-full">
                 <Package className="w-4 h-4 text-red-600" />
                 <span className="text-sm font-semibold text-red-700">
@@ -245,7 +254,7 @@ export const ProductInfo = ({
           </div>
         )}
 
-        {isInStock && showPrice && (
+        {isAvailable && showPrice && (
           <div className="flex items-center gap-3">
             <span className="text-sm font-semibold text-gray-800">
               Số lượng:
@@ -313,14 +322,14 @@ export const ProductInfo = ({
       >
         <button
           onClick={() => {
-            if (isInStock && showPrice) {
+            if (isAvailable && showPrice) {
               onAddToCart();
               navigate("/checkout");
             }
           }}
-          disabled={!isInStock || !showPrice}
+          disabled={!isAvailable || !showPrice}
           className={`flex-1 flex items-center justify-center gap-2 px-5 py-3 rounded-full text-sm font-semibold overflow-hidden transition-shadow focus:outline-none focus:ring-0 focus-visible:outline-none ${
-            !isInStock || !showPrice
+            !isAvailable || !showPrice
               ? "bg-gray-300 text-gray-500 cursor-not-allowed"
               : "btn-slide-overlay-dark relative bg-black text-white "
           }`}
@@ -330,9 +339,9 @@ export const ProductInfo = ({
         </button>
         <button
           onClick={onAddToCart}
-          disabled={!isInStock || isAddingToCart || !showPrice}
+          disabled={!isAvailable || isAddingToCart || !showPrice}
           className={`flex-1 flex items-center justify-center gap-2 px-5 py-3 rounded-full text-sm font-semibold overflow-hidden transition-shadow focus:outline-none focus:ring-0 focus-visible:outline-none ${
-            !isInStock || !showPrice
+            !isAvailable || !showPrice
               ? "bg-gray-200 text-gray-500 cursor-not-allowed"
               : "btn-slide-overlay relative border border-black text-black bg-white"
           }`}

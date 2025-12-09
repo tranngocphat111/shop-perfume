@@ -13,7 +13,7 @@ interface UseCheckoutOrderReturn {
   showSuccessNotification: boolean;
   successMessage: { message: string; subMessage?: string } | null;
   isErrorNotification: boolean;
-  handleSubmit: (formData: CheckoutFormData, cartItems: any[], discount: number, appliedCouponId: number | null) => Promise<void>;
+  handleSubmit: (formData: CheckoutFormData, cartItems: any[], discount: number, appliedCouponId: number | null, appliedCouponCode?: string) => Promise<void>;
   setShowSuccessNotification: (show: boolean) => void;
   setIsErrorNotification: (isError: boolean) => void;
   setValidationErrors: (errors: Record<string, string>) => void;
@@ -34,7 +34,8 @@ export const useCheckoutOrder = (): UseCheckoutOrderReturn => {
     formData: CheckoutFormData,
     cartItems: any[],
     discount: number,
-    _appliedCouponIdParam: number | null
+    _appliedCouponIdParam: number | null,
+    appliedCouponCode?: string
   ) => {
     // Set loading state ngay từ đầu để disable nút và hiển thị loading
     setIsProcessing(true);
@@ -137,6 +138,7 @@ export const useCheckoutOrder = (): UseCheckoutOrderReturn => {
         cartItems: mappedCartItems,
         totalAmount: finalTotal,
         discountAmount: discount, // Gửi số tiền đã giảm để backend lưu
+        appliedCouponCode: appliedCouponCode, // Gửi mã coupon để trừ điểm tích lũy
       };
 
       // Submit order
