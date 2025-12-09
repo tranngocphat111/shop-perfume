@@ -117,14 +117,14 @@ export const RelatedProducts = ({
                         />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h3 className="text-lg font-medium text-gray-900 group-hover:text-black line-clamp-2 mb-1">
+                        <h3 className="text-base font-medium text-gray-900 group-hover:text-black line-clamp-2 mb-1">
                           {relatedProduct.name}
                         </h3>
                         <div className="flex items-center gap-2 mb-1">
                           {getStockBadge(relatedProduct.productId)}
                         </div>
                         {showPrice ? (
-                          <p className="text-lg font-normal text-gray-500">
+                          <p className="text-base font-normal text-gray-500">
                             {formatCurrency(relatedProduct.unitPrice)} ₫
                           </p>
                         ) : (
@@ -198,14 +198,14 @@ export const RelatedProducts = ({
                         />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h3 className="text-lg font-medium text-gray-900 group-hover:text-black line-clamp-2 mb-1">
+                        <h3 className="text-base font-medium text-gray-900 group-hover:text-black line-clamp-2 mb-1">
                           {categoryProduct.name}
                         </h3>
                         <div className="flex items-center gap-2 mb-1">
                           {getStockBadge(categoryProduct.productId)}
                         </div>
                         {showPrice ? (
-                          <p className="text-lg font-normal text-gray-500">
+                          <p className="text-base font-normal text-gray-500">
                             {formatCurrency(categoryProduct.unitPrice)} ₫
                           </p>
                         ) : (

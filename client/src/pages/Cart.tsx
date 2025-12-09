@@ -2,7 +2,7 @@ import { motion } from "framer-motion";
 import { useEffect, useMemo, useState } from "react";
 import { useCart } from "../contexts/CartContext";
 import { useAuth } from "../contexts/AuthContext";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { EmptyCart } from "../components/cart/EmptyCart";
 import { CartTable } from "../components/cart/CartTable";
 import CartSummary from "../components/cart/CartSummary";
@@ -18,9 +18,11 @@ export const Cart = () => {
     appliedCouponId,
     discount,
     setAppliedCouponId,
-    setDiscount
+    setDiscount,
+    refreshCartStock
   } = useCart();
   const { isAuthenticated } = useAuth();
+  const location = useLocation();
   const [isLoading, setIsLoading] = useState(true);
 
   // Tính tổng và số lượng chỉ từ items còn hàng (nhưng vẫn hiển thị tất cả items)
@@ -42,10 +44,15 @@ export const Cart = () => {
     return availableItems.reduce((sum, item) => sum + item.quantity, 0);
   }, [availableItems]);
 
-  // Auto scroll to top when component mounts
+  // Auto scroll to top and refresh stock when component mounts or location changes
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, []);
+    
+    // Refresh stock quantities when entering cart page
+    // This ensures stock is up-to-date, especially after checkout errors
+    refreshCartStock().catch(console.error);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname]); // Only run when pathname changes, not when refreshCartStock changes
 
   usePageTitle({
     title: "Giỏ hàng - STPN Perfume",
