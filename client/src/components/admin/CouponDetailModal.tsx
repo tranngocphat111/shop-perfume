@@ -130,44 +130,36 @@ export const CouponDetailModal = ({
             )}
 
             {/* Created At */}
-            {coupon.createdAt && (
-              <div className="grid grid-cols-3 gap-4">
-                <div className="font-semibold text-gray-700">Created At:</div>
-                <div className="col-span-2 text-gray-900">
-                  {formatDate(coupon.createdAt)}
-                </div>
+            <div className="grid grid-cols-3 gap-4">
+              <div className="font-semibold text-gray-700">Created At:</div>
+              <div className="col-span-2 text-gray-900">
+                {formatDate(coupon.createdAt)}
               </div>
-            )}
+            </div>
 
             {/* Created By */}
-            {coupon.createdBy && (
-              <div className="grid grid-cols-3 gap-4">
-                <div className="font-semibold text-gray-700">Created By:</div>
-                <div className="col-span-2 text-gray-900">
-                  {coupon.createdBy}
-                </div>
+            <div className="grid grid-cols-3 gap-4">
+              <div className="font-semibold text-gray-700">Created By:</div>
+              <div className="col-span-2 text-gray-900">
+                {coupon.createdBy || "N/A"}
               </div>
-            )}
+            </div>
 
             {/* Last Updated */}
-            {coupon.lastUpdated && (
-              <div className="grid grid-cols-3 gap-4">
-                <div className="font-semibold text-gray-700">Last Updated:</div>
-                <div className="col-span-2 text-gray-900">
-                  {formatDate(coupon.lastUpdated)}
-                </div>
+            <div className="grid grid-cols-3 gap-4">
+              <div className="font-semibold text-gray-700">Last Updated:</div>
+              <div className="col-span-2 text-gray-900">
+                {formatDate(coupon.lastUpdated)}
               </div>
-            )}
+            </div>
 
             {/* Last Updated By */}
-            {coupon.lastUpdatedBy && (
-              <div className="grid grid-cols-3 gap-4">
-                <div className="font-semibold text-gray-700">Updated By:</div>
-                <div className="col-span-2 text-gray-900">
-                  {coupon.lastUpdatedBy}
-                </div>
+            <div className="grid grid-cols-3 gap-4">
+              <div className="font-semibold text-gray-700">Updated By:</div>
+              <div className="col-span-2 text-gray-900">
+                {coupon.lastUpdatedBy || "N/A"}
               </div>
-            )}
+            </div>
           </div>
         </div>
 
