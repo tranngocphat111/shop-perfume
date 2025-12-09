@@ -40,8 +40,8 @@ export const ProductDetail = () => {
   // Set page title and meta tags
   usePageTitle({
     title: product
-      ? `${product.name} - STPN Perfume`
-      : "Chi tiết sản phẩm - STPN Perfume",
+      ? `${product.name} - SPTN Perfume`
+      : "Chi tiết sản phẩm - SPTN Perfume",
     description: product
       ? `${product.name} - ${product.brand?.name || ""} ${
           product.category?.name || ""
