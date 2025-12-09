@@ -105,6 +105,9 @@ public class SecurityConfig {
                     .requestMatchers("/payment/debug").permitAll()
                     .requestMatchers("/api/payment/debug", "/api/payment/debug/**").permitAll()
                     
+                    // Contact endpoint - public for anyone to send contact email
+                    .requestMatchers("/contact/**", "/api/contact/**").permitAll()
+                    
                     // Public read-only endpoints (GET only)
                     .requestMatchers(HttpMethod.GET, "/products/**").permitAll()
                     .requestMatchers(HttpMethod.POST, "/products/**").hasRole("ADMIN")

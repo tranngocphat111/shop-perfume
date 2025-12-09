@@ -20,6 +20,8 @@ export const CartItem = ({
   const maxQuantity = item.stockQuantity ?? Infinity;
   const isOutOfStock =
     item.stockQuantity !== undefined && item.stockQuantity === 0;
+  const isInactive = item.product.status === 'INACTIVE'; // Kiểm tra sản phẩm inactive
+  const isUnavailable = isOutOfStock || isInactive; // Không khả dụng nếu hết hàng HOẶC inactive
   const isMaxQuantity = item.quantity >= maxQuantity;
   const isMinQuantity = item.quantity <= 1;
   const subtotal = item.product.unitPrice * item.quantity;
@@ -62,12 +64,17 @@ export const CartItem = ({
             }}
           />
           {/* Badge số lượng tồn kho */}
-          {item.stockQuantity !== undefined && item.stockQuantity === 0 && (
+          {isInactive && (
+            <div className="absolute top-2 left-2 bg-gray-600 text-white text-[10px] font-bold px-2 py-1 rounded shadow-sm">
+              NGỪNG BÁN
+            </div>
+          )}
+          {!isInactive && item.stockQuantity !== undefined && item.stockQuantity === 0 && (
             <div className="absolute top-2 left-2 bg-red-600 text-white text-[10px] font-bold px-2 py-1 rounded shadow-sm">
               HẾT HÀNG
             </div>
           )}
-          {item.stockQuantity !== undefined &&
+          {!isInactive && item.stockQuantity !== undefined &&
             item.stockQuantity > 0 &&
             item.stockQuantity < 10 && (
               <div className="absolute top-2 left-2 bg-yellow-500 text-white text-[10px] font-bold px-2 py-1 rounded shadow-sm">
@@ -85,7 +92,12 @@ export const CartItem = ({
                 {item.product.name}
               </h3>
               <div className="flex items-center gap-2 mt-2">
-                {item.stockQuantity !== undefined &&
+                {isInactive ? (
+                  <span className="text-lg inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-gray-50 text-xs font-semibold text-gray-600 border border-gray-200">
+                    <Package className="w-3 h-3 " />
+                    <span className="mt-[-2px]"> Không khả dụng</span>
+                  </span>
+                ) : item.stockQuantity !== undefined &&
                 item.stockQuantity === 0 ? (
                   <span className="text-lg inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-red-50 text-xs font-semibold text-red-600 border border-red-200">
                     <Package className="w-3 h-3 " />
@@ -126,8 +138,8 @@ export const CartItem = ({
             {/* Quantity Control: Rounded full style like product detail */}
             <div
               className={`flex items-center border rounded-lg overflow-hidden transition-colors w-full md:w-auto ${
-                isOutOfStock
-                  ? "border-red-200 bg-red-50"
+                isUnavailable
+                  ? "border-gray-300 bg-gray-100"
                   : "border-gray-200 bg-white hover:border-gray-300"
               }`}
             >
@@ -136,7 +148,7 @@ export const CartItem = ({
                   e.stopPropagation();
                   handleQuantityChange(item.quantity - 1);
                 }}
-                disabled={isMinQuantity || isOutOfStock}
+                disabled={isMinQuantity || isUnavailable}
                 className="p-1.5 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
                 <Minus className="w-4 h-5 text-gray-700" />
@@ -150,7 +162,7 @@ export const CartItem = ({
                   handleQuantityChange(val);
                 }}
                 onClick={(e) => e.stopPropagation()}
-                disabled={isOutOfStock}
+                disabled={isUnavailable}
                 className="w-12 text-center border-0 focus:outline-none focus:ring-0 py-1.5 text-sm font-semibold text-gray-900 bg-transparent flex items-center justify-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none disabled:opacity-50"
                 min="1"
                 max={maxQuantity !== Infinity ? maxQuantity : undefined}
@@ -161,7 +173,7 @@ export const CartItem = ({
                   e.stopPropagation();
                   handleQuantityChange(item.quantity + 1);
                 }}
-                disabled={isMaxQuantity || isOutOfStock}
+                disabled={isMaxQuantity || isUnavailable}
                 className="p-1.5 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
                 <Plus className="w-4 h-5 text-gray-700" />

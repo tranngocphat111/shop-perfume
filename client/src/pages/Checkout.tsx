@@ -37,9 +37,10 @@ export const Checkout: React.FC = () => {
   const { cart, appliedCouponId, discount, setAppliedCouponId, setDiscount } = useCart();
   const { user, isAuthenticated } = useAuth();
   
-  // Filter out of stock items ngay từ đầu - chỉ lấy items còn hàng
+  // Filter out of stock items VÀ sản phẩm INACTIVE - chỉ lấy items còn hàng và ACTIVE
   const cartItems = cart.items.filter(item => 
-    item.stockQuantity === undefined || item.stockQuantity > 0
+    item.product.status === 'ACTIVE' && // Chỉ lấy sản phẩm ACTIVE
+    (item.stockQuantity === undefined || item.stockQuantity > 0)
   );
   const [formData, setFormData] = useState<CheckoutFormData>(initialFormData);
   
@@ -317,9 +318,15 @@ export const Checkout: React.FC = () => {
       return;
     }
 
+    // Tìm coupon code từ selectedCouponId
+    const appliedCoupon = selectedCouponId 
+      ? coupons.find(c => c.couponId === selectedCouponId) 
+      : null;
+    const appliedCouponCode = appliedCoupon?.code;
+
     // Use hook to handle order submission
     // Note: isProcessing will be set to true inside the hook
-    await handleOrderSubmit(formData, cartItems, discount, appliedCouponId);
+    await handleOrderSubmit(formData, cartItems, discount, appliedCouponId, appliedCouponCode);
   };
 
   const breadcrumbs = [
