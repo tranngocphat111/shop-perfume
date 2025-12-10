@@ -29,7 +29,6 @@ export const Customers = () => {
     removeToast,
     success,
     error: showError,
-    warning,
   } = useToast();
 
   const [customers, setCustomers] = useState<CustomerData[]>([]);
