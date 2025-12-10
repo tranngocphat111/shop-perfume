@@ -64,15 +64,11 @@ export const Dashboard = () => {
   const handleYearChange = (year: number) => {
     setSelectedYear(year);
   };
-  // Fetch stats with period and year filter
+  // Fetch stats
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const year = period === "yearly" ? undefined : selectedYear;
-        const statsData = await dashboardService.getDashboardStats(
-          period,
-          year
-        );
+        const statsData = await dashboardService.getDashboardStats();
         setStats(statsData);
       } catch (error) {
         console.error("Error fetching dashboard stats:", error);
@@ -80,17 +76,13 @@ export const Dashboard = () => {
     };
 
     fetchStats();
-  }, [period, selectedYear]);
+  }, []);
 
-  // Fetch category distribution with period and year filter
+  // Fetch category distribution
   useEffect(() => {
     const fetchCategoryDistribution = async () => {
       try {
-        const year = period === "yearly" ? undefined : selectedYear;
-        const categoryData = await dashboardService.getCategoryDistribution(
-          period,
-          year
-        );
+        const categoryData = await dashboardService.getCategoryDistribution();
         setCategoryDistribution(categoryData);
       } catch (error) {
         console.error("Error fetching category distribution:", error);
@@ -98,18 +90,13 @@ export const Dashboard = () => {
     };
 
     fetchCategoryDistribution();
-  }, [period, selectedYear]);
+  }, []);
 
-  // Fetch top brands with period and year filter
+  // Fetch top brands
   useEffect(() => {
     const fetchTopBrands = async () => {
       try {
-        const year = period === "yearly" ? undefined : selectedYear;
-        const brandsData = await dashboardService.getTopBrands(
-          10,
-          period,
-          year
-        );
+        const brandsData = await dashboardService.getTopBrands(10);
         setTopBrands(brandsData);
       } catch (error) {
         console.error("Error fetching top brands:", error);
@@ -117,7 +104,7 @@ export const Dashboard = () => {
     };
 
     fetchTopBrands();
-  }, [period, selectedYear]);
+  }, []);
 
   useEffect(() => {
     const fetchRevenueStats = async () => {
@@ -328,7 +315,7 @@ export const Dashboard = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-600 text-sm font-medium">
-                  New Customers (Last 30 days)
+                  New Customers
                 </p>
                 <p className="text-3xl font-bold text-gray-800 mt-2">
                   {stats?.newCustomers || 0}
@@ -363,9 +350,7 @@ export const Dashboard = () => {
           <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-indigo-500">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-600 text-sm font-medium">
-                  New Orders (Last 30 days)
-                </p>
+                <p className="text-gray-600 text-sm font-medium">New Orders</p>
                 <p className="text-3xl font-bold text-gray-800 mt-2">
                   {stats?.newOrders || 0}
                 </p>

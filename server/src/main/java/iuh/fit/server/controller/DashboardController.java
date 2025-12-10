@@ -32,11 +32,9 @@ public class DashboardController {
     @GetMapping("/stats")
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Get dashboard statistics", description = "Retrieve all dashboard statistics")
-    public ResponseEntity<DashboardStatsResponse> getDashboardStats(
-            @RequestParam(required = false) String period,
-            @RequestParam(required = false) Integer year) {
-        log.info("REST request to get dashboard statistics for period {} and year {}", period, year);
-        DashboardStatsResponse stats = dashboardService.getDashboardStats(period, year);
+    public ResponseEntity<DashboardStatsResponse> getDashboardStats() {
+        log.info("REST request to get dashboard statistics");
+        DashboardStatsResponse stats = dashboardService.getDashboardStats();
         return ResponseEntity.ok(stats);
     }
 
@@ -81,11 +79,9 @@ public class DashboardController {
     @GetMapping("/category-distribution")
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Get category distribution", description = "Retrieve sales distribution by category")
-    public ResponseEntity<CategoryDistributionResponse> getCategoryDistribution(
-            @RequestParam(required = false) String period,
-            @RequestParam(required = false) Integer year) {
-        log.info("REST request to get category distribution for period {} and year {}", period, year);
-        return ResponseEntity.ok(dashboardService.getCategoryDistribution(period, year));
+    public ResponseEntity<CategoryDistributionResponse> getCategoryDistribution() {
+        log.info("REST request to get category distribution");
+        return ResponseEntity.ok(dashboardService.getCategoryDistribution());
     }
 
     /**
@@ -95,10 +91,8 @@ public class DashboardController {
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Get top brands", description = "Retrieve top selling brands")
     public ResponseEntity<List<TopBrandResponse>> getTopBrands(
-            @RequestParam(defaultValue = "10") int limit,
-            @RequestParam(required = false) String period,
-            @RequestParam(required = false) Integer year) {
-        log.info("REST request to get top {} brands for period {} and year {}", limit, period, year);
-        return ResponseEntity.ok(dashboardService.getTopBrands(limit, period, year));
+            @RequestParam(defaultValue = "10") int limit) {
+        log.info("REST request to get top {} brands", limit);
+        return ResponseEntity.ok(dashboardService.getTopBrands(limit));
     }
 }
