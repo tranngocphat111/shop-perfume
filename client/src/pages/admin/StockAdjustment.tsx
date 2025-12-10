@@ -61,7 +61,12 @@ export const StockAdjustments = () => {
         search
       );
 
-      const transformedData: StockAdjustment[] = pageResponse.content.map(
+      // Filter only ACTIVE products
+      const activeContent = pageResponse.content.filter(
+        (item: InventoryItem) => item.product.status === "ACTIVE"
+      );
+
+      const transformedData: StockAdjustment[] = activeContent.map(
         (item: InventoryItem) => ({
           id: item.inventoryId,
           productId: item.product.productId,
@@ -83,7 +88,7 @@ export const StockAdjustments = () => {
       );
 
       setAdjustments(transformedData);
-      setTotalElements(pageResponse.totalElements);
+      setTotalElements(activeContent.length);
     } catch (err) {
       console.error("Error fetching inventory:", err);
       setError("Failed to load inventory data. Please try again.");

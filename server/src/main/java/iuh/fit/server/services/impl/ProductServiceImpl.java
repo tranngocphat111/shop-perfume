@@ -343,7 +343,7 @@ public class ProductServiceImpl implements ProductService {
 
         // Set status to INACTIVE instead of deleting
         product.setStatus(ProductStatus.INACTIVE);
-        product.setLastUpdated(new java.util.Date());
+        // lastUpdated and lastUpdatedBy will be automatically set by @UpdateTimestamp and @LastModifiedBy
 
         // Save
         productRepository.save(product);

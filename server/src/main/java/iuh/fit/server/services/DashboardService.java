@@ -5,7 +5,7 @@ import iuh.fit.server.dto.response.*;
 import java.util.List;
 
 public interface DashboardService {
-    DashboardStatsResponse getDashboardStats(java.time.LocalDate startDate, java.time.LocalDate endDate);
+    DashboardStatsResponse getDashboardStats(String period, Integer year);
     
     List<TopProductResponse> getTopProducts(int limit);
     
@@ -13,7 +13,7 @@ public interface DashboardService {
     
     List<LowStockProductResponse> getLowStockProducts();
     
-    CategoryDistributionResponse getCategoryDistribution(java.time.LocalDate startDate, java.time.LocalDate endDate);
+    CategoryDistributionResponse getCategoryDistribution(String period, Integer year);
     
-    List<TopBrandResponse> getTopBrands(int limit, java.time.LocalDate startDate, java.time.LocalDate endDate);
+    List<TopBrandResponse> getTopBrands(int limit, String period, Integer year);
 }
