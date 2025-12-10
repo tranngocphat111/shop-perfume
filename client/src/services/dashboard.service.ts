@@ -36,25 +36,15 @@ export interface TopBrandResponse {
 }
 
 export const dashboardService = {
-    async getDashboardStats(period?: string, year?: number): Promise<DashboardStats> {
-        const params = new URLSearchParams();
-        if (period) params.append('period', period);
-        if (year) params.append('year', year.toString());
-        return apiService.get<DashboardStats>(`/dashboard/stats?${params.toString()}`);
+    async getDashboardStats(): Promise<DashboardStats> {
+        return apiService.get<DashboardStats>('/dashboard/stats');
     },
 
-    async getCategoryDistribution(period?: string, year?: number): Promise<CategoryDistributionResponse> {
-        const params = new URLSearchParams();
-        if (period) params.append('period', period);
-        if (year) params.append('year', year.toString());
-        return apiService.get<CategoryDistributionResponse>(`/dashboard/category-distribution?${params.toString()}`);
+    async getCategoryDistribution(): Promise<CategoryDistributionResponse> {
+        return apiService.get<CategoryDistributionResponse>('/dashboard/category-distribution');
     },
 
-    async getTopBrands(limit: number = 10, period?: string, year?: number): Promise<TopBrandResponse[]> {
-        const params = new URLSearchParams();
-        params.append('limit', limit.toString());
-        if (period) params.append('period', period);
-        if (year) params.append('year', year.toString());
-        return apiService.get<TopBrandResponse[]>(`/dashboard/top-brands?${params.toString()}`);
+    async getTopBrands(limit: number = 10): Promise<TopBrandResponse[]> {
+        return apiService.get<TopBrandResponse[]>(`/dashboard/top-brands?limit=${limit}`);
     },
 };
