@@ -227,15 +227,35 @@ export const Orders = () => {
 
         if (editingPaymentId === row.id) {
           return (
-            <select
-              value={editingPaymentValue}
-              onChange={(e) => handlePaymentChange(e.target.value)}
-              onBlur={handlePaymentBlur}
-              onKeyDown={handlePaymentKeyDown}
-              autoFocus
-              className="border border-blue-500 rounded px-2 py-1 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500">
-              <option value="REFUNDED">REFUNDED</option>
-            </select>
+            <div className="flex items-center gap-2">
+              <select
+                value={editingPaymentValue}
+                onChange={(e) => setEditingPaymentValue(e.target.value)}
+                onClick={(e) => e.stopPropagation()}
+                autoFocus
+                className="border border-blue-500 rounded px-2 py-1 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="REFUNDED">REFUNDED</option>
+              </select>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handlePaymentBlur();
+                }}
+                className="px-2 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600"
+                title="Save">
+                <i className="fas fa-check"></i>
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setEditingPaymentId(null);
+                  setEditingPaymentValue("");
+                }}
+                className="px-2 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600"
+                title="Cancel">
+                <i className="fas fa-times"></i>
+              </button>
+            </div>
           );
         }
 
@@ -278,10 +298,6 @@ export const Orders = () => {
     setEditingPaymentValue("REFUNDED"); // Set to REFUNDED since that's the only valid transition
   };
 
-  const handlePaymentChange = (value: string) => {
-    setEditingPaymentValue(value);
-  };
-
   const handlePaymentBlur = async () => {
     if (editingPaymentId && editingPaymentValue) {
       try {
@@ -309,15 +325,6 @@ export const Orders = () => {
     setEditingPaymentValue("");
   };
 
-  const handlePaymentKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
-      handlePaymentBlur();
-    } else if (e.key === "Escape") {
-      setEditingPaymentId(null);
-      setEditingPaymentValue("");
-    }
-  };
-
   const handleView = async (item: OrderData) => {
     try {
       const orderDetails = await orderService.getOrderById(item.id);
@@ -340,6 +347,12 @@ export const Orders = () => {
   };
 
   const handleEdit = async (item: OrderData) => {
+    // Only allow editing if payment status is PAID
+    if (item.paymentStatus !== "PAID") {
+      warning("Only orders with PAID status can be edited!");
+      return;
+    }
+
     try {
       const orderDetails = await orderService.getOrderById(item.id);
       setEditOrder(orderDetails);

@@ -243,16 +243,36 @@ export const PurchaseInvoices = () => {
 
         if (editingStatusId === row.id) {
           return (
-            <select
-              value={editingStatusValue}
-              onChange={(e) => handleStatusChange(e.target.value)}
-              onBlur={handleStatusBlur}
-              onKeyDown={handleStatusKeyDown}
-              autoFocus
-              className="border border-blue-500 rounded px-2 py-1 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500">
-              <option value="COMPLETED">COMPLETED</option>
-              <option value="CANCELLED">CANCELLED</option>
-            </select>
+            <div className="flex items-center gap-2">
+              <select
+                value={editingStatusValue}
+                onChange={(e) => setEditingStatusValue(e.target.value)}
+                onClick={(e) => e.stopPropagation()}
+                autoFocus
+                className="border border-blue-500 rounded px-2 py-1 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="COMPLETED">COMPLETED</option>
+                <option value="CANCELLED">CANCELLED</option>
+              </select>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleStatusBlur();
+                }}
+                className="px-2 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600"
+                title="Save">
+                <i className="fas fa-check"></i>
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setEditingStatusId(null);
+                  setEditingStatusValue("");
+                }}
+                className="px-2 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600"
+                title="Cancel">
+                <i className="fas fa-times"></i>
+              </button>
+            </div>
           );
         }
 
@@ -304,10 +324,6 @@ export const PurchaseInvoices = () => {
     setEditingStatusValue("COMPLETED");
   };
 
-  const handleStatusChange = (value: string) => {
-    setEditingStatusValue(value);
-  };
-
   const handleStatusBlur = async () => {
     if (editingStatusId && editingStatusValue) {
       try {
@@ -349,15 +365,6 @@ export const PurchaseInvoices = () => {
     }
     setEditingStatusId(null);
     setEditingStatusValue("");
-  };
-
-  const handleStatusKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
-      handleStatusBlur();
-    } else if (e.key === "Escape") {
-      setEditingStatusId(null);
-      setEditingStatusValue("");
-    }
   };
 
   const handleView = async (item: PurchaseInvoiceData) => {

@@ -64,7 +64,7 @@ export const Dashboard = () => {
   const handleYearChange = (year: number) => {
     setSelectedYear(year);
   };
-  // Fetch stats without date filter
+  // Fetch stats
   useEffect(() => {
     const fetchStats = async () => {
       try {
@@ -78,7 +78,7 @@ export const Dashboard = () => {
     fetchStats();
   }, []);
 
-  // Fetch category distribution (no date filter - show all categories)
+  // Fetch category distribution
   useEffect(() => {
     const fetchCategoryDistribution = async () => {
       try {
@@ -92,7 +92,7 @@ export const Dashboard = () => {
     fetchCategoryDistribution();
   }, []);
 
-  // Fetch top brands without date filter
+  // Fetch top brands
   useEffect(() => {
     const fetchTopBrands = async () => {
       try {
@@ -315,7 +315,7 @@ export const Dashboard = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-600 text-sm font-medium">
-                  New Customers (Last 30 days)
+                  New Customers
                 </p>
                 <p className="text-3xl font-bold text-gray-800 mt-2">
                   {stats?.newCustomers || 0}
@@ -350,9 +350,7 @@ export const Dashboard = () => {
           <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-indigo-500">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-600 text-sm font-medium">
-                  New Orders (Last 30 days)
-                </p>
+                <p className="text-gray-600 text-sm font-medium">New Orders</p>
                 <p className="text-3xl font-bold text-gray-800 mt-2">
                   {stats?.newOrders || 0}
                 </p>
