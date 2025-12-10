@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { FaSpinner } from 'react-icons/fa';
-import { apiService } from '../services/api';
-import type { OrderResponse } from '../types';
-import { generateOrderQRCode } from '../services/sepay';
+import React, { useState, useEffect, useCallback } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
+import { FaSpinner } from "react-icons/fa";
+import { apiService } from "../services/api";
+import type { OrderResponse } from "../types";
+import { generateOrderQRCode } from "../services/sepay";
 import {
   PaymentHeader,
   PaymentInstructions,
@@ -14,12 +14,12 @@ import {
   CODSuccessBanner,
   CODSuccessActions,
   OrderSummarySidebar,
-} from '../components/payment';
-import { usePageTitle } from '../hooks/usePageTitle';
+} from "../components/payment";
+import { usePageTitle } from "../hooks/usePageTitle";
 
 interface PaymentLocationState {
   order: OrderResponse;
-  paymentMethod: 'cod' | 'qr-payment';
+  paymentMethod: "cod" | "qr-payment";
   totalAmount: number;
 }
 
@@ -27,7 +27,7 @@ export const Payment: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const state = location.state as PaymentLocationState;
-  
+
   const [order, setOrder] = useState<OrderResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isChecking, setIsChecking] = useState(false);
@@ -35,22 +35,22 @@ export const Payment: React.FC = () => {
   const [isCancelled, setIsCancelled] = useState(false);
   const [countdown, setCountdown] = useState(10);
   const [error, setError] = useState<string | null>(null);
-  const [qrUrl, setQrUrl] = useState<string>('');
+  const [qrUrl, setQrUrl] = useState<string>("");
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null); // Time remaining in seconds
 
   const generateQRCode = useCallback((orderId: string, amount: number) => {
-    console.log('[Payment] 🔵 Generating QR code:', { orderId, amount });
+    console.log("[Payment] 🔵 Generating QR code:", { orderId, amount });
     // Use Sepay QR code generation
     const url = generateOrderQRCode(orderId, amount);
-    console.log('[Payment] 🔵 QR Code URL generated:', url);
-    
+    console.log("[Payment] 🔵 QR Code URL generated:", url);
+
     const img = new Image();
     img.onload = () => {
-      console.log('[Payment] ✅ QR code image loaded successfully');
+      console.log("[Payment] ✅ QR code image loaded successfully");
       setQrUrl(url);
     };
     img.onerror = () => {
-      console.error('[Payment] ❌ Failed to load QR code image');
+      console.error("[Payment] ❌ Failed to load QR code image");
     };
     img.src = url;
   }, []);
@@ -58,46 +58,51 @@ export const Payment: React.FC = () => {
   // Check if order should be cancelled due to timeout
   const checkTimeout = useCallback(async () => {
     if (!order?.orderId) {
-      console.log('[Payment] ⚠️ Cannot check timeout: orderId is missing');
+      console.log("[Payment] ⚠️ Cannot check timeout: orderId is missing");
       return;
     }
-    
-    console.log('[Payment] 🔵 Checking timeout for order:', order.orderId);
+
+    console.log("[Payment] 🔵 Checking timeout for order:", order.orderId);
     try {
-      const response = await apiService.post<{ cancelled: boolean; message: string }>(
-        `/orders/${order.orderId}/cancel-timeout`,
-        {}
-      );
-      console.log('[Payment] 🔵 Timeout check response:', response);
-      
+      const response = await apiService.post<{
+        cancelled: boolean;
+        message: string;
+      }>(`/orders/${order.orderId}/cancel-timeout`, {});
+      console.log("[Payment] 🔵 Timeout check response:", response);
+
       if (response.cancelled) {
-        console.log('[Payment] ⚠️ Order cancelled due to timeout:', order.orderId);
+        console.log(
+          "[Payment] ⚠️ Order cancelled due to timeout:",
+          order.orderId
+        );
         setIsCancelled(true);
-        setError('Đơn hàng đã bị hủy do quá thời gian thanh toán (30 phút). Vui lòng đặt hàng lại.');
+        setError(
+          "Đơn hàng đã bị hủy do quá thời gian thanh toán (30 phút). Vui lòng đặt hàng lại."
+        );
       } else {
-        console.log('[Payment] ✅ Order still valid (not cancelled)');
+        console.log("[Payment] ✅ Order still valid (not cancelled)");
       }
     } catch (error) {
-      console.error('[Payment] ❌ Error checking timeout:', error);
+      console.error("[Payment] ❌ Error checking timeout:", error);
     }
   }, [order]);
 
   // Calculate time remaining (30 minutes from order creation)
   useEffect(() => {
     if (!order || !state?.order) return;
-    
+
     // Get order creation time from order object (use orderDate)
     const orderCreatedAt = new Date(order.orderDate || new Date());
     const timeoutMs = 30 * 60 * 1000; // 30 minutes
     const elapsed = Date.now() - orderCreatedAt.getTime();
     const remaining = Math.max(0, timeoutMs - elapsed);
-    
+
     if (remaining > 0) {
       setTimeRemaining(Math.floor(remaining / 1000));
-      
+
       // Update countdown every second
       const interval = setInterval(() => {
-        setTimeRemaining(prev => {
+        setTimeRemaining((prev) => {
           if (prev === null || prev <= 0) {
             clearInterval(interval);
             checkTimeout();
@@ -106,7 +111,7 @@ export const Payment: React.FC = () => {
           return prev - 1;
         });
       }, 1000);
-      
+
       return () => clearInterval(interval);
     } else {
       setTimeRemaining(0);
@@ -116,46 +121,52 @@ export const Payment: React.FC = () => {
 
   // Scroll to top when page loads or when order changes
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }, [order, state]);
 
   usePageTitle({
-    title: "Xác nhận thanh toán - STPN Perfume",
-    description: "Xác nhận và hoàn tất thanh toán cho đơn hàng của bạn. Quét mã QR hoặc thanh toán khi nhận hàng.",
-    image: "https://res.cloudinary.com/piin/image/upload/v1762171215/banner.zip-2_gdvc0y.jpg"
+    title: "Xác nhận thanh toán - SPTN Perfume",
+    description:
+      "Xác nhận và hoàn tất thanh toán cho đơn hàng của bạn. Quét mã QR hoặc thanh toán khi nhận hàng.",
+    image:
+      "https://res.cloudinary.com/piin/image/upload/v1762171215/banner.zip-2_gdvc0y.jpg",
   });
 
   // Redirect if no state
   useEffect(() => {
     if (!state || !state.order) {
-      console.log('[Payment] ⚠️ No state or order found, redirecting to checkout');
-      navigate('/checkout');
+      console.log(
+        "[Payment] ⚠️ No state or order found, redirecting to checkout"
+      );
+      navigate("/checkout");
       return;
     }
 
-    console.log('[Payment] 🔵 Initializing payment page:', {
+    console.log("[Payment] 🔵 Initializing payment page:", {
       orderId: state.order.orderId,
       paymentMethod: state.paymentMethod,
       totalAmount: state.totalAmount,
-      order: state.order
+      order: state.order,
     });
 
     // Set order from state
     setOrder(state.order);
     setIsLoading(false);
-    
+
     // Check if payment is already completed and refresh user info if needed
-    if (state.order.payment?.status === 'PAID') {
-      console.log('[Payment] ✅ Payment already completed, refreshing user info');
-      window.dispatchEvent(new Event('refreshUserInfo'));
+    if (state.order.payment?.status === "PAID") {
+      console.log(
+        "[Payment] ✅ Payment already completed, refreshing user info"
+      );
+      window.dispatchEvent(new Event("refreshUserInfo"));
     }
 
     // Generate QR code if needed - sử dụng order.totalAmount (giá cuối cùng sau discount)
-    if (state.paymentMethod === 'qr-payment') {
-      console.log('[Payment] 🔵 QR payment detected, generating QR code');
+    if (state.paymentMethod === "qr-payment") {
+      console.log("[Payment] 🔵 QR payment detected, generating QR code");
       generateQRCode(state.order.orderId.toString(), state.order.totalAmount);
     }
-    
+
     // Check timeout immediately
     checkTimeout();
   }, [state, navigate, generateQRCode, checkTimeout]);
@@ -164,7 +175,7 @@ export const Payment: React.FC = () => {
     if (!order?.orderId) {
       return;
     }
-    
+
     if (isPaid || isChecking || isCancelled) {
       return;
     }
@@ -172,8 +183,8 @@ export const Payment: React.FC = () => {
     setIsChecking(true);
     try {
       const url = `/payment/check-qr?orderId=${order.orderId}`;
-      const data = await apiService.get<{ 
-        paid: boolean; 
+      const data = await apiService.get<{
+        paid: boolean;
         cancelled?: boolean;
         amount?: number;
         paymentDate?: string;
@@ -181,65 +192,76 @@ export const Payment: React.FC = () => {
       }>(url);
 
       // Log payment status check result
-      console.log('[Payment] 📊 Payment Status Check:', {
+      console.log("[Payment] 📊 Payment Status Check:", {
         orderId: order.orderId,
         paid: data.paid,
         cancelled: data.cancelled,
         amount: data.amount,
         paymentDate: data.paymentDate,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
 
       if (data.cancelled) {
-        console.log('[Payment] ⚠️⚠️⚠️ ORDER CANCELLED! Order:', order.orderId);
+        console.log("[Payment] ⚠️⚠️⚠️ ORDER CANCELLED! Order:", order.orderId);
         setIsCancelled(true);
-        setError('Đơn hàng đã bị hủy do quá thời gian thanh toán (30 phút). Vui lòng đặt hàng lại.');
+        setError(
+          "Đơn hàng đã bị hủy do quá thời gian thanh toán (30 phút). Vui lòng đặt hàng lại."
+        );
       } else if (data.paid) {
-        console.log('[Payment] ✅✅✅✅✅ PAYMENT CONFIRMED! ✅✅✅✅✅');
-        console.log('[Payment] Order ID:', order.orderId);
-        console.log('[Payment] Amount:', data.amount);
-        console.log('[Payment] Payment Date:', data.paymentDate);
-        console.log('[Payment] Webhook đã xử lý thành công!');
+        console.log("[Payment] ✅✅✅✅✅ PAYMENT CONFIRMED! ✅✅✅✅✅");
+        console.log("[Payment] Order ID:", order.orderId);
+        console.log("[Payment] Amount:", data.amount);
+        console.log("[Payment] Payment Date:", data.paymentDate);
+        console.log("[Payment] Webhook đã xử lý thành công!");
         setIsPaid(true);
-        
+
         // Refresh user info to update loyalty points
-        window.dispatchEvent(new Event('refreshUserInfo'));
-        console.log('[Payment] ✅ Dispatched refreshUserInfo event to update loyalty points');
-        
+        window.dispatchEvent(new Event("refreshUserInfo"));
+        console.log(
+          "[Payment] ✅ Dispatched refreshUserInfo event to update loyalty points"
+        );
+
         // Lưu ý: Items đã được xóa khỏi cart khi tạo đơn thành công (trong useCheckoutOrder)
         // Không cần xóa lại ở đây
-        
+
         // Redirect to home after 3 seconds
         setTimeout(() => {
-          navigate('/', { state: { orderSuccess: true } });
+          navigate("/", { state: { orderSuccess: true } });
         }, 3000);
       } else {
         // Payment still pending - log only every 10th check to reduce noise
         const checkCount = Math.floor(Date.now() / 10000) % 10;
         if (checkCount === 0) {
-          console.log('[Payment] ⏳ Payment still pending for order:', order.orderId, '- Waiting for webhook...');
+          console.log(
+            "[Payment] ⏳ Payment still pending for order:",
+            order.orderId,
+            "- Waiting for webhook..."
+          );
         }
       }
     } catch (error: any) {
       // Only log connection errors occasionally to avoid spam
-      const errorMessage = error?.message || '';
-      const isConnectionError = errorMessage.includes('Network error') || 
-                                errorMessage.includes('CONNECTION_REFUSED') ||
-                                errorMessage.includes('Failed to fetch');
-      
+      const errorMessage = error?.message || "";
+      const isConnectionError =
+        errorMessage.includes("Network error") ||
+        errorMessage.includes("CONNECTION_REFUSED") ||
+        errorMessage.includes("Failed to fetch");
+
       if (isConnectionError) {
         // Log connection errors only every 30 seconds to reduce spam
         const errorLogCount = Math.floor(Date.now() / 30000) % 2;
         if (errorLogCount === 0) {
-          console.warn('[Payment] ⚠️ Server connection error - server may be restarting. Will retry...');
+          console.warn(
+            "[Payment] ⚠️ Server connection error - server may be restarting. Will retry..."
+          );
         }
       } else {
         // Log other errors normally
-        console.error('[Payment] ❌ Error checking payment:', error);
-        console.error('[Payment] ❌ Error details:', {
+        console.error("[Payment] ❌ Error checking payment:", error);
+        console.error("[Payment] ❌ Error details:", {
           message: error?.message,
           response: error?.response?.data,
-          status: error?.response?.status
+          status: error?.response?.status,
         });
       }
     } finally {
@@ -250,10 +272,10 @@ export const Payment: React.FC = () => {
   // Auto check payment status for QR payment
   useEffect(() => {
     if (!order || isPaid) return;
-    if (state?.paymentMethod !== 'qr-payment') return;
+    if (state?.paymentMethod !== "qr-payment") return;
 
     const countdownInterval = setInterval(() => {
-      setCountdown(prev => {
+      setCountdown((prev) => {
         if (prev <= 1) {
           checkPayment();
           return 10;
@@ -280,9 +302,11 @@ export const Payment: React.FC = () => {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <p className="text-red-600 mb-4">{error || 'Không tìm thấy thông tin đơn hàng'}</p>
+          <p className="text-red-600 mb-4">
+            {error || "Không tìm thấy thông tin đơn hàng"}
+          </p>
           <button
-            onClick={() => navigate('/checkout')}
+            onClick={() => navigate("/checkout")}
             className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
           >
             Quay lại thanh toán
@@ -302,13 +326,16 @@ export const Payment: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {/* Left Column - Payment Content */}
           <div className="lg:col-span-2 space-y-4">
-
             {/* Payment Instructions for QR Payment */}
-            {state.paymentMethod === 'qr-payment' && (
+            {state.paymentMethod === "qr-payment" && (
               <>
                 <PaymentInstructions />
                 <OrderItemsList orderItems={order.orderItems} />
-                <QRCodeCard qrUrl={qrUrl} totalAmount={order.totalAmount} orderId={order.orderId} />
+                <QRCodeCard
+                  qrUrl={qrUrl}
+                  totalAmount={order.totalAmount}
+                  orderId={order.orderId}
+                />
                 <OrderInfoCard order={order} />
                 <PaymentStatusCard
                   isCancelled={isCancelled}
@@ -323,7 +350,7 @@ export const Payment: React.FC = () => {
             )}
 
             {/* COD Payment Success */}
-            {state.paymentMethod === 'cod' && (
+            {state.paymentMethod === "cod" && (
               <>
                 <CODSuccessBanner order={order} />
                 <OrderItemsList orderItems={order.orderItems} />
@@ -358,4 +385,3 @@ export const Payment: React.FC = () => {
     </div>
   );
 };
-

@@ -36,22 +36,15 @@ export interface TopBrandResponse {
 }
 
 export const dashboardService = {
-    async getDashboardStats(startDate?: string, endDate?: string): Promise<DashboardStats> {
-        const params = new URLSearchParams();
-        if (startDate) params.append('startDate', startDate);
-        if (endDate) params.append('endDate', endDate);
-        return apiService.get<DashboardStats>(`/dashboard/stats?${params.toString()}`);
+    async getDashboardStats(): Promise<DashboardStats> {
+        return apiService.get<DashboardStats>('/dashboard/stats');
     },
 
     async getCategoryDistribution(): Promise<CategoryDistributionResponse> {
         return apiService.get<CategoryDistributionResponse>('/dashboard/category-distribution');
     },
 
-    async getTopBrands(limit: number = 10, startDate?: string, endDate?: string): Promise<TopBrandResponse[]> {
-        const params = new URLSearchParams();
-        params.append('limit', limit.toString());
-        if (startDate) params.append('startDate', startDate);
-        if (endDate) params.append('endDate', endDate);
-        return apiService.get<TopBrandResponse[]>(`/dashboard/top-brands?${params.toString()}`);
+    async getTopBrands(limit: number = 10): Promise<TopBrandResponse[]> {
+        return apiService.get<TopBrandResponse[]>(`/dashboard/top-brands?limit=${limit}`);
     },
 };

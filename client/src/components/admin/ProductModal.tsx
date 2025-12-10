@@ -150,14 +150,27 @@ export const ProductModal = ({
       newErrors.perfumeLongevity = "Longevity must be in format: 15-20%";
     }
 
-    // Validate perfumeConcentration format: 4-5 hours
-    const concentrationPattern = /^\d{1,2}-\d{1,2}\s*hours?$/i;
+    // Validate perfumeConcentration format: 4-5 hours (must have space before hours)
+    const concentrationPattern = /^\d{1,2}-\d{1,2}\shours?$/i;
     if (
       formData.perfumeConcentration &&
       !concentrationPattern.test(formData.perfumeConcentration.trim())
     ) {
       newErrors.perfumeConcentration =
         "Concentration must be in format: 4-5 hours";
+    }
+
+    // Validate releaseYear format: Must be 4-digit year between 1900 and current year
+    if (formData.releaseYear && formData.releaseYear.trim()) {
+      const yearPattern = /^\d{4}$/;
+      const year = parseInt(formData.releaseYear.trim(), 10);
+      const currentYear = new Date().getFullYear();
+
+      if (!yearPattern.test(formData.releaseYear.trim())) {
+        newErrors.releaseYear = "Release year must be a 4-digit number";
+      } else if (year < 1900 || year > currentYear) {
+        newErrors.releaseYear = `Release year must be between 1900 and ${currentYear}`;
+      }
     }
 
     // Validate images for both add and edit mode
@@ -466,9 +479,16 @@ export const ProductModal = ({
                   setFormData({ ...formData, releaseYear: e.target.value })
                 }
                 disabled={isSubmitting}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed ${
+                  errors.releaseYear ? "border-red-500" : "border-gray-300"
+                }`}
                 placeholder="e.g., 2024"
               />
+              {errors.releaseYear && (
+                <p className="mt-1 text-sm text-red-500">
+                  {errors.releaseYear}
+                </p>
+              )}
             </div>
 
             {/* Volume */}

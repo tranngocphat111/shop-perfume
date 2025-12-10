@@ -30,18 +30,23 @@ const CART_STORAGE_KEY = "perfume_shop_cart";
 
 export const CartProvider = ({ children }: { children: ReactNode }) => {
   const { isAuthenticated, user } = useAuth();
-  const [cart, setCart] = useState<Cart>(() => {
-    // Initialize from sessionStorage
+  
+  // Initialize cart from sessionStorage only once
+  const initialCartRef = useRef<Cart | null>(null);
+  if (initialCartRef.current === null) {
     const savedCart = sessionStorage.getItem(CART_STORAGE_KEY);
     if (savedCart) {
       try {
-        return JSON.parse(savedCart);
+        initialCartRef.current = JSON.parse(savedCart);
       } catch {
-        return { items: [], total: 0, totalItems: 0 };
+        initialCartRef.current = { items: [], total: 0, totalItems: 0 };
       }
+    } else {
+      initialCartRef.current = { items: [], total: 0, totalItems: 0 };
     }
-    return { items: [], total: 0, totalItems: 0 };
-  });
+  }
+  
+  const [cart, setCart] = useState<Cart>(initialCartRef.current!);
 
   // Track if cart is still loading (from DB or fetching stock)
   const [isCartLoading, setIsCartLoading] = useState(true);
@@ -50,10 +55,19 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   const [appliedCouponId, setAppliedCouponId] = useState<number | null>(null);
   const [discount, setDiscount] = useState<number>(0);
 
-  // Save to sessionStorage whenever cart changes
+  // Save to sessionStorage whenever cart changes (skip initial load)
+  const isFirstRenderRef = useRef(true);
+  const shouldSaveToSessionRef = useRef(true); // Control when to save to sessionStorage
   useEffect(() => {
-    sessionStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cart));
-  }, [cart]);
+    if (isFirstRenderRef.current) {
+      isFirstRenderRef.current = false;
+      return;
+    }
+    // Only save if not loading from DB/merging
+    if (shouldSaveToSessionRef.current && !isAuthenticated) {
+      sessionStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cart));
+    }
+  }, [cart, isAuthenticated]);
 
   // Track if we've already loaded/merged cart for this user
   const hasLoadedCartRef = useRef<number | null>(null);
@@ -108,6 +122,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
 
   // Fetch inventory for cart items that don't have stockQuantity (for sessionStorage cart)
   const hasFetchedStockRef = useRef<Set<number>>(new Set());
+  const isFetchingStockRef = useRef(false); // Prevent concurrent fetches
 
   // Helper function to get available stock (takes into account pending QR orders)
   const getAvailableStock = async (
@@ -147,6 +162,11 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
 
+    // Prevent concurrent fetch
+    if (isFetchingStockRef.current) {
+      return;
+    }
+
     // For guest users, fetch stock for sessionStorage cart
     if (cart.items.length === 0) {
       setIsCartLoading(false);
@@ -166,6 +186,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
 
     // Fetch inventory for items that don't have stockQuantity
     const fetchStockForItems = async () => {
+      isFetchingStockRef.current = true;
       setIsCartLoading(true);
       const itemsWithStock = await Promise.all(
         cart.items.map(async (item) => {
@@ -191,19 +212,17 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         items: itemsWithStock,
       }));
       setIsCartLoading(false);
+      isFetchingStockRef.current = false;
     };
 
     fetchStockForItems();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    cart.items.map((item) => item.product.productId).join(","),
-    isAuthenticated,
-  ]); // Run when product IDs change
+  }, [isAuthenticated]); // Only run on auth change - cart.items changes are handled by addToCart
 
   const loadCartFromDB = async (userId: number) => {
     try {
       setIsCartLoading(true);
       isSyncingRef.current = true; // Prevent sync when loading from DB
+      shouldSaveToSessionRef.current = false; // Don't save to sessionStorage when loading from DB
       const cartResponse = await cartService.getOrCreateCart(userId);
 
       // Fetch available stock for each product
@@ -246,10 +265,12 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       // Don't clear sessionStorage here - only clear after merge on login
       // sessionStorage should persist for guest users
       isSyncingRef.current = false;
+      shouldSaveToSessionRef.current = true; // Re-enable saving after load complete
       setIsCartLoading(false);
     } catch (error) {
       console.error("Error loading cart from DB:", error);
       isSyncingRef.current = false;
+      shouldSaveToSessionRef.current = true;
       setIsCartLoading(false);
     }
   };
@@ -258,6 +279,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     try {
       setIsCartLoading(true);
       isSyncingRef.current = true; // Prevent sync during merge
+      shouldSaveToSessionRef.current = false; // Don't save to sessionStorage during merge
 
       // Get session cart items
       const savedCart = sessionStorage.getItem(CART_STORAGE_KEY);
@@ -326,6 +348,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       sessionStorage.removeItem(CART_STORAGE_KEY);
       hasLoadedCartRef.current = userId;
       isSyncingRef.current = false;
+      shouldSaveToSessionRef.current = true; // Re-enable saving after merge complete
       setIsCartLoading(false);
     } catch (error) {
       console.error("Error merging cart on login:", error);
@@ -333,6 +356,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       await loadCartFromDB(userId);
       hasLoadedCartRef.current = userId;
       isSyncingRef.current = false;
+      shouldSaveToSessionRef.current = true;
       setIsCartLoading(false);
     }
   };

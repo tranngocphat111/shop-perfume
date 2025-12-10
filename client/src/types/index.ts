@@ -230,6 +230,7 @@ export interface OrderRequest {
   cartItems: OrderItemRequest[];
   totalAmount: number;
   discountAmount?: number; // Số tiền đã được giảm
+  appliedCouponCode?: string; // Mã coupon đã sử dụng (để trừ điểm tích lũy)
 }
 
 export interface OrderResponse {

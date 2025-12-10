@@ -402,9 +402,35 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
         shipment.setOrder(order);
         order.setShipment(shipment);
 
-        // Note: Coupon discount đã được tính từ frontend và truyền vào qua totalAmount và discountAmount
-        // Không cần xử lý coupon ở backend nữa, chỉ lưu thông tin đơn hàng
-        // discountAmount đã được set ở trên khi tạo order
+        // Trừ điểm tích lũy nếu user đã đăng nhập và sử dụng coupon
+        if (request.getAppliedCouponCode() != null && !request.getAppliedCouponCode().isEmpty() && order.getUser() != null) {
+            try {
+                // Tìm coupon theo code
+                Optional<Coupon> couponOpt = couponRepository.findByCodeIgnoreCase(request.getAppliedCouponCode());
+                if (couponOpt.isPresent()) {
+                    Coupon coupon = couponOpt.get();
+                    User user = order.getUser();
+                    int currentPoints = user.getLoyaltyPoints();
+                    int requiredPoints = coupon.getRequiredPoints();
+                    
+                    // Kiểm tra đủ điểm (chỉ cảnh báo, không chặn vì frontend đã validate)
+                    if (currentPoints >= requiredPoints) {
+                        user.setLoyaltyPoints(currentPoints - requiredPoints);
+                        userRepository.save(user);
+                        log.info("✅ [createOrder] Deducted {} loyalty points from user {} (coupon: {})", 
+                                requiredPoints, user.getUserId(), coupon.getCode());
+                    } else {
+                        log.warn("⚠️ [createOrder] User {} has insufficient points ({}/{}) for coupon {}", 
+                                user.getUserId(), currentPoints, requiredPoints, coupon.getCode());
+                    }
+                } else {
+                    log.warn("⚠️ [createOrder] Coupon code '{}' not found", request.getAppliedCouponCode());
+                }
+            } catch (Exception e) {
+                log.error("❌ [createOrder] Error deducting loyalty points: {}", e.getMessage());
+                // Không throw exception để không làm gián đoạn quá trình tạo đơn hàng
+            }
+        }
 
         // Save order first (cascade will save orderItems, payment, and shipment)
         Order savedOrder = orderRepository.save(order);

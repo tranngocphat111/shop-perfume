@@ -161,4 +161,29 @@ public interface OrderRepository extends JpaRepository<Order, Integer> {
                      "LOWER(o.guestPhone) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
                      "CAST(o.orderId AS string) LIKE CONCAT('%', :searchTerm, '%')")
        Page<Order> searchOrders(@Param("searchTerm") String searchTerm, Pageable pageable);
+
+       /**
+        * Count orders between date range
+        */
+       @Query("SELECT COUNT(o) FROM Order o WHERE o.orderDate BETWEEN :startDate AND :endDate")
+       Long countByOrderDateBetween(@Param("startDate") java.sql.Timestamp startDate,
+                                     @Param("endDate") java.sql.Timestamp endDate);
+
+       /**
+        * Get total revenue by date range and payment status
+        */
+       @Query("SELECT COALESCE(SUM(o.totalAmount), 0) FROM Order o JOIN o.payment p " +
+              "WHERE p.status = :status AND o.orderDate BETWEEN :startDate AND :endDate")
+       Double getTotalRevenueByDateRange(@Param("status") PaymentStatus status,
+                                         @Param("startDate") java.sql.Timestamp startDate,
+                                         @Param("endDate") java.sql.Timestamp endDate);
+
+       /**
+        * Count orders by payment status and date range
+        */
+       @Query("SELECT COUNT(o) FROM Order o JOIN o.payment p " +
+              "WHERE p.status = :status AND o.orderDate BETWEEN :startDate AND :endDate")
+       Long countByPaymentStatusAndOrderDateBetween(@Param("status") PaymentStatus status,
+                                                     @Param("startDate") java.sql.Timestamp startDate,
+                                                     @Param("endDate") java.sql.Timestamp endDate);
 }

@@ -49,11 +49,15 @@ export const Header = () => {
   // Load user info including loyalty points
   useEffect(() => {
     if (isAuthenticated) {
-      userService.getCurrentUser().then(setUserInfo).catch(console.error);
+      console.log('[Header] 🔄 Fetching user info...');
+      userService.getCurrentUser().then((info) => {
+        setUserInfo(info);
+        console.log('[Header] ✅ User info updated, loyaltyPoints:', info?.loyaltyPoints);
+      }).catch(console.error);
     } else {
       setUserInfo(null);
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, user]); // Added 'user' to dependency array to refresh when user changes
 
   // Listen for user info refresh events (e.g., after order placement with points usage)
   useEffect(() => {

@@ -24,9 +24,10 @@ const ForgotPassword: React.FC = () => {
   const { isAuthenticated } = useAuth();
 
   usePageTitle({
-    title: "Quên mật khẩu - STPN Perfume",
+    title: "Quên mật khẩu - SPTN Perfume",
     description: "Khôi phục mật khẩu tài khoản của bạn bằng email đã đăng ký.",
-    image: "https://res.cloudinary.com/piin/image/upload/v1762171215/banner.zip-2_gdvc0y.jpg"
+    image:
+      "https://res.cloudinary.com/piin/image/upload/v1762171215/banner.zip-2_gdvc0y.jpg",
   });
 
   // Redirect if already logged in
@@ -100,11 +101,11 @@ const ForgotPassword: React.FC = () => {
               whileHover={{ scale: 1.05 }}
               transition={{ duration: 0.2 }}
               src="https://res.cloudinary.com/piin/image/upload/v1763985017/logo/SPTN-BLACK.png"
-              alt="STPN Perfume"
+              alt="SPTN Perfume"
               className="h-16 mx-auto"
             />
           </Link>
-          
+
           <h2 className="text-2xl font-semibold tracking-tight text-gray-900">
             Quên mật khẩu
           </h2>

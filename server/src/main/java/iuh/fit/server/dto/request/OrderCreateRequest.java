@@ -61,5 +61,8 @@ public class OrderCreateRequest {
     
     // Số tiền đã được giảm (optional - tính từ frontend khi áp dụng coupon)
     private Double discountAmount;
+    
+    // Mã coupon được áp dụng (optional - dùng để trừ điểm tích lũy, không lưu vào DB)
+    private String appliedCouponCode;
 }
 

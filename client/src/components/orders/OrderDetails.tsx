@@ -77,11 +77,11 @@ export const OrderDetails: React.FC<OrderDetailsProps> = ({
 
       {/* Total */}
       <div className="pt-3 border-t border-gray-200 space-y-2">
-        {order.discountAmount && order.discountAmount > 0 && (
+        {(order.discountAmount ?? 0) > 0 && (
           <div className="flex items-center justify-between">
             <span className="text-sm font-medium text-gray-600">Giảm giá:</span>
             <span className="text-lg font-semibold text-red-600">
-              -{formatCurrency(order.discountAmount)} ₫
+              -{formatCurrency(order.discountAmount!)} ₫
             </span>
           </div>
         )}
