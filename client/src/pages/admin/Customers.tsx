@@ -24,7 +24,13 @@ interface CustomerData extends Record<string, unknown> {
 }
 
 export const Customers = () => {
-  const { toasts, removeToast, success, error: showError, warning } = useToast();
+  const {
+    toasts,
+    removeToast,
+    success,
+    error: showError,
+    warning,
+  } = useToast();
 
   const [customers, setCustomers] = useState<CustomerData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -49,7 +55,7 @@ export const Customers = () => {
 
   // Inline edit roles states
   const [editingRoleId, setEditingRoleId] = useState<number | null>(null);
-  const [editingRoleValue, setEditingRoleValue] = useState<string[]>([]);
+  const [editingRoleValue, setEditingRoleValue] = useState<string>("");
 
   const fetchCustomers = async (
     page: number,
@@ -214,17 +220,42 @@ export const Customers = () => {
         };
 
         if (editingStatusId === row.id) {
+          const availableStatuses = ["ACTIVE", "DELETED"];
+
           return (
-            <select
-              value={editingStatusValue}
-              onChange={(e) => handleStatusChange(e.target.value)}
-              onBlur={handleStatusBlur}
-              onKeyDown={handleStatusKeyDown}
-              autoFocus
-              className="border border-blue-500 rounded px-2 py-1 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500">
-              <option value="ACTIVE">ACTIVE</option>
-              <option value="DELETED">DELETED</option>
-            </select>
+            <div className="flex items-center gap-2">
+              <select
+                value={editingStatusValue}
+                onChange={(e) => setEditingStatusValue(e.target.value)}
+                onClick={(e) => e.stopPropagation()}
+                autoFocus
+                className="border border-blue-500 rounded px-2 py-1 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500">
+                {availableStatuses.map((status) => (
+                  <option key={status} value={status}>
+                    {status}
+                  </option>
+                ))}
+              </select>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleStatusBlur();
+                }}
+                className="px-2 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600"
+                title="Save">
+                <i className="fas fa-check"></i>
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setEditingStatusId(null);
+                  setEditingStatusValue("");
+                }}
+                className="px-2 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600"
+                title="Cancel">
+                <i className="fas fa-times"></i>
+              </button>
+            </div>
           );
         }
 
@@ -285,37 +316,21 @@ export const Customers = () => {
       render: (value: string, row: CustomerData) => {
         if (editingRoleId === row.id) {
           const availableRoles = ["CUSTOMER", "ADMIN"];
-          const currentRoles = editingRoleValue;
 
           return (
-            <div className="flex flex-wrap gap-1">
-              {availableRoles.map((role) => (
-                <label
-                  key={role}
-                  className="inline-flex items-center gap-1 px-2 py-1 text-xs border rounded cursor-pointer hover:bg-gray-50"
-                  onClick={(e) => e.stopPropagation()}>
-                  <input
-                    type="checkbox"
-                    checked={currentRoles.includes(role)}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        setEditingRoleValue([...currentRoles, role]);
-                      } else {
-                        // Don't allow removing all roles
-                        if (currentRoles.length > 1) {
-                          setEditingRoleValue(
-                            currentRoles.filter((r) => r !== role)
-                          );
-                        } else {
-                          warning("User must have at least one role!");
-                        }
-                      }
-                    }}
-                    className="w-3 h-3"
-                  />
-                  <span>{role}</span>
-                </label>
-              ))}
+            <div className="flex items-center gap-2">
+              <select
+                value={editingRoleValue}
+                onChange={(e) => setEditingRoleValue(e.target.value)}
+                onClick={(e) => e.stopPropagation()}
+                autoFocus
+                className="border border-blue-500 rounded px-2 py-1 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500">
+                {availableRoles.map((role) => (
+                  <option key={role} value={role}>
+                    {role}
+                  </option>
+                ))}
+              </select>
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -329,7 +344,7 @@ export const Customers = () => {
                 onClick={(e) => {
                   e.stopPropagation();
                   setEditingRoleId(null);
-                  setEditingRoleValue([]);
+                  setEditingRoleValue("");
                 }}
                 className="px-2 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600"
                 title="Cancel">
@@ -386,10 +401,6 @@ export const Customers = () => {
     setEditingStatusValue(item.status);
   };
 
-  const handleStatusChange = (value: string) => {
-    setEditingStatusValue(value);
-  };
-
   const handleStatusBlur = async () => {
     if (editingStatusId && editingStatusValue) {
       try {
@@ -414,30 +425,21 @@ export const Customers = () => {
     setEditingStatusValue("");
   };
 
-  const handleStatusKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
-      handleStatusBlur();
-    } else if (e.key === "Escape") {
-      setEditingStatusId(null);
-      setEditingStatusValue("");
-    }
-  };
-
   const handleRoleDoubleClick = (item: CustomerData) => {
     setEditingRoleId(item.id);
-    // Parse current roles from string to array, filter out empty strings
+    // Parse current roles from string, get first role or default to CUSTOMER
     const rolesArray = item.roles
       .split(", ")
       .map((r) => r.trim())
       .filter((r) => r !== "");
-    // If no roles, default to CUSTOMER role
-    setEditingRoleValue(rolesArray.length > 0 ? rolesArray : ["CUSTOMER"]);
+    setEditingRoleValue(rolesArray.length > 0 ? rolesArray[0] : "CUSTOMER");
   };
 
   const handleRoleBlur = async () => {
-    if (editingRoleId && editingRoleValue.length > 0) {
+    if (editingRoleId && editingRoleValue) {
       try {
-        await userService.updateUserRoles(editingRoleId, editingRoleValue);
+        // Send as array to backend
+        await userService.updateUserRoles(editingRoleId, [editingRoleValue]);
 
         // Refresh the list
         await fetchCustomers(
@@ -448,14 +450,14 @@ export const Customers = () => {
           searchQuery
         );
 
-        success("User roles updated successfully!");
+        success("User role updated successfully!");
       } catch (err) {
-        console.error("Error updating user roles:", err);
-        showError("Failed to update user roles. Please try again.");
+        console.error("Error updating user role:", err);
+        showError("Failed to update user role. Please try again.");
       }
     }
     setEditingRoleId(null);
-    setEditingRoleValue([]);
+    setEditingRoleValue("");
   };
 
   const handleView = async (item: CustomerData) => {

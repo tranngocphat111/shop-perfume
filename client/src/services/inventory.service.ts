@@ -17,6 +17,7 @@ export interface InventoryItem {
         columeMl: number;
         unitPrice: number;
         lastUpdatedBy: string;
+        status: string;
     };
     quantity: number;
     lastUpdated: string;

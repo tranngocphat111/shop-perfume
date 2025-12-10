@@ -21,29 +21,71 @@ public class DashboardServiceImpl implements DashboardService {
     private final BrandRepository brandRepository;
 
     @Override
-    public DashboardStatsResponse getDashboardStats(java.time.LocalDate startDate, java.time.LocalDate endDate) {
-        log.info("Fetching dashboard statistics from {} to {}", startDate, endDate);
+    public DashboardStatsResponse getDashboardStats(String period, Integer year) {
+        log.info("Fetching dashboard statistics for period {} and year {}", period, year);
+        
+        // Calculate date range based on period and year
+        java.sql.Timestamp startTimestamp = null;
+        java.sql.Timestamp endTimestamp = null;
+        
+        if (period != null && year != null) {
+            java.time.LocalDate startDate = null;
+            java.time.LocalDate endDate = null;
+            
+            if ("yearly".equals(period)) {
+                // For yearly, year parameter is ignored, get data for all years
+                startDate = null;
+                endDate = null;
+            } else if ("monthly".equals(period)) {
+                // For monthly, get data for the entire year
+                startDate = java.time.LocalDate.of(year, 1, 1);
+                endDate = java.time.LocalDate.of(year, 12, 31);
+            } else if ("quarterly".equals(period)) {
+                // For quarterly, get data for the entire year
+                startDate = java.time.LocalDate.of(year, 1, 1);
+                endDate = java.time.LocalDate.of(year, 12, 31);
+            }
+            
+            if (startDate != null) {
+                startTimestamp = java.sql.Timestamp.valueOf(startDate.atStartOfDay());
+                endTimestamp = java.sql.Timestamp.valueOf(endDate.atTime(23, 59, 59));
+            }
+        }
         
         // Basic counts
         Long totalProducts = productRepository.count();
-        Long totalOrders = orderRepository.count();
+        Long totalOrders = startTimestamp != null ? 
+            orderRepository.countByOrderDateBetween(startTimestamp, endTimestamp) : 
+            orderRepository.count();
         Long totalCategories = categoryRepository.count();
         Long totalBrands = brandRepository.count();
         
-        // Count customers (users with CUSTOMER role)
-        Long totalCustomers = userRepository.countByRoleName("CUSTOMER");
+        // Count customers (users with CUSTOMER role) - filtered by date range
+        Long totalCustomers = startTimestamp != null ?
+            userRepository.countByRoleNameAndCreatedAtBetween("CUSTOMER", startTimestamp, endTimestamp) :
+            userRepository.countByRoleName("CUSTOMER");
         
-        // Calculate new customers (registered in last 30 days)
-        java.time.LocalDateTime thirtyDaysAgo = java.time.LocalDateTime.now().minusDays(30);
-        Long newCustomers = userRepository.countByRoleNameAndCreatedAtAfter("CUSTOMER", 
-            java.sql.Timestamp.valueOf(thirtyDaysAgo));
+        // Calculate new customers - filtered by date range
+        Long newCustomers = startTimestamp != null ?
+            userRepository.countByRoleNameAndCreatedAtBetween("CUSTOMER", startTimestamp, endTimestamp) :
+            userRepository.countByRoleName("CUSTOMER");
         
-        // Revenue and order status
-        Double totalRevenue = orderRepository.getTotalRevenue(PaymentStatus.PAID);
-        Long completedOrders = orderRepository.getSizeOfOrdersHaveStatus(PaymentStatus.PAID);
-        Long pendingOrders = orderRepository.getSizeOfOrdersHaveStatus(PaymentStatus.PENDING);
-        Long failedOrders = orderRepository.getSizeOfOrdersHaveStatus(PaymentStatus.FAILED);
-        Long refundedOrders = orderRepository.getSizeOfOrdersHaveStatus(PaymentStatus.REFUNDED);
+        // Revenue and order status with date filter
+        Double totalRevenue = startTimestamp != null ?
+            orderRepository.getTotalRevenueByDateRange(PaymentStatus.PAID, startTimestamp, endTimestamp) :
+            orderRepository.getTotalRevenue(PaymentStatus.PAID);
+        Long completedOrders = startTimestamp != null ?
+            orderRepository.countByPaymentStatusAndOrderDateBetween(PaymentStatus.PAID, startTimestamp, endTimestamp) :
+            orderRepository.getSizeOfOrdersHaveStatus(PaymentStatus.PAID);
+        Long pendingOrders = startTimestamp != null ?
+            orderRepository.countByPaymentStatusAndOrderDateBetween(PaymentStatus.PENDING, startTimestamp, endTimestamp) :
+            orderRepository.getSizeOfOrdersHaveStatus(PaymentStatus.PENDING);
+        Long failedOrders = startTimestamp != null ?
+            orderRepository.countByPaymentStatusAndOrderDateBetween(PaymentStatus.FAILED, startTimestamp, endTimestamp) :
+            orderRepository.getSizeOfOrdersHaveStatus(PaymentStatus.FAILED);
+        Long refundedOrders = startTimestamp != null ?
+            orderRepository.countByPaymentStatusAndOrderDateBetween(PaymentStatus.REFUNDED, startTimestamp, endTimestamp) :
+            orderRepository.getSizeOfOrdersHaveStatus(PaymentStatus.REFUNDED);
         
         // Calculate Average Order Value
         Double averageOrderValue = completedOrders > 0 ? totalRevenue / completedOrders : 0.0;
@@ -51,9 +93,8 @@ public class DashboardServiceImpl implements DashboardService {
         // Calculate Refund Rate
         Double refundRate = totalOrders > 0 ? (refundedOrders.doubleValue() / totalOrders) * 100 : 0.0;
         
-        // Calculate New Orders (orders placed in last 30 days)
-        Long newOrders = orderRepository.countByOrderDateAfter(
-            java.sql.Timestamp.valueOf(thirtyDaysAgo));
+        // Calculate New Orders - same as totalOrders (filtered by date range)
+        Long newOrders = totalOrders;
         
         // Low stock items
         Long lowStockItems = inventoryRepository.countByQuantityLessThan(20);
@@ -167,13 +208,19 @@ public class DashboardServiceImpl implements DashboardService {
     }
 
     @Override
-    public iuh.fit.server.dto.response.CategoryDistributionResponse getCategoryDistribution(java.time.LocalDate startDate, java.time.LocalDate endDate) {
-        log.info("Fetching category distribution from {} to {}", startDate, endDate);
+    public iuh.fit.server.dto.response.CategoryDistributionResponse getCategoryDistribution(String period, Integer year) {
+        log.info("Fetching category distribution for period {} and year {}", period, year);
         
-        java.sql.Timestamp startTimestamp = startDate != null ? 
-            java.sql.Timestamp.valueOf(startDate.atStartOfDay()) : null;
-        java.sql.Timestamp endTimestamp = endDate != null ? 
-            java.sql.Timestamp.valueOf(endDate.atTime(23, 59, 59)) : null;
+        // Calculate date range based on period and year
+        java.sql.Timestamp startTimestamp = null;
+        java.sql.Timestamp endTimestamp = null;
+        
+        if (period != null && year != null && !"yearly".equals(period)) {
+            java.time.LocalDate startDate = java.time.LocalDate.of(year, 1, 1);
+            java.time.LocalDate endDate = java.time.LocalDate.of(year, 12, 31);
+            startTimestamp = java.sql.Timestamp.valueOf(startDate.atStartOfDay());
+            endTimestamp = java.sql.Timestamp.valueOf(endDate.atTime(23, 59, 59));
+        }
         
         java.util.List<Object[]> results = orderRepository.getCategoryDistribution(
             PaymentStatus.PAID, startTimestamp, endTimestamp);
@@ -203,13 +250,19 @@ public class DashboardServiceImpl implements DashboardService {
     }
 
     @Override
-    public java.util.List<iuh.fit.server.dto.response.TopBrandResponse> getTopBrands(int limit, java.time.LocalDate startDate, java.time.LocalDate endDate) {
-        log.info("Fetching top {} brands from {} to {}", limit, startDate, endDate);
+    public java.util.List<iuh.fit.server.dto.response.TopBrandResponse> getTopBrands(int limit, String period, Integer year) {
+        log.info("Fetching top {} brands for period {} and year {}", limit, period, year);
         
-        java.sql.Timestamp startTimestamp = startDate != null ? 
-            java.sql.Timestamp.valueOf(startDate.atStartOfDay()) : null;
-        java.sql.Timestamp endTimestamp = endDate != null ? 
-            java.sql.Timestamp.valueOf(endDate.atTime(23, 59, 59)) : null;
+        // Calculate date range based on period and year
+        java.sql.Timestamp startTimestamp = null;
+        java.sql.Timestamp endTimestamp = null;
+        
+        if (period != null && year != null && !"yearly".equals(period)) {
+            java.time.LocalDate startDate = java.time.LocalDate.of(year, 1, 1);
+            java.time.LocalDate endDate = java.time.LocalDate.of(year, 12, 31);
+            startTimestamp = java.sql.Timestamp.valueOf(startDate.atStartOfDay());
+            endTimestamp = java.sql.Timestamp.valueOf(endDate.atTime(23, 59, 59));
+        }
         
         // Query to get top selling brands
         java.util.List<Object[]> results = orderRepository.getTopBrands(

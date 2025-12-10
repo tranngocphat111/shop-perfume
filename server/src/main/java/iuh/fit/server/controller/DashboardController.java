@@ -33,14 +33,10 @@ public class DashboardController {
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Get dashboard statistics", description = "Retrieve all dashboard statistics")
     public ResponseEntity<DashboardStatsResponse> getDashboardStats(
-            @RequestParam(required = false)
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
-            LocalDate startDate,
-            @RequestParam(required = false)
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
-            LocalDate endDate) {
-        log.info("REST request to get dashboard statistics from {} to {}", startDate, endDate);
-        DashboardStatsResponse stats = dashboardService.getDashboardStats(startDate, endDate);
+            @RequestParam(required = false) String period,
+            @RequestParam(required = false) Integer year) {
+        log.info("REST request to get dashboard statistics for period {} and year {}", period, year);
+        DashboardStatsResponse stats = dashboardService.getDashboardStats(period, year);
         return ResponseEntity.ok(stats);
     }
 
@@ -86,14 +82,10 @@ public class DashboardController {
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Get category distribution", description = "Retrieve sales distribution by category")
     public ResponseEntity<CategoryDistributionResponse> getCategoryDistribution(
-            @RequestParam(required = false)
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
-            LocalDate startDate,
-            @RequestParam(required = false)
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
-            java.time.LocalDate endDate) {
-        log.info("REST request to get category distribution from {} to {}", startDate, endDate);
-        return ResponseEntity.ok(dashboardService.getCategoryDistribution(startDate, endDate));
+            @RequestParam(required = false) String period,
+            @RequestParam(required = false) Integer year) {
+        log.info("REST request to get category distribution for period {} and year {}", period, year);
+        return ResponseEntity.ok(dashboardService.getCategoryDistribution(period, year));
     }
 
     /**
@@ -104,13 +96,9 @@ public class DashboardController {
     @Operation(summary = "Get top brands", description = "Retrieve top selling brands")
     public ResponseEntity<List<TopBrandResponse>> getTopBrands(
             @RequestParam(defaultValue = "10") int limit,
-            @RequestParam(required = false)
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
-            java.time.LocalDate startDate,
-            @RequestParam(required = false)
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
-            java.time.LocalDate endDate) {
-        log.info("REST request to get top {} brands from {} to {}", limit, startDate, endDate);
-        return ResponseEntity.ok(dashboardService.getTopBrands(limit, startDate, endDate));
+            @RequestParam(required = false) String period,
+            @RequestParam(required = false) Integer year) {
+        log.info("REST request to get top {} brands for period {} and year {}", limit, period, year);
+        return ResponseEntity.ok(dashboardService.getTopBrands(limit, period, year));
     }
 }

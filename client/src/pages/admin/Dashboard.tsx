@@ -64,11 +64,15 @@ export const Dashboard = () => {
   const handleYearChange = (year: number) => {
     setSelectedYear(year);
   };
-  // Fetch stats without date filter
+  // Fetch stats with period and year filter
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const statsData = await dashboardService.getDashboardStats();
+        const year = period === "yearly" ? undefined : selectedYear;
+        const statsData = await dashboardService.getDashboardStats(
+          period,
+          year
+        );
         setStats(statsData);
       } catch (error) {
         console.error("Error fetching dashboard stats:", error);
@@ -76,13 +80,17 @@ export const Dashboard = () => {
     };
 
     fetchStats();
-  }, []);
+  }, [period, selectedYear]);
 
-  // Fetch category distribution (no date filter - show all categories)
+  // Fetch category distribution with period and year filter
   useEffect(() => {
     const fetchCategoryDistribution = async () => {
       try {
-        const categoryData = await dashboardService.getCategoryDistribution();
+        const year = period === "yearly" ? undefined : selectedYear;
+        const categoryData = await dashboardService.getCategoryDistribution(
+          period,
+          year
+        );
         setCategoryDistribution(categoryData);
       } catch (error) {
         console.error("Error fetching category distribution:", error);
@@ -90,13 +98,18 @@ export const Dashboard = () => {
     };
 
     fetchCategoryDistribution();
-  }, []);
+  }, [period, selectedYear]);
 
-  // Fetch top brands without date filter
+  // Fetch top brands with period and year filter
   useEffect(() => {
     const fetchTopBrands = async () => {
       try {
-        const brandsData = await dashboardService.getTopBrands(10);
+        const year = period === "yearly" ? undefined : selectedYear;
+        const brandsData = await dashboardService.getTopBrands(
+          10,
+          period,
+          year
+        );
         setTopBrands(brandsData);
       } catch (error) {
         console.error("Error fetching top brands:", error);
@@ -104,7 +117,7 @@ export const Dashboard = () => {
     };
 
     fetchTopBrands();
-  }, []);
+  }, [period, selectedYear]);
 
   useEffect(() => {
     const fetchRevenueStats = async () => {

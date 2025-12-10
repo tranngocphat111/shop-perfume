@@ -24,6 +24,11 @@ public interface UserRepository extends JpaRepository<User, Integer> {
     @Query("SELECT COUNT(DISTINCT u) FROM User u JOIN u.roles r WHERE r.name = :roleName AND u.createdAt >= :createdAfter")
     Long countByRoleNameAndCreatedAtAfter(@Param("roleName") String roleName, @Param("createdAfter") java.util.Date createdAfter);
     
+    @Query("SELECT COUNT(DISTINCT u) FROM User u JOIN u.roles r WHERE r.name = :roleName AND u.createdAt BETWEEN :startDate AND :endDate")
+    Long countByRoleNameAndCreatedAtBetween(@Param("roleName") String roleName, 
+                                             @Param("startDate") java.util.Date startDate, 
+                                             @Param("endDate") java.util.Date endDate);
+    
     // Search users by name, email
     @Query("SELECT u FROM User u WHERE " +
             "LOWER(u.name) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
