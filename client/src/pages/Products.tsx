@@ -27,7 +27,12 @@ const CACHE_KEYS = {
   FILTERS: "products_cache_filters",
   CURRENT_PAGE: "products_cache_current_page",
   INVENTORY_MAP: "products_cache_inventory_map",
+  BRANDS_TIMESTAMP: "products_cache_brands_timestamp",
+  CATEGORIES_TIMESTAMP: "products_cache_categories_timestamp",
 };
+
+// Cache expiration time: 1 minute (short cache for frequent updates)
+const CACHE_EXPIRATION_MS = 1;
 
 // Helper functions for cache
 const getCachedData = <T,>(key: string): T | null => {
@@ -47,6 +52,26 @@ const setCachedData = <T,>(key: string, data: T): void => {
     sessionStorage.setItem(key, JSON.stringify(data));
   } catch (err) {
     console.error(`Failed to cache data for ${key}:`, err);
+  }
+};
+
+const isCacheValid = (timestampKey: string): boolean => {
+  try {
+    const timestamp = sessionStorage.getItem(timestampKey);
+    if (!timestamp) return false;
+    const cacheTime = parseInt(timestamp, 10);
+    const now = Date.now();
+    return now - cacheTime < CACHE_EXPIRATION_MS;
+  } catch (err) {
+    return false;
+  }
+};
+
+const setCacheTimestamp = (timestampKey: string): void => {
+  try {
+    sessionStorage.setItem(timestampKey, Date.now().toString());
+  } catch (err) {
+    console.error(`Failed to set cache timestamp for ${timestampKey}:`, err);
   }
 };
 
@@ -401,7 +426,7 @@ export const Products = () => {
 
     const loadInitialData = async () => {
       try {
-        // Check if we have cached data
+        // Check if we have cached data and if it's still valid
         const cachedBrands = getCachedData<Brand[]>(CACHE_KEYS.BRANDS);
         const cachedCategories = getCachedData<Category[]>(
           CACHE_KEYS.CATEGORIES
@@ -409,22 +434,28 @@ export const Products = () => {
         const hasCachedPriceBounds =
           getCachedData(CACHE_KEYS.PRICE_BOUNDS) !== null;
 
+        // Check cache validity
+        const isBrandsCacheValid =
+          cachedBrands && isCacheValid(CACHE_KEYS.BRANDS_TIMESTAMP);
+        const isCategoriesCacheValid =
+          cachedCategories && isCacheValid(CACHE_KEYS.CATEGORIES_TIMESTAMP);
+
         // Set loading states - always set to track loading, even with cache
-        if (!cachedBrands) setLoadingBrands(true);
-        if (!cachedCategories) setLoadingCategories(true);
+        if (!isBrandsCacheValid) setLoadingBrands(true);
+        if (!isCategoriesCacheValid) setLoadingCategories(true);
         if (!hasCachedPriceBounds) setLoadingPriceBounds(true);
 
         // Load in parallel for speed
         const [brandsRes] = await Promise.all([
-          cachedBrands
+          isBrandsCacheValid
             ? (async () => {
                 // Use cached data, but ensure state is set
                 if (isMounted && brands.length === 0) {
-                  setBrands(cachedBrands);
+                  setBrands(cachedBrands!);
                 }
                 // Mark as loaded immediately if we have cache
                 if (isMounted) setLoadingBrands(false);
-                return cachedBrands;
+                return cachedBrands!;
               })()
             : (async () => {
                 try {
@@ -432,6 +463,7 @@ export const Products = () => {
                   if (isMounted) {
                     setBrands(result);
                     setCachedData(CACHE_KEYS.BRANDS, result);
+                    setCacheTimestamp(CACHE_KEYS.BRANDS_TIMESTAMP);
                   }
                   return result;
                 } catch (err) {
@@ -441,15 +473,15 @@ export const Products = () => {
                   if (isMounted) setLoadingBrands(false);
                 }
               })(),
-          cachedCategories
+          isCategoriesCacheValid
             ? (async () => {
                 // Use cached data, but ensure state is set
                 if (isMounted && categories.length === 0) {
-                  setCategories(cachedCategories);
+                  setCategories(cachedCategories!);
                 }
                 // Mark as loaded immediately if we have cache
                 if (isMounted) setLoadingCategories(false);
-                return cachedCategories;
+                return cachedCategories!;
               })()
             : (async () => {
                 try {
@@ -457,6 +489,7 @@ export const Products = () => {
                   if (isMounted) {
                     setCategories(result);
                     setCachedData(CACHE_KEYS.CATEGORIES, result);
+                    setCacheTimestamp(CACHE_KEYS.CATEGORIES_TIMESTAMP);
                   }
                   return result;
                 } catch (err) {
@@ -501,6 +534,80 @@ export const Products = () => {
       isMounted = false;
     };
   }, [fetchPriceBounds, preloadBrandImages]); // Remove isInitialLoading dependency to always run on mount
+
+  // Listen for page visibility to refetch brands/categories when returning from admin
+  // Note: Products refetch is handled in a separate useEffect after fetchProducts is defined
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        console.log("🔄 Page visible - checking cache validity...");
+
+        // Check if cache is expired and refetch
+        const isBrandsCacheValid = isCacheValid(CACHE_KEYS.BRANDS_TIMESTAMP);
+        const isCategoriesCacheValid = isCacheValid(
+          CACHE_KEYS.CATEGORIES_TIMESTAMP
+        );
+
+        if (!isBrandsCacheValid) {
+          console.log("♻️ Refreshing brands...");
+          setLoadingBrands(true);
+          productService
+            .getAllBrands()
+            .then((result) => {
+              setBrands(result);
+              setCachedData(CACHE_KEYS.BRANDS, result);
+              setCacheTimestamp(CACHE_KEYS.BRANDS_TIMESTAMP);
+            })
+            .catch((err) => console.error("Failed to refresh brands:", err))
+            .finally(() => setLoadingBrands(false));
+        }
+
+        if (!isCategoriesCacheValid) {
+          console.log("♻️ Refreshing categories...");
+          setLoadingCategories(true);
+          productService
+            .getAllCategories()
+            .then((result) => {
+              setCategories(result);
+              setCachedData(CACHE_KEYS.CATEGORIES, result);
+              setCacheTimestamp(CACHE_KEYS.CATEGORIES_TIMESTAMP);
+            })
+            .catch((err) => console.error("Failed to refresh categories:", err))
+            .finally(() => setLoadingCategories(false));
+        }
+
+        // Refresh inventory to ensure stock levels are current
+        console.log("♻️ Refreshing inventory...");
+        setLoadingInventories(true);
+        inventoryService
+          .getInventoryPage(0, 1000)
+          .then((pageResponse) => {
+            // Force create a new Map to ensure React detects the change
+            const map = new Map<number, InventoryItem>();
+            pageResponse.content.forEach((item) => {
+              map.set(item.product.productId, item);
+            });
+
+            console.log(`✅ Inventory refreshed - ${map.size} items loaded`);
+
+            // Force state update with new Map instance
+            setInventoryMap(new Map(map));
+            setCachedData(CACHE_KEYS.INVENTORY_MAP, Array.from(map.entries()));
+
+            // Also force re-render products to show updated stock status
+            setProducts((prev) => [...prev]);
+          })
+          .catch((err) => console.error("Failed to refresh inventories:", err))
+          .finally(() => setLoadingInventories(false));
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, []);
 
   // Load inventories and create a map
   useEffect(() => {
@@ -723,6 +830,49 @@ export const Products = () => {
       priceBoundsCache,
     ]
   ); // Removed currentPage to avoid infinite loop
+
+  // Listen for page visibility to refetch products when returning from admin
+  useEffect(() => {
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState === "visible") {
+        // Refresh products and inventory together to ensure stock status is up-to-date
+        console.log("♻️ Refreshing products and inventory...");
+
+        // Fetch products first
+        await fetchProducts(true, currentPage);
+
+        // Then refresh inventory to ensure stock levels match the latest products
+        setLoadingInventories(true);
+        inventoryService
+          .getInventoryPage(0, 1000)
+          .then((pageResponse) => {
+            const map = new Map<number, InventoryItem>();
+            pageResponse.content.forEach((item) => {
+              map.set(item.product.productId, item);
+            });
+
+            console.log(
+              `✅ Inventory refreshed after products - ${map.size} items`
+            );
+
+            // Force state update with new Map instance
+            setInventoryMap(new Map(map));
+            setCachedData(CACHE_KEYS.INVENTORY_MAP, Array.from(map.entries()));
+
+            // Force re-render to show updated stock status
+            setProducts((prev) => [...prev]);
+          })
+          .catch((err) => console.error("Failed to refresh inventories:", err))
+          .finally(() => setLoadingInventories(false));
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [fetchProducts, currentPage]);
 
   // Listen for reset filters event (must be after fetchProducts is defined)
   useEffect(() => {

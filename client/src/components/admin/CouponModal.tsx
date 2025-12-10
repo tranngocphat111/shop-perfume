@@ -96,18 +96,26 @@ export const CouponModal = ({
     // Validate discount percent
     if (
       formData.discountPercent === undefined ||
-      formData.discountPercent === null
+      formData.discountPercent === null ||
+      isNaN(formData.discountPercent)
     ) {
       newErrors.discountPercent = "Discount percent is required";
     } else if (
       formData.discountPercent <= 0 ||
       formData.discountPercent > 100
     ) {
-      newErrors.discountPercent = "Discount percent must be between 0 and 100";
+      newErrors.discountPercent =
+        "Discount percent must be between 0.01 and 100";
     }
 
     // Validate required points
-    if (formData.requiredPoints !== undefined && formData.requiredPoints < 0) {
+    if (
+      formData.requiredPoints === undefined ||
+      formData.requiredPoints === null ||
+      isNaN(formData.requiredPoints)
+    ) {
+      newErrors.requiredPoints = "Required points is required";
+    } else if (formData.requiredPoints < 0) {
       newErrors.requiredPoints = "Required points must be at least 0";
     }
 
@@ -245,15 +253,33 @@ export const CouponModal = ({
               <input
                 type="number"
                 step="0.01"
-                min="0"
+                min="0.01"
                 max="100"
-                value={formData.discountPercent}
-                onChange={(e) =>
+                value={formData.discountPercent ?? ""}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  const numValue = value === "" ? 0.01 : parseFloat(value);
                   setFormData({
                     ...formData,
-                    discountPercent: parseFloat(e.target.value),
-                  })
-                }
+                    discountPercent: isNaN(numValue) ? 0.01 : numValue,
+                  });
+                  // Clear error when user starts typing
+                  if (errors.discountPercent) {
+                    setErrors({ ...errors, discountPercent: "" });
+                  }
+                }}
+                onBlur={(e) => {
+                  // Ensure value is set to 0.01 if empty when losing focus
+                  if (
+                    e.target.value === "" ||
+                    parseFloat(e.target.value) <= 0
+                  ) {
+                    setFormData({
+                      ...formData,
+                      discountPercent: 0.01,
+                    });
+                  }
+                }}
                 className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                   errors.discountPercent ? "border-red-500" : "border-gray-300"
                 }`}
@@ -270,18 +296,33 @@ export const CouponModal = ({
             {/* Required Points */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-1">
-                Required Points
+                Required Points <span className="text-red-500">*</span>
               </label>
               <input
                 type="number"
                 min="0"
-                value={formData.requiredPoints}
-                onChange={(e) =>
+                value={formData.requiredPoints ?? ""}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  const numValue = value === "" ? 0 : parseInt(value);
                   setFormData({
                     ...formData,
-                    requiredPoints: parseInt(e.target.value),
-                  })
-                }
+                    requiredPoints: isNaN(numValue) ? 0 : numValue,
+                  });
+                  // Clear error when user starts typing
+                  if (errors.requiredPoints) {
+                    setErrors({ ...errors, requiredPoints: "" });
+                  }
+                }}
+                onBlur={(e) => {
+                  // Ensure value is set to 0 if empty when losing focus
+                  if (e.target.value === "") {
+                    setFormData({
+                      ...formData,
+                      requiredPoints: 0,
+                    });
+                  }
+                }}
                 className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                   errors.requiredPoints ? "border-red-500" : "border-gray-300"
                 }`}

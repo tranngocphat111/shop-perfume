@@ -239,13 +239,17 @@ export const Brands = () => {
     try {
       const brandDetails = await brandService.getBrandById(item.id);
 
+      console.log("🔍 Fetched brand details:", brandDetails);
+
       const formData: BrandFormData = {
         brandId: brandDetails.brandId,
-        name: brandDetails.name,
+        name: brandDetails.name || "",
         country: brandDetails.country || "",
         description: brandDetails.description || "",
         url: brandDetails.url || "",
       };
+
+      console.log("📝 Form data prepared for edit:", formData);
 
       setSelectedBrand(formData);
       setModalMode("edit");
@@ -347,13 +351,16 @@ export const Brands = () => {
           return;
         }
 
+        const updateData = {
+          name: data.name,
+          country: data.country || undefined,
+          description: data.description || undefined,
+          url: data.image ? undefined : data.url || selectedBrand.url, // Giữ url cũ nếu không có ảnh mới
+        };
+
         await brandService.updateBrand(
           selectedBrand.brandId,
-          {
-            name: data.name,
-            country: data.country || undefined,
-            description: data.description || undefined,
-          },
+          updateData,
           data.image
         );
         success(`Brand "${data.name}" updated successfully!`);

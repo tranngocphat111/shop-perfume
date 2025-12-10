@@ -159,6 +159,7 @@ export const CategoryModal = ({
                 }`}
                 disabled={isSubmitting}
               >
+                <option value="">-- Select Gender --</option>
                 <option value="MALE">Male</option>
                 <option value="FEMALE">Female</option>
                 <option value="UNISEX">Unisex</option>

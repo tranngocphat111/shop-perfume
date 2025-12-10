@@ -23,6 +23,7 @@ export interface UpdateBrandRequest {
   name: string;
   country?: string;
   description?: string;
+  url?: string;
 }
 
 export const brandService = {
@@ -73,17 +74,28 @@ export const brandService = {
     data: UpdateBrandRequest,
     image?: File
   ): Promise<Brand> {
-    if (image) {
-      const formData = new FormData();
-      formData.append("name", data.name);
-      if (data.country) formData.append("country", data.country);
-      if (data.description) formData.append("description", data.description);
-      formData.append("image", image);
+    // Luôn dùng FormData để đảm bảo backend nhận đúng format
+    const formData = new FormData();
+    formData.append("name", data.name);
+    if (data.country) formData.append("country", data.country);
+    if (data.description) formData.append("description", data.description);
 
-      return apiService.put<Brand>(`/brands/${id}`, formData);
-    } else {
-      return apiService.put<Brand>(`/brands/${id}`, data);
+    // Chỉ gửi image nếu có, không gửi url (backend sẽ giữ url cũ nếu không có image mới)
+    if (image) {
+      formData.append("image", image);
     }
+
+    console.log("📤 BRAND SERVICE - Update brand #" + id);
+    console.log("📤 BRAND SERVICE - Has new image:", !!image);
+    console.log("📤 BRAND SERVICE - FormData entries:");
+    for (const [key, value] of formData.entries()) {
+      console.log(
+        `  ${key}:`,
+        value instanceof File ? `[File: ${value.name}]` : value
+      );
+    }
+
+    return apiService.put<Brand>(`/brands/${id}`, formData);
   },
 
   async deleteBrand(id: number): Promise<void> {

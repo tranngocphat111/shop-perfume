@@ -182,16 +182,25 @@ export const Coupons = () => {
         searchQuery
       );
     } catch (err: any) {
-      console.error("Error saving coupon:", err);
+      console.error("❌ Error saving coupon:", err);
+      console.error("📦 Error response:", err.response);
+      console.error("📝 Error data:", err.response?.data);
+      console.error("💬 Error message:", err.message);
 
       // Extract error message from response
       let errorMessage = "Failed to save coupon";
+
       if (err.response?.data) {
         const errorData = err.response.data;
+        console.log("🔍 Error data type:", typeof errorData);
+        console.log("🔍 Error data content:", errorData);
+
         if (typeof errorData === "string") {
           errorMessage = errorData;
         } else if (errorData.message) {
           errorMessage = errorData.message;
+        } else if (errorData.error) {
+          errorMessage = errorData.error;
         } else if (errorData.errors) {
           // Handle validation errors
           errorMessage = Object.values(errorData.errors).join(", ");
@@ -200,6 +209,24 @@ export const Coupons = () => {
         errorMessage = err.message;
       }
 
+      // Check for duplicate code error after extracting message
+      const lowerMessage = errorMessage.toLowerCase();
+      if (
+        lowerMessage.includes("duplicate") ||
+        lowerMessage.includes("đã tồn tại") ||
+        lowerMessage.includes("already exists") ||
+        lowerMessage.includes("code already exists") ||
+        lowerMessage.includes("trùng") ||
+        lowerMessage.includes("unique") ||
+        lowerMessage.includes("constraint")
+      ) {
+        // Extract code from error message if possible
+        const codeMatch = errorMessage.match(/code.*?:\s*(\w+)/i);
+        const code = codeMatch ? codeMatch[1] : formData.code;
+        errorMessage = `❌ Mã coupon "${code}" đã tồn tại trong hệ thống! Vui lòng sử dụng mã khác.`;
+      }
+
+      console.log("💥 Final error message:", errorMessage);
       showError(errorMessage);
       throw err;
     }

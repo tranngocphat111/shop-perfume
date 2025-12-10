@@ -65,7 +65,9 @@ export const BrandModal = ({
       }
       setErrors({});
       // Reset file input
-      const fileInput = document.getElementById("brand-logo-input") as HTMLInputElement;
+      const fileInput = document.getElementById(
+        "brand-logo-input"
+      ) as HTMLInputElement;
       if (fileInput) fileInput.value = "";
     }
   }, [initialData, isOpen]);
@@ -288,7 +290,11 @@ export const BrandModal = ({
                       <button
                         type="button"
                         onClick={() => {
-                          setFormData({ ...formData, image: undefined, url: "" });
+                          setFormData({
+                            ...formData,
+                            image: undefined,
+                            url: "",
+                          });
                           setImagePreview("");
                           setIsImageDeleted(true); // Mark as deleted
                           // Reset file input
