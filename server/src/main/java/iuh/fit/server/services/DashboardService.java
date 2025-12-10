@@ -5,7 +5,7 @@ import iuh.fit.server.dto.response.*;
 import java.util.List;
 
 public interface DashboardService {
-    DashboardStatsResponse getDashboardStats();
+    DashboardStatsResponse getDashboardStats(String period, Integer year);
     
     List<TopProductResponse> getTopProducts(int limit);
     
@@ -13,7 +13,7 @@ public interface DashboardService {
     
     List<LowStockProductResponse> getLowStockProducts();
     
-    CategoryDistributionResponse getCategoryDistribution();
+    CategoryDistributionResponse getCategoryDistribution(String period, Integer year);
     
-    List<TopBrandResponse> getTopBrands(int limit);
+    List<TopBrandResponse> getTopBrands(int limit, String period, Integer year);
 }

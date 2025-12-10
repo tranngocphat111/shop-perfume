@@ -6,7 +6,10 @@ import iuh.fit.server.repository.*;
 import iuh.fit.server.services.DashboardService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.stereotype.Service;
+
+import iuh.fit.server.dto.response.TopBrandResponse;
 
 @Service
 @RequiredArgsConstructor
@@ -250,7 +253,7 @@ public class DashboardServiceImpl implements DashboardService {
     }
 
     @Override
-    public java.util.List<iuh.fit.server.dto.response.TopBrandResponse> getTopBrands(int limit, String period, Integer year) {
+    public java.util.List<TopBrandResponse> getTopBrands(int limit, String period, Integer year) {
         log.info("Fetching top {} brands for period {} and year {}", limit, period, year);
         
         // Calculate date range based on period and year
