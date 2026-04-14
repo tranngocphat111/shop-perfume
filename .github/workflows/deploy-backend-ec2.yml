@@ -3,10 +3,10 @@ name: Auto Deploy Backend to AWS EC2
 on:
   push:
     branches:
-      - main # Thay đổi branch này nếu bạn dùng branch khác (main, master, develop, etc.)
+      - main  # Hoặc 'develop' tùy vào branch bạn đang dùng
     paths:
-      - "server/**" # Chỉ deploy khi có thay đổi trong folder server
-  workflow_dispatch: # Cho phép chạy thủ công từ GitHub Actions tab
+      - "server/**"
+  workflow_dispatch:
 
 jobs:
   deploy:
@@ -28,115 +28,92 @@ jobs:
         run: mvn clean package -DskipTests
 
       - name: Setup SSH
-        uses: webfactory/ssh-agent@v0.7.0
+        uses: webfactory/ssh-agent@v0.9.0
         with:
           ssh-private-key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
 
-      
       - name: Add EC2 to known hosts
         run: |
           ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
 
       - name: Copy JAR to EC2
         run: |
+          # Đẩy file JAR lên thư mục nhà của user ubuntu
           scp server/target/server-*.jar ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/home/${{ secrets.EC2_USER }}/backend.jar
 
-      - name: Update systemd service with environment variables
+      - name: Setup Environment and Restart Service
         run: |
           ssh ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
-            # Backup service file nếu chưa có
-            if [ ! -f /etc/systemd/system/shop-perfume-backend.service.backup ]; then
-              sudo cp /etc/systemd/system/shop-perfume-backend.service /etc/systemd/system/shop-perfume-backend.service.backup
+            # 1. Cài đặt Java 17 nếu chưa có (Sửa lỗi 203/EXEC)
+            if ! command -v java >/dev/null 2>&1; then
+              sudo apt-get update
+              sudo apt-get install -y openjdk-17-jdk
             fi
-            
-            # Tạo service file mới với environment variables
-            sudo tee /etc/systemd/system/shop-perfume-backend.service > /dev/null << 'SERVICE_EOF'
-          [Unit]
-          Description=Shop Perfume Backend Service
-          After=network.target
 
-          [Service]
-          Type=simple
-          User=${{ secrets.EC2_USER }}
-          WorkingDirectory=/home/${{ secrets.EC2_USER }}/app
-          ExecStart=/usr/bin/java -jar /home/${{ secrets.EC2_USER }}/app/backend.jar
-          Restart=always
-          RestartSec=10
-          Environment="SPRING_PROFILES_ACTIVE=prod"
-          Environment="DATABASE_URL=${{ secrets.DATABASE_URL }}"
-          Environment="DATABASE_USERNAME=${{ secrets.DATABASE_USERNAME }}"
-          Environment="DATABASE_PASSWORD=${{ secrets.DATABASE_PASSWORD }}"
-          Environment="JWT_SECRET=${{ secrets.JWT_SECRET }}"
-          Environment="GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}"
-          Environment="GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}"
-          Environment="CLOUDINARY_CLOUD_NAME=${{ secrets.CLOUDINARY_CLOUD_NAME }}"
-          Environment="CLOUDINARY_API_KEY=${{ secrets.CLOUDINARY_API_KEY }}"
-          Environment="CLOUDINARY_API_SECRET=${{ secrets.CLOUDINARY_API_SECRET }}"
-          Environment="CORS_ALLOWED_ORIGINS=${{ secrets.CORS_ALLOWED_ORIGINS }}"
-          Environment="FRONTEND_URL=${{ secrets.FRONTEND_URL }}"
-          Environment="DB_CONNECTION_TIMEOUT=${{ secrets.DB_CONNECTION_TIMEOUT }}"
-          Environment="MAIL_HOST=${{ secrets.MAIL_HOST }}"
-          Environment="MAIL_PORT=${{ secrets.MAIL_PORT }}"
-          Environment="MAIL_USERNAME=${{ secrets.MAIL_USERNAME }}"
-          Environment="MAIL_PASSWORD=${{ secrets.MAIL_PASSWORD }}"
-          Environment="MAIL_FROM=${{ secrets.MAIL_FROM }}"
-          Environment="REDIS_HOST=${{ secrets.REDIS_HOST }}"
-          Environment="REDIS_PORT=${{ secrets.REDIS_PORT }}"
+            # 2. Cài đặt Docker nếu chưa có (Để chạy Redis)
+            if ! command -v docker >/dev/null 2>&1; then
+              sudo apt-get install -y docker.io
+              sudo systemctl start docker
+              sudo systemctl enable docker
+              sudo usermod -aG docker $USER
+            fi
 
-          [Install]
-          WantedBy=multi-user.target
-          SERVICE_EOF
-            
-            # Reload systemd để nhận cấu hình mới
-            sudo systemctl daemon-reload
-          EOF
-
-      - name: Deploy and restart on EC2
-        run: |
-          ssh ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
-            # Tạo thư mục nếu chưa có
+            # 3. Chuẩn bị thư mục app
             mkdir -p ~/app
-            
-            # Backup JAR cũ
-            if [ -f ~/app/backend.jar ]; then
-              mv ~/app/backend.jar ~/app/backend.jar.backup
-            fi
-            
-            # Copy JAR mới
             mv ~/backend.jar ~/app/backend.jar
 
-            # Đảm bảo Docker có sẵn để chạy Redis cache
-            if ! command -v docker >/dev/null 2>&1; then
-              sudo apt-get update
-              sudo apt-get install -y docker.io
-            fi
-
-            # Bật Docker service nếu chưa chạy
-            sudo systemctl enable docker
-            sudo systemctl start docker
-
-            # Khởi tạo/refresh Redis container cho backend cache
-            REDIS_PORT="${{ secrets.REDIS_PORT }}"
-            if [ -z "$REDIS_PORT" ]; then
-              REDIS_PORT=6380
-            fi
-
-            sudo docker rm -f shop-perfume-redis >/dev/null 2>&1 || true
-            sudo docker pull redis:7-alpine
+            # 4. Chạy Redis Container (Port 6380)
+            sudo docker rm -f shop-perfume-redis || true
             sudo docker run -d \
               --name shop-perfume-redis \
               --restart unless-stopped \
-              -p ${REDIS_PORT}:6379 \
-              -v redis-data:/data \
-              redis:7-alpine redis-server --appendonly yes
-            
-            # Dừng service cũ (nếu đang chạy)
-            sudo systemctl stop shop-perfume-backend || true
-            
-            # Chạy JAR mới
-            sudo systemctl start shop-perfume-backend
-            
-            # Kiểm tra status
-            sleep 5
-            sudo systemctl status shop-perfume-backend
+              -p 6380:6379 \
+              redis:7-alpine
+
+            # 5. Tạo file Systemd Service (SỬA LỖI MISSING '=')
+            # Lưu ý: Các dòng dưới đây phải viết sát lề trái bên trong lệnh tee
+            sudo tee /etc/systemd/system/shop-perfume-backend.service > /dev/null <<SERVICE_EOF
+[Unit]
+Description=Shop Perfume Backend Service
+After=network.target
+
+[Service]
+Type=simple
+User=${{ secrets.EC2_USER }}
+WorkingDirectory=/home/${{ secrets.EC2_USER }}/app
+ExecStart=/usr/bin/java -jar /home/${{ secrets.EC2_USER }}/app/backend.jar
+Restart=always
+RestartSec=10
+Environment="SPRING_PROFILES_ACTIVE=prod"
+Environment="DATABASE_URL=${{ secrets.DATABASE_URL }}"
+Environment="DATABASE_USERNAME=${{ secrets.DATABASE_USERNAME }}"
+Environment="DATABASE_PASSWORD=${{ secrets.DATABASE_PASSWORD }}"
+Environment="JWT_SECRET=${{ secrets.JWT_SECRET }}"
+Environment="GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}"
+Environment="GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}"
+Environment="CLOUDINARY_CLOUD_NAME=${{ secrets.CLOUDINARY_CLOUD_NAME }}"
+Environment="CLOUDINARY_API_KEY=${{ secrets.CLOUDINARY_API_KEY }}"
+Environment="CLOUDINARY_API_SECRET=${{ secrets.CLOUDINARY_API_SECRET }}"
+Environment="CORS_ALLOWED_ORIGINS=${{ secrets.CORS_ALLOWED_ORIGINS }}"
+Environment="FRONTEND_URL=${{ secrets.FRONTEND_URL }}"
+Environment="MAIL_HOST=${{ secrets.MAIL_HOST }}"
+Environment="MAIL_PORT=${{ secrets.MAIL_PORT }}"
+Environment="MAIL_USERNAME=${{ secrets.MAIL_USERNAME }}"
+Environment="MAIL_PASSWORD=${{ secrets.MAIL_PASSWORD }}"
+Environment="MAIL_FROM=${{ secrets.MAIL_FROM }}"
+Environment="REDIS_HOST=${{ secrets.REDIS_HOST }}"
+Environment="REDIS_PORT=${{ secrets.REDIS_PORT }}"
+
+[Install]
+WantedBy=multi-user.target
+SERVICE_EOF
+
+            # 6. Kích hoạt và Restart Service
+            sudo systemctl daemon-reload
+            sudo systemctl enable shop-perfume-backend
+            sudo systemctl restart shop-perfume-backend
+
+            # 7. Kiểm tra kết quả
+            sleep 10
+            sudo systemctl status shop-perfume-backend --no-pager
           EOF
