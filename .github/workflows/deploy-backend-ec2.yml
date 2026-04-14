@@ -129,18 +129,23 @@ jobs:
             sudo systemctl enable shop-perfume-backend
             sudo systemctl restart shop-perfume-backend
 
-            # 7. Chờ app khởi động rồi kiểm tra
-            echo "Waiting for app to start..."
-            sleep 15
+            # 7. Chờ app khởi động với retry loop (tối đa 90s)
+            echo "Waiting for app to start (up to 90s)..."
+            RETRIES=18
+            INTERVAL=5
+            for i in $(seq 1 $RETRIES); do
+              if sudo ss -tlnp | grep -q 8080; then
+                echo "✅ App is running on port 8080 (after ~$((i * INTERVAL))s)"
+                break
+              fi
+              if [ $i -eq $RETRIES ]; then
+                echo "❌ App did NOT start after $((RETRIES * INTERVAL))s. Last 80 log lines:"
+                sudo journalctl -u shop-perfume-backend -n 80 --no-pager
+                exit 1
+              fi
+              echo "  [${i}/${RETRIES}] Not ready yet, retrying in ${INTERVAL}s..."
+              sleep $INTERVAL
+            done
 
             sudo systemctl status shop-perfume-backend --no-pager
-
-            # 8. Kiểm tra port 8080 có lắng nghe không
-            if sudo ss -tlnp | grep -q 8080; then
-              echo "✅ App is running on port 8080"
-            else
-              echo "❌ App is NOT running on port 8080. Printing last 50 log lines:"
-              sudo journalctl -u shop-perfume-backend -n 50 --no-pager
-              exit 1
-            fi
           EOF
