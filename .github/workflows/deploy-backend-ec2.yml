@@ -97,6 +97,7 @@ jobs:
             Environment="MAIL_FROM=${{ secrets.MAIL_FROM }}"
             Environment="REDIS_HOST=${{ secrets.REDIS_HOST }}"
             Environment="REDIS_PORT=${{ secrets.REDIS_PORT }}"
+            Environment="DB_CONNECTION_TIMEOUT=30000"
 
             [Install]
             WantedBy=multi-user.target
