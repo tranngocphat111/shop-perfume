@@ -156,6 +156,8 @@ const isPublicEndpoint = (endpoint: string, method: string = "GET"): boolean => 
     "/payment/check-qr",
     "/contact/send-email", // Contact form - public
     "/webhooks/",
+    "/coupons/available",
+    "/coupons/code/",
   ];
 
   if (publicEndpoints.some((publicPath) => endpoint.includes(publicPath))) {

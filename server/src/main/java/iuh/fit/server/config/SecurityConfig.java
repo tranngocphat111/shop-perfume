@@ -107,6 +107,10 @@ public class SecurityConfig {
                     
                     // Contact endpoint - public for anyone to send contact email
                     .requestMatchers("/contact/**", "/api/contact/**").permitAll()
+
+                    // Public coupon read endpoints - frontend needs these without forcing login
+                    .requestMatchers("/coupons/available", "/api/coupons/available").permitAll()
+                    .requestMatchers("/coupons/code/**", "/api/coupons/code/**").permitAll()
                     
                     // Public read-only endpoints (GET only)
                     .requestMatchers(HttpMethod.GET, "/products/**").permitAll()
