@@ -91,19 +91,14 @@ jobs:
             Environment="DB_POOL_MAX_SIZE=${{ secrets.DB_POOL_MAX_SIZE }}"
             Environment="DB_POOL_MIN_IDLE=${{ secrets.DB_POOL_MIN_IDLE }}"
             Environment="DB_CONNECTION_TIMEOUT=${{ secrets.DB_CONNECTION_TIMEOUT }}"
-
-            # Optional admin bootstrap
             Environment="ADMIN_INIT_ENABLED=${{ secrets.ADMIN_INIT_ENABLED }}"
             Environment="ADMIN_INIT_EMAIL=${{ secrets.ADMIN_INIT_EMAIL }}"
             Environment="ADMIN_INIT_PASSWORD=${{ secrets.ADMIN_INIT_PASSWORD }}"
-
             Environment="MAIL_HOST=${{ secrets.MAIL_HOST }}"
             Environment="MAIL_PORT=${{ secrets.MAIL_PORT }}"
             Environment="MAIL_USERNAME=${{ secrets.MAIL_USERNAME }}"
             Environment="MAIL_PASSWORD=${{ secrets.MAIL_PASSWORD }}"
             Environment="MAIL_FROM=${{ secrets.MAIL_FROM }}"
-
-            # Redis Cache Configuration
             Environment="REDIS_HOST=${{ secrets.REDIS_HOST }}"
             Environment="REDIS_PORT=${{ secrets.REDIS_PORT }}"
             Environment="REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}"
