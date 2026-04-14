@@ -50,11 +50,11 @@ jobs:
             fi
             
             # Tạo service file mới với environment variables
-            sudo tee /etc/systemd/system/shop-perfume-backend.service > /dev/null << SERVICE_EOF
+            sed 's/^ *//' << 'SERVICE_EOF' | sudo tee /etc/systemd/system/shop-perfume-backend.service > /dev/null
             [Unit]
             Description=Shop Perfume Backend Service
             After=network.target
-            
+
             [Service]
             Type=simple
             User=${{ secrets.EC2_USER }}
@@ -62,38 +62,21 @@ jobs:
             ExecStart=/usr/bin/java -jar /home/${{ secrets.EC2_USER }}/app/backend.jar
             Restart=always
             RestartSec=10
-            # Spring Profile - QUAN TRỌNG: Phải set để load application-prod.properties
             Environment="SPRING_PROFILES_ACTIVE=prod"
-            
-            # Database Configuration
             Environment="DATABASE_URL=${{ secrets.DATABASE_URL }}"
             Environment="DATABASE_USERNAME=${{ secrets.DATABASE_USERNAME }}"
             Environment="DATABASE_PASSWORD=${{ secrets.DATABASE_PASSWORD }}"
-            
-            # JWT Configuration
             Environment="JWT_SECRET=${{ secrets.JWT_SECRET }}"
-            Environment="JWT_EXPIRATION=${{ secrets.JWT_EXPIRATION }}"
-            Environment="JWT_REFRESH_EXPIRATION=${{ secrets.JWT_REFRESH_EXPIRATION }}"
-
-            # Google OAuth Configuration
             Environment="GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}"
             Environment="GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}"
-
-            # Cloudinary Configuration
             Environment="CLOUDINARY_CLOUD_NAME=${{ secrets.CLOUDINARY_CLOUD_NAME }}"
             Environment="CLOUDINARY_API_KEY=${{ secrets.CLOUDINARY_API_KEY }}"
             Environment="CLOUDINARY_API_SECRET=${{ secrets.CLOUDINARY_API_SECRET }}"
-
-            # Optional Configuration (có default values)
             Environment="CORS_ALLOWED_ORIGINS=${{ secrets.CORS_ALLOWED_ORIGINS }}"
             Environment="FRONTEND_URL=${{ secrets.FRONTEND_URL }}"
-            Environment="SEPAY_WEBHOOK_API_KEY=${{ secrets.SEPAY_WEBHOOK_API_KEY }}"
             Environment="DB_POOL_MAX_SIZE=${{ secrets.DB_POOL_MAX_SIZE }}"
             Environment="DB_POOL_MIN_IDLE=${{ secrets.DB_POOL_MIN_IDLE }}"
             Environment="DB_CONNECTION_TIMEOUT=${{ secrets.DB_CONNECTION_TIMEOUT }}"
-            Environment="ADMIN_INIT_ENABLED=${{ secrets.ADMIN_INIT_ENABLED }}"
-            Environment="ADMIN_INIT_EMAIL=${{ secrets.ADMIN_INIT_EMAIL }}"
-            Environment="ADMIN_INIT_PASSWORD=${{ secrets.ADMIN_INIT_PASSWORD }}"
             Environment="MAIL_HOST=${{ secrets.MAIL_HOST }}"
             Environment="MAIL_PORT=${{ secrets.MAIL_PORT }}"
             Environment="MAIL_USERNAME=${{ secrets.MAIL_USERNAME }}"
@@ -101,12 +84,11 @@ jobs:
             Environment="MAIL_FROM=${{ secrets.MAIL_FROM }}"
             Environment="REDIS_HOST=${{ secrets.REDIS_HOST }}"
             Environment="REDIS_PORT=${{ secrets.REDIS_PORT }}"
-            Environment="REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}"
-            Environment="REDIS_TIMEOUT=${{ secrets.REDIS_TIMEOUT }}"
+
 
             [Install]
             WantedBy=multi-user.target
-            SERVICE_EOF
+                        SERVICE_EOF
             
             # Reload systemd để nhận cấu hình mới
             sudo systemctl daemon-reload
