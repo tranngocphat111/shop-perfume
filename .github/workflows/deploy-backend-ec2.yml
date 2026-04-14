@@ -42,14 +42,16 @@ jobs:
 
       - name: Setup Environment and Restart Service
         run: |
-          ssh ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
-            # 1. Cài đặt Java 17 nếu chưa có
+          ssh ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << EOF
+            set -e
+
+            # 1. Install Java nếu chưa có
             if ! command -v java >/dev/null 2>&1; then
               sudo apt-get update
               sudo apt-get install -y openjdk-17-jdk
             fi
 
-            # 2. Cài đặt Docker để chạy Redis
+            # 2. Install Docker nếu chưa có
             if ! command -v docker >/dev/null 2>&1; then
               sudo apt-get install -y docker.io
               sudo systemctl start docker
@@ -57,60 +59,63 @@ jobs:
               sudo usermod -aG docker ${{ secrets.EC2_USER }}
             fi
 
-            # 3. Chuẩn bị thư mục app
-            mkdir -p ~/app
-            mv ~/backend.jar ~/app/backend.jar
+            # 3. Setup app folder
+            mkdir -p /home/${{ secrets.EC2_USER }}/app
+            mv /home/${{ secrets.EC2_USER }}/backend.jar /home/${{ secrets.EC2_USER }}/app/backend.jar
 
-            # 4. Chạy Redis (Port 6380)
+            # 4. Run Redis
             sudo docker rm -f shop-perfume-redis || true
-            sudo docker run -d --name shop-perfume-redis --restart unless-stopped -p 6380:6379 redis:7-alpine
+            sudo docker run -d \
+              --name shop-perfume-redis \
+              --restart unless-stopped \
+              -p 6380:6379 \
+              redis:7-alpine
 
-            # 5. Tạo file Service (Ở đây mình thụt lề để đúng chuẩn YAML)
+            # 5. Create systemd service (QUAN TRỌNG: KHÔNG indent bên trong)
             sudo tee /etc/systemd/system/shop-perfume-backend.service > /dev/null <<SERVICE_EOF
-            [Unit]
-            Description=Shop Perfume Backend Service
-            After=network.target
+[Unit]
+Description=Shop Perfume Backend Service
+After=network.target
 
-            [Service]
-            Type=simple
-            User=${{ secrets.EC2_USER }}
-            WorkingDirectory=/home/${{ secrets.EC2_USER }}/app
-            ExecStart=/usr/bin/java -jar /home/${{ secrets.EC2_USER }}/app/backend.jar
-            Restart=always
-            RestartSec=10
-            Environment="SPRING_PROFILES_ACTIVE=prod"
-            Environment="DATABASE_URL=${{ secrets.DATABASE_URL }}"
-            Environment="DATABASE_USERNAME=${{ secrets.DATABASE_USERNAME }}"
-            Environment="DATABASE_PASSWORD=${{ secrets.DATABASE_PASSWORD }}"
-            Environment="JWT_SECRET=${{ secrets.JWT_SECRET }}"
-            Environment="GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}"
-            Environment="GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}"
-            Environment="CLOUDINARY_CLOUD_NAME=${{ secrets.CLOUDINARY_CLOUD_NAME }}"
-            Environment="CLOUDINARY_API_KEY=${{ secrets.CLOUDINARY_API_KEY }}"
-            Environment="CLOUDINARY_API_SECRET=${{ secrets.CLOUDINARY_API_SECRET }}"
-            Environment="CORS_ALLOWED_ORIGINS=${{ secrets.CORS_ALLOWED_ORIGINS }}"
-            Environment="FRONTEND_URL=${{ secrets.FRONTEND_URL }}"
-            Environment="MAIL_HOST=${{ secrets.MAIL_HOST }}"
-            Environment="MAIL_PORT=${{ secrets.MAIL_PORT }}"
-            Environment="MAIL_USERNAME=${{ secrets.MAIL_USERNAME }}"
-            Environment="MAIL_PASSWORD=${{ secrets.MAIL_PASSWORD }}"
-            Environment="MAIL_FROM=${{ secrets.MAIL_FROM }}"
-            Environment="REDIS_HOST=${{ secrets.REDIS_HOST }}"
-            Environment="REDIS_PORT=${{ secrets.REDIS_PORT }}"
-            Environment="DB_CONNECTION_TIMEOUT=30000"
+[Service]
+Type=simple
+User=${{ secrets.EC2_USER }}
+WorkingDirectory=/home/${{ secrets.EC2_USER }}/app
+ExecStart=/usr/bin/java -jar /home/${{ secrets.EC2_USER }}/app/backend.jar
+Restart=always
+RestartSec=10
 
-            [Install]
-            WantedBy=multi-user.target
-            SERVICE_EOF
+Environment=SPRING_PROFILES_ACTIVE=prod
+Environment=SPRING_JPA_HIBERNATE_DDL_AUTO=update
+Environment=DATABASE_URL=${{ secrets.DATABASE_URL }}
+Environment=DATABASE_USERNAME=${{ secrets.DATABASE_USERNAME }}
+Environment=DATABASE_PASSWORD=${{ secrets.DATABASE_PASSWORD }}
+Environment=JWT_SECRET=${{ secrets.JWT_SECRET }}
+Environment=GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
+Environment=GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
+Environment=CLOUDINARY_CLOUD_NAME=${{ secrets.CLOUDINARY_CLOUD_NAME }}
+Environment=CLOUDINARY_API_KEY=${{ secrets.CLOUDINARY_API_KEY }}
+Environment=CLOUDINARY_API_SECRET=${{ secrets.CLOUDINARY_API_SECRET }}
+Environment=CORS_ALLOWED_ORIGINS=${{ secrets.CORS_ALLOWED_ORIGINS }}
+Environment=FRONTEND_URL=${{ secrets.FRONTEND_URL }}
+Environment=MAIL_HOST=${{ secrets.MAIL_HOST }}
+Environment=MAIL_PORT=${{ secrets.MAIL_PORT }}
+Environment=MAIL_USERNAME=${{ secrets.MAIL_USERNAME }}
+Environment=MAIL_PASSWORD=${{ secrets.MAIL_PASSWORD }}
+Environment=MAIL_FROM=${{ secrets.MAIL_FROM }}
+Environment=REDIS_HOST=${{ secrets.REDIS_HOST }}
+Environment=REDIS_PORT=${{ secrets.REDIS_PORT }}
+Environment=DB_CONNECTION_TIMEOUT=30000
 
-            # 6. LỆNH QUAN TRỌNG: Xóa bỏ tất cả khoảng trắng ở đầu dòng để Systemd không báo lỗi "Missing ="
-            sudo sed -i 's/^[[:space:]]*//' /etc/systemd/system/shop-perfume-backend.service
+[Install]
+WantedBy=multi-user.target
+SERVICE_EOF
 
-            # 7. Restart Service
+            # 6. Reload & restart
             sudo systemctl daemon-reload
             sudo systemctl enable shop-perfume-backend
             sudo systemctl restart shop-perfume-backend
-            
+
             sleep 5
             sudo systemctl status shop-perfume-backend --no-pager
           EOF
