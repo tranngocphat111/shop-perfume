@@ -57,6 +57,7 @@ public class CartItemServiceImpl implements CartItemService {
             // Update quantity if item already exists
             cartItem = existingItem.get();
             cartItem.setQuantity(cartItem.getQuantity() + cartItemRequest.getQuantity());
+            cartItem.setUnitPrice(cartItem.getProduct().getUnitPrice());
             log.info("Updated existing cart item quantity to: {}", cartItem.getQuantity());
         } else {
             // Create new cart item
@@ -64,6 +65,7 @@ public class CartItemServiceImpl implements CartItemService {
             cartItem.setCart(cart);
             cartItem.setProduct(product);
             cartItem.setQuantity(cartItemRequest.getQuantity());
+            cartItem.setUnitPrice(product.getUnitPrice());
             log.info("Created new cart item");
         }
 
@@ -81,6 +83,7 @@ public class CartItemServiceImpl implements CartItemService {
                 .orElseThrow(() -> new ResourceNotFoundException("Cart item not found with id: " + cartItemId));
 
         cartItem.setQuantity(cartItemRequest.getQuantity());
+        cartItem.setUnitPrice(cartItem.getProduct().getUnitPrice());
         cartItem.setSubtotal(cartItem.getProduct().getUnitPrice() * cartItem.getQuantity());
 
         CartItem updatedItem = cartItemRepository.save(cartItem);

@@ -17,6 +17,8 @@ public class CartItem {
     private int cartItemId;
 
     private int quantity;
+    @Column(name = "unit_price")
+    private double unitPrice;
     private double subtotal;
 
     @ManyToOne

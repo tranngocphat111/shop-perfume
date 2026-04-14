@@ -386,6 +386,7 @@ public class OrderServiceImpl implements iuh.fit.server.services.OrderService {
                 break;
             case "qr-payment":
             case "qr_code":
+            case "bank_transfer":
                 payment.setMethod(Method.QR_CODE);
                 payment.setStatus(PaymentStatus.PENDING); // QR payment starts as PENDING until verified
                 break;

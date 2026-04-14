@@ -119,6 +119,7 @@ public class CartServiceImpl implements CartService {
                 int oldQuantity = item.getQuantity();
                 int newQuantity = item.getQuantity() + sessionItem.getQuantity();
                 item.setQuantity(newQuantity);
+                item.setUnitPrice(product.getUnitPrice());
                 item.setSubtotal(product.getUnitPrice() * newQuantity);
                 CartItem savedItem = cartItemRepository.save(item);
                 // Ensure item is in cart's items list
@@ -133,6 +134,7 @@ public class CartServiceImpl implements CartService {
                 newItem.setCart(cart);
                 newItem.setProduct(product);
                 newItem.setQuantity(sessionItem.getQuantity());
+                newItem.setUnitPrice(product.getUnitPrice());
                 newItem.setSubtotal(product.getUnitPrice() * sessionItem.getQuantity());
                 CartItem savedItem = cartItemRepository.save(newItem);
                 // Add to cart's items list to maintain bidirectional relationship
@@ -223,6 +225,7 @@ public class CartServiceImpl implements CartService {
             newItem.setCart(cart); // Set the managed cart entity
             newItem.setProduct(product);
             newItem.setQuantity(itemRequest.getQuantity());
+            newItem.setUnitPrice(unitPrice);
             newItem.setSubtotal(unitPrice * itemRequest.getQuantity());
             
             log.info("CartItem before save - quantity: {}, subtotal: {}, cartId: {}", 
