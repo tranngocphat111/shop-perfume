@@ -40,30 +40,78 @@ jobs:
         run: |
           scp server/target/server-*.jar ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/home/${{ secrets.EC2_USER }}/backend.jar
 
+      # Tạo file service trên runner (tránh hoàn toàn lỗi indent khi dùng heredoc lồng trong SSH)
+      - name: Create systemd service file
+        run: |
+          cat > /tmp/shop-perfume-backend.service << 'EOF'
+          [Unit]
+          Description=Shop Perfume Backend Service
+          After=network.target
+
+          [Service]
+          Type=simple
+          User=${{ secrets.EC2_USER }}
+          WorkingDirectory=/home/${{ secrets.EC2_USER }}/app
+          ExecStart=/usr/bin/java -jar /home/${{ secrets.EC2_USER }}/app/backend.jar
+          Restart=always
+          RestartSec=10
+          Environment="SPRING_PROFILES_ACTIVE=prod"
+          Environment="DATABASE_URL=${{ secrets.DATABASE_URL }}"
+          Environment="DATABASE_USERNAME=${{ secrets.DATABASE_USERNAME }}"
+          Environment="DATABASE_PASSWORD=${{ secrets.DATABASE_PASSWORD }}"
+          Environment="JWT_SECRET=${{ secrets.JWT_SECRET }}"
+          Environment="GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}"
+          Environment="GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}"
+          Environment="CLOUDINARY_CLOUD_NAME=${{ secrets.CLOUDINARY_CLOUD_NAME }}"
+          Environment="CLOUDINARY_API_KEY=${{ secrets.CLOUDINARY_API_KEY }}"
+          Environment="CLOUDINARY_API_SECRET=${{ secrets.CLOUDINARY_API_SECRET }}"
+          Environment="CORS_ALLOWED_ORIGINS=${{ secrets.CORS_ALLOWED_ORIGINS }}"
+          Environment="FRONTEND_URL=${{ secrets.FRONTEND_URL }}"
+          Environment="MAIL_HOST=${{ secrets.MAIL_HOST }}"
+          Environment="MAIL_PORT=${{ secrets.MAIL_PORT }}"
+          Environment="MAIL_USERNAME=${{ secrets.MAIL_USERNAME }}"
+          Environment="MAIL_PASSWORD=${{ secrets.MAIL_PASSWORD }}"
+          Environment="MAIL_FROM=${{ secrets.MAIL_FROM }}"
+          Environment="REDIS_HOST=${{ secrets.REDIS_HOST }}"
+          Environment="REDIS_PORT=${{ secrets.REDIS_PORT }}"
+          Environment="DB_CONNECTION_TIMEOUT=30000"
+
+          [Install]
+          WantedBy=multi-user.target
+          EOF
+
+          # Xóa indent thừa do YAML block (nếu có)
+          sed -i 's/^[[:space:]]*//' /tmp/shop-perfume-backend.service
+
+      - name: Copy service file to EC2
+        run: |
+          scp /tmp/shop-perfume-backend.service ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/tmp/shop-perfume-backend.service
+
       - name: Setup Environment and Restart Service
         run: |
-          ssh ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << EOF
+          ssh ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
             set -e
 
-            # 1. Install Java nếu chưa có
+            # 1. Cài Java 17 nếu chưa có
             if ! command -v java >/dev/null 2>&1; then
-              sudo apt-get update
+              sudo apt-get update -y
               sudo apt-get install -y openjdk-17-jdk
             fi
 
-            # 2. Install Docker nếu chưa có
+            # 2. Cài Docker nếu chưa có
             if ! command -v docker >/dev/null 2>&1; then
+              sudo apt-get update -y
               sudo apt-get install -y docker.io
               sudo systemctl start docker
               sudo systemctl enable docker
-              sudo usermod -aG docker ${{ secrets.EC2_USER }}
+              sudo usermod -aG docker ubuntu
             fi
 
-            # 3. Setup app folder
-            mkdir -p /home/${{ secrets.EC2_USER }}/app
-            mv /home/${{ secrets.EC2_USER }}/backend.jar /home/${{ secrets.EC2_USER }}/app/backend.jar
+            # 3. Chuẩn bị thư mục app
+            mkdir -p ~/app
+            mv ~/backend.jar ~/app/backend.jar
 
-            # 4. Run Redis
+            # 4. Chạy Redis (Port 6380)
             sudo docker rm -f shop-perfume-redis || true
             sudo docker run -d \
               --name shop-perfume-redis \
@@ -71,51 +119,28 @@ jobs:
               -p 6380:6379 \
               redis:7-alpine
 
-            # 5. Create systemd service (QUAN TRỌNG: KHÔNG indent bên trong)
-            sudo tee /etc/systemd/system/shop-perfume-backend.service > /dev/null <<SERVICE_EOF
-[Unit]
-Description=Shop Perfume Backend Service
-After=network.target
+            # 5. Copy và cài file service (đã được tạo sạch trên runner, không có lỗi indent)
+            sudo mv /tmp/shop-perfume-backend.service /etc/systemd/system/shop-perfume-backend.service
+            sudo chown root:root /etc/systemd/system/shop-perfume-backend.service
+            sudo chmod 644 /etc/systemd/system/shop-perfume-backend.service
 
-[Service]
-Type=simple
-User=${{ secrets.EC2_USER }}
-WorkingDirectory=/home/${{ secrets.EC2_USER }}/app
-ExecStart=/usr/bin/java -jar /home/${{ secrets.EC2_USER }}/app/backend.jar
-Restart=always
-RestartSec=10
-
-Environment=SPRING_PROFILES_ACTIVE=prod
-Environment=SPRING_JPA_HIBERNATE_DDL_AUTO=update
-Environment=DATABASE_URL=${{ secrets.DATABASE_URL }}
-Environment=DATABASE_USERNAME=${{ secrets.DATABASE_USERNAME }}
-Environment=DATABASE_PASSWORD=${{ secrets.DATABASE_PASSWORD }}
-Environment=JWT_SECRET=${{ secrets.JWT_SECRET }}
-Environment=GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
-Environment=GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
-Environment=CLOUDINARY_CLOUD_NAME=${{ secrets.CLOUDINARY_CLOUD_NAME }}
-Environment=CLOUDINARY_API_KEY=${{ secrets.CLOUDINARY_API_KEY }}
-Environment=CLOUDINARY_API_SECRET=${{ secrets.CLOUDINARY_API_SECRET }}
-Environment=CORS_ALLOWED_ORIGINS=${{ secrets.CORS_ALLOWED_ORIGINS }}
-Environment=FRONTEND_URL=${{ secrets.FRONTEND_URL }}
-Environment=MAIL_HOST=${{ secrets.MAIL_HOST }}
-Environment=MAIL_PORT=${{ secrets.MAIL_PORT }}
-Environment=MAIL_USERNAME=${{ secrets.MAIL_USERNAME }}
-Environment=MAIL_PASSWORD=${{ secrets.MAIL_PASSWORD }}
-Environment=MAIL_FROM=${{ secrets.MAIL_FROM }}
-Environment=REDIS_HOST=${{ secrets.REDIS_HOST }}
-Environment=REDIS_PORT=${{ secrets.REDIS_PORT }}
-Environment=DB_CONNECTION_TIMEOUT=30000
-
-[Install]
-WantedBy=multi-user.target
-SERVICE_EOF
-
-            # 6. Reload & restart
+            # 6. Reload và restart service
             sudo systemctl daemon-reload
             sudo systemctl enable shop-perfume-backend
             sudo systemctl restart shop-perfume-backend
 
-            sleep 5
+            # 7. Chờ app khởi động rồi kiểm tra
+            echo "Waiting for app to start..."
+            sleep 15
+
             sudo systemctl status shop-perfume-backend --no-pager
+
+            # 8. Kiểm tra port 8080 có lắng nghe không
+            if sudo ss -tlnp | grep -q 8080; then
+              echo "✅ App is running on port 8080"
+            else
+              echo "❌ App is NOT running on port 8080. Printing last 50 log lines:"
+              sudo journalctl -u shop-perfume-backend -n 50 --no-pager
+              exit 1
+            fi
           EOF
