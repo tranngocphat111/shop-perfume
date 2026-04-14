@@ -13,6 +13,10 @@ import iuh.fit.server.repository.ProductRepository;
 import iuh.fit.server.services.CategoryService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheConfig;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -21,12 +25,15 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import iuh.fit.server.config.CacheNames;
+
 /**
  * Implementation của CategoryService
  */
 @Service
 @RequiredArgsConstructor
 @Slf4j
+@CacheConfig(cacheNames = CacheNames.CATEGORIES)
 @Transactional
 public class CategoryServiceImpl implements CategoryService {
 
@@ -39,6 +46,7 @@ public class CategoryServiceImpl implements CategoryService {
      */
     @Override
     @Transactional(readOnly = true)
+    @Cacheable(key = "'all'")
     public List<CategoryResponse> findAll() {
         log.info("Service: Getting all categories");
         return categoryRepository.findAll().stream()
@@ -70,6 +78,7 @@ public class CategoryServiceImpl implements CategoryService {
      */
     @Override
     @Transactional(readOnly = true)
+    @Cacheable(key = "'id:' + #id")
     public CategoryResponse findById(int id) {
         log.info("Service: Getting category by id: {}", id);
         Category category = categoryRepository.findById(id)
@@ -82,6 +91,10 @@ public class CategoryServiceImpl implements CategoryService {
      * Tạo mới category
      */
     @Override
+        @Caching(evict = {
+            @CacheEvict(allEntries = true),
+            @CacheEvict(cacheNames = CacheNames.PRODUCTS, allEntries = true)
+        })
     public CategoryResponse createCategory(CategoryRequest request) {
         log.info("Service: Creating new category: {}", request.getName());
 
@@ -100,6 +113,10 @@ public class CategoryServiceImpl implements CategoryService {
      * Cập nhật category
      */
     @Override
+        @Caching(evict = {
+            @CacheEvict(allEntries = true),
+            @CacheEvict(cacheNames = CacheNames.PRODUCTS, allEntries = true)
+        })
     public CategoryResponse updateCategory(int id, CategoryRequest request) {
         log.info("Service: Updating category id {}: {}", id, request.getName());
 
@@ -121,6 +138,10 @@ public class CategoryServiceImpl implements CategoryService {
      * Kiểm tra xem có sản phẩm ACTIVE nào sử dụng category này không
      */
     @Override
+        @Caching(evict = {
+            @CacheEvict(allEntries = true),
+            @CacheEvict(cacheNames = CacheNames.PRODUCTS, allEntries = true)
+        })
     public void deleteCategory(int id) {
         log.info("Service: Attempting to delete category id: {}", id);
 

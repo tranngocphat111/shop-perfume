@@ -9,6 +9,9 @@ import iuh.fit.server.repository.SupplierRepository;
 import iuh.fit.server.services.SupplierService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheConfig;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -17,12 +20,15 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import iuh.fit.server.config.CacheNames;
+
 /**
  * Implementation của SupplierService
  */
 @Service
 @RequiredArgsConstructor
 @Slf4j
+@CacheConfig(cacheNames = CacheNames.SUPPLIERS)
 @Transactional
 public class SupplierServiceImpl implements SupplierService {
 
@@ -31,6 +37,7 @@ public class SupplierServiceImpl implements SupplierService {
 
     @Override
     @Transactional(readOnly = true)
+    @Cacheable(key = "'all'")
     public List<SupplierResponse> findAll() {
         log.info("Finding all suppliers");
         List<Supplier> suppliers = supplierRepository.findAll();
@@ -57,6 +64,7 @@ public class SupplierServiceImpl implements SupplierService {
 
     @Override
     @Transactional(readOnly = true)
+    @Cacheable(key = "'id:' + #supplierId")
     public SupplierResponse findById(int supplierId) {
         log.info("Finding supplier by id: {}", supplierId);
         Supplier supplier = supplierRepository.findById(supplierId)
@@ -65,6 +73,7 @@ public class SupplierServiceImpl implements SupplierService {
     }
 
     @Override
+    @CacheEvict(allEntries = true)
     public SupplierResponse create(SupplierRequest request) {
         log.info("Creating new supplier: {}", request);
         
@@ -79,6 +88,7 @@ public class SupplierServiceImpl implements SupplierService {
     }
 
     @Override
+    @CacheEvict(allEntries = true)
     public SupplierResponse update(int supplierId, SupplierRequest request) {
         log.info("Updating supplier {}: {}", supplierId, request);
         
@@ -100,6 +110,7 @@ public class SupplierServiceImpl implements SupplierService {
     }
 
     @Override
+    @CacheEvict(allEntries = true)
     public void delete(int supplierId) {
         log.info("Deleting supplier: {}", supplierId);
         

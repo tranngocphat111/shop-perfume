@@ -14,6 +14,10 @@ import iuh.fit.server.services.BrandService;
 import iuh.fit.server.services.CloudinaryService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheConfig;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -23,12 +27,15 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import iuh.fit.server.config.CacheNames;
+
 /**
  * Implementation của BrandService
  */
 @Service
 @RequiredArgsConstructor
 @Slf4j
+@CacheConfig(cacheNames = CacheNames.BRANDS)
 @Transactional
 public class BrandServiceImpl implements BrandService {
 
@@ -41,6 +48,7 @@ public class BrandServiceImpl implements BrandService {
      * Lấy tất cả brands
      */
     @Override
+    @Cacheable(key = "'all'")
     public List<BrandResponse> findAll() {
         log.info("Service: Getting all brands");
         List<BrandResponse> brands = brandRepository.findAll().stream()
@@ -76,6 +84,7 @@ public class BrandServiceImpl implements BrandService {
      */
     @Override
     @Transactional(readOnly = true)
+    @Cacheable(key = "'id:' + #id")
     public BrandResponse findById(int id) {
         log.info("Service: Getting brand by id: {}", id);
         Brand brand = brandRepository.findById(id)
@@ -90,6 +99,10 @@ public class BrandServiceImpl implements BrandService {
      * Tạo brand mới
      */
     @Override
+        @Caching(evict = {
+            @CacheEvict(allEntries = true),
+            @CacheEvict(cacheNames = CacheNames.PRODUCTS, allEntries = true)
+        })
     public BrandResponse createBrand(BrandRequest request, MultipartFile image) {
         log.info("Service: Creating new brand: {} with image: {}", request.getName(), image != null);
 
@@ -122,6 +135,10 @@ public class BrandServiceImpl implements BrandService {
      * Cập nhật brand
      */
     @Override
+        @Caching(evict = {
+            @CacheEvict(allEntries = true),
+            @CacheEvict(cacheNames = CacheNames.PRODUCTS, allEntries = true)
+        })
     public BrandResponse updateBrand(int id, BrandRequest request, MultipartFile image) {
         log.info("Service: Updating brand id {}: {} with new image: {}", id, request.getName(), image != null);
 
@@ -167,6 +184,10 @@ public class BrandServiceImpl implements BrandService {
      * Xóa brand - Kiểm tra xem brand có sản phẩm ACTIVE hay không
      */
     @Override
+        @Caching(evict = {
+            @CacheEvict(allEntries = true),
+            @CacheEvict(cacheNames = CacheNames.PRODUCTS, allEntries = true)
+        })
     public void deleteBrand(int id) {
         log.info("Service: Attempting to delete brand id: {}", id);
 

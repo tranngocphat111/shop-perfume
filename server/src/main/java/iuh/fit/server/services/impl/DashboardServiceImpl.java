@@ -21,6 +21,10 @@ public class DashboardServiceImpl implements DashboardService {
     private final BrandRepository brandRepository;
 
     @Override
+    public DashboardStatsResponse getDashboardStats() {
+        return getDashboardStats(null, null);
+    }
+
     public DashboardStatsResponse getDashboardStats(String period, Integer year) {
         log.info("Fetching dashboard statistics for period {} and year {}", period, year);
         
@@ -118,7 +122,6 @@ public class DashboardServiceImpl implements DashboardService {
                 .build();
     }
 
-    @Override
     public java.util.List<iuh.fit.server.dto.response.TopProductResponse> getTopProducts(int limit) {
         log.info("Fetching top {} products", limit);
         
@@ -151,7 +154,6 @@ public class DashboardServiceImpl implements DashboardService {
         }).collect(java.util.stream.Collectors.toList());
     }
 
-    @Override
     public java.util.List<iuh.fit.server.dto.response.RecentOrderResponse> getRecentOrders(int limit) {
         log.info("Fetching recent {} orders", limit);
         
@@ -179,7 +181,6 @@ public class DashboardServiceImpl implements DashboardService {
         }).collect(java.util.stream.Collectors.toList());
     }
 
-    @Override
     public java.util.List<iuh.fit.server.dto.response.LowStockProductResponse> getLowStockProducts() {
         log.info("Fetching low stock products");
         
@@ -208,6 +209,10 @@ public class DashboardServiceImpl implements DashboardService {
     }
 
     @Override
+    public iuh.fit.server.dto.response.CategoryDistributionResponse getCategoryDistribution() {
+        return getCategoryDistribution(null, null);
+    }
+
     public iuh.fit.server.dto.response.CategoryDistributionResponse getCategoryDistribution(String period, Integer year) {
         log.info("Fetching category distribution for period {} and year {}", period, year);
         
@@ -250,6 +255,10 @@ public class DashboardServiceImpl implements DashboardService {
     }
 
     @Override
+    public java.util.List<iuh.fit.server.dto.response.TopBrandResponse> getTopBrands(int limit) {
+        return getTopBrands(limit, null, null);
+    }
+
     public java.util.List<iuh.fit.server.dto.response.TopBrandResponse> getTopBrands(int limit, String period, Integer year) {
         log.info("Fetching top {} brands for period {} and year {}", limit, period, year);
         

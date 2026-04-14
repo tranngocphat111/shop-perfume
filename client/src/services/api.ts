@@ -11,7 +11,7 @@ const getApiBaseUrl = (): string => {
   }
 
   // Development & Local: call deployed backend directly
-  return "http://13.251.125.90:8080/api";
+  return "http://13.251.42.108:8080/api";
 };
 
 const API_BASE_URL = getApiBaseUrl();

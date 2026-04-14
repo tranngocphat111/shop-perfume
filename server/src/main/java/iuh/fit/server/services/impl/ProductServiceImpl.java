@@ -19,6 +19,9 @@ import iuh.fit.server.services.CloudinaryService;
 import iuh.fit.server.services.ProductService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheConfig;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -29,12 +32,15 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import iuh.fit.server.config.CacheNames;
+
 /**
  * Implementation của ProductService
  */
 @Service
 @RequiredArgsConstructor
 @Slf4j
+@CacheConfig(cacheNames = CacheNames.PRODUCTS)
 @Transactional
 public class ProductServiceImpl implements ProductService {
 
@@ -49,6 +55,7 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     @Transactional(readOnly = true)
+    @Cacheable(key = "'all'")
     public List<ProductResponse> findAll() {
         log.info("Finding all products");
         List<Product> products = productRepository.findAll();
@@ -67,6 +74,7 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     @Transactional(readOnly = true)
+    @Cacheable(key = "'search:' + (#searchTerm == null ? '' : #searchTerm.trim().toLowerCase()) + ':page:' + #pageable.pageNumber + ':size:' + #pageable.pageSize + ':sort:' + #pageable.sort.toString()")
     public Page<ProductResponse> searchProducts(String searchTerm, Pageable pageable) {
         log.info("Searching products with term '{}' and pagination: {}", searchTerm, pageable);
         Page<Product> products = productRepository.searchProducts(searchTerm, pageable);
@@ -75,6 +83,7 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     @Transactional(readOnly = true)
+    @Cacheable(key = "'id:' + #productId")
     public ProductResponse findById(int productId) {
         log.info("Finding product by id: {}", productId);
         Product product = productRepository.findById(productId)
@@ -83,6 +92,7 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
+    @CacheEvict(allEntries = true)
     public ProductResponse create(ProductRequest request) {
         log.info("Creating new product: {}", request);
 
@@ -115,6 +125,7 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
+    @CacheEvict(allEntries = true)
     public ProductResponse createWithImages(ProductRequest request, List<MultipartFile> images, int primaryImageIndex) {
         log.info("Creating new product with {} images", images.size());
 
@@ -174,6 +185,7 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
+    @CacheEvict(allEntries = true)
     public ProductResponse update(int productId, ProductRequest request) {
         log.info("Updating product id {}: {}", productId, request);
 
@@ -210,6 +222,7 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
+    @CacheEvict(allEntries = true)
     public ProductResponse updateWithImages(int productId, ProductRequest request, List<MultipartFile> newImages,
             List<Integer> imagesToDelete, Integer primaryImageId) {
         log.info("Updating product {} with images management", productId);
@@ -334,6 +347,7 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
+    @CacheEvict(allEntries = true)
     public void delete(int productId) {
         log.info("Soft deleting product (setting status to INACTIVE): {}", productId);
 
@@ -352,6 +366,7 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     @Transactional(readOnly = true)
+    @Cacheable(key = "'best:' + #limit")
     public List<ProductResponse> findBestSellers(int limit) {
         log.info("Finding best selling products with limit: {}", limit);
 
@@ -396,6 +411,7 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     @Transactional(readOnly = true)
+    @Cacheable(key = "'filter:' + (#brandId == null ? 'all' : #brandId) + ':' + (#categoryId == null ? 'all' : #categoryId) + ':' + (#status == null ? 'all' : #status.trim().toUpperCase()) + ':' + (#searchTerm == null ? '' : #searchTerm.trim().toLowerCase()) + ':page:' + #pageable.pageNumber + ':size:' + #pageable.pageSize + ':sort:' + #pageable.sort.toString()")
     public Page<ProductResponse> filterProducts(Integer brandId, Integer categoryId, String status, String searchTerm,
             Pageable pageable) {
         log.info("Filtering products with brandId: {}, categoryId: {}, status: '{}', searchTerm: '{}', pageable: {}",
@@ -419,6 +435,7 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     @Transactional(readOnly = true)
+    @Cacheable(key = "'brand:' + #brandId")
     public List<ProductResponse> findByBrandId(int brandId) {
         log.info("Finding products by brandId: {}", brandId);
         List<Product> products = productRepository.findByBrandBrandId(brandId);
@@ -429,6 +446,7 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     @Transactional(readOnly = true)
+    @Cacheable(key = "'category:' + #categoryId")
     public List<ProductResponse> findByCategoryId(int categoryId) {
         log.info("Finding products by categoryId: {}", categoryId);
         List<Product> products = productRepository.findByCategoryCategoryId(categoryId);
@@ -438,6 +456,7 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
+    @Cacheable(key = "'total-size'")
     public Long getTotalSize() {
         Long totalSize = productRepository.count();
         log.info("Get total size: {}", totalSize);
@@ -446,6 +465,7 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     @Transactional(readOnly = true)
+    @Cacheable(key = "'summary:' + (#status == null ? 'ALL' : #status.trim().toUpperCase())")
     public List<ProductSummaryResponse> getProductSummaries(String status) {
         log.info("Getting product summaries with status: {}", status);
 
