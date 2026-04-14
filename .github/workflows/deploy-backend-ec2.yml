@@ -50,45 +50,42 @@ jobs:
             fi
             
             # Tạo service file mới với environment variables
-            sed 's/^ *//' << 'SERVICE_EOF' | sudo tee /etc/systemd/system/shop-perfume-backend.service > /dev/null
-            [Unit]
-            Description=Shop Perfume Backend Service
-            After=network.target
+            sudo tee /etc/systemd/system/shop-perfume-backend.service > /dev/null << 'SERVICE_EOF'
+          [Unit]
+          Description=Shop Perfume Backend Service
+          After=network.target
 
-            [Service]
-            Type=simple
-            User=${{ secrets.EC2_USER }}
-            WorkingDirectory=/home/${{ secrets.EC2_USER }}/app
-            ExecStart=/usr/bin/java -jar /home/${{ secrets.EC2_USER }}/app/backend.jar
-            Restart=always
-            RestartSec=10
-            Environment="SPRING_PROFILES_ACTIVE=prod"
-            Environment="DATABASE_URL=${{ secrets.DATABASE_URL }}"
-            Environment="DATABASE_USERNAME=${{ secrets.DATABASE_USERNAME }}"
-            Environment="DATABASE_PASSWORD=${{ secrets.DATABASE_PASSWORD }}"
-            Environment="JWT_SECRET=${{ secrets.JWT_SECRET }}"
-            Environment="GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}"
-            Environment="GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}"
-            Environment="CLOUDINARY_CLOUD_NAME=${{ secrets.CLOUDINARY_CLOUD_NAME }}"
-            Environment="CLOUDINARY_API_KEY=${{ secrets.CLOUDINARY_API_KEY }}"
-            Environment="CLOUDINARY_API_SECRET=${{ secrets.CLOUDINARY_API_SECRET }}"
-            Environment="CORS_ALLOWED_ORIGINS=${{ secrets.CORS_ALLOWED_ORIGINS }}"
-            Environment="FRONTEND_URL=${{ secrets.FRONTEND_URL }}"
-            Environment="DB_POOL_MAX_SIZE=${{ secrets.DB_POOL_MAX_SIZE }}"
-            Environment="DB_POOL_MIN_IDLE=${{ secrets.DB_POOL_MIN_IDLE }}"
-            Environment="DB_CONNECTION_TIMEOUT=${{ secrets.DB_CONNECTION_TIMEOUT }}"
-            Environment="MAIL_HOST=${{ secrets.MAIL_HOST }}"
-            Environment="MAIL_PORT=${{ secrets.MAIL_PORT }}"
-            Environment="MAIL_USERNAME=${{ secrets.MAIL_USERNAME }}"
-            Environment="MAIL_PASSWORD=${{ secrets.MAIL_PASSWORD }}"
-            Environment="MAIL_FROM=${{ secrets.MAIL_FROM }}"
-            Environment="REDIS_HOST=${{ secrets.REDIS_HOST }}"
-            Environment="REDIS_PORT=${{ secrets.REDIS_PORT }}"
+          [Service]
+          Type=simple
+          User=${{ secrets.EC2_USER }}
+          WorkingDirectory=/home/${{ secrets.EC2_USER }}/app
+          ExecStart=/usr/bin/java -jar /home/${{ secrets.EC2_USER }}/app/backend.jar
+          Restart=always
+          RestartSec=10
+          Environment="SPRING_PROFILES_ACTIVE=prod"
+          Environment="DATABASE_URL=${{ secrets.DATABASE_URL }}"
+          Environment="DATABASE_USERNAME=${{ secrets.DATABASE_USERNAME }}"
+          Environment="DATABASE_PASSWORD=${{ secrets.DATABASE_PASSWORD }}"
+          Environment="JWT_SECRET=${{ secrets.JWT_SECRET }}"
+          Environment="GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}"
+          Environment="GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}"
+          Environment="CLOUDINARY_CLOUD_NAME=${{ secrets.CLOUDINARY_CLOUD_NAME }}"
+          Environment="CLOUDINARY_API_KEY=${{ secrets.CLOUDINARY_API_KEY }}"
+          Environment="CLOUDINARY_API_SECRET=${{ secrets.CLOUDINARY_API_SECRET }}"
+          Environment="CORS_ALLOWED_ORIGINS=${{ secrets.CORS_ALLOWED_ORIGINS }}"
+          Environment="FRONTEND_URL=${{ secrets.FRONTEND_URL }}"
+          Environment="DB_CONNECTION_TIMEOUT=${{ secrets.DB_CONNECTION_TIMEOUT }}"
+          Environment="MAIL_HOST=${{ secrets.MAIL_HOST }}"
+          Environment="MAIL_PORT=${{ secrets.MAIL_PORT }}"
+          Environment="MAIL_USERNAME=${{ secrets.MAIL_USERNAME }}"
+          Environment="MAIL_PASSWORD=${{ secrets.MAIL_PASSWORD }}"
+          Environment="MAIL_FROM=${{ secrets.MAIL_FROM }}"
+          Environment="REDIS_HOST=${{ secrets.REDIS_HOST }}"
+          Environment="REDIS_PORT=${{ secrets.REDIS_PORT }}"
 
-
-            [Install]
-            WantedBy=multi-user.target
-                        SERVICE_EOF
+          [Install]
+          WantedBy=multi-user.target
+          SERVICE_EOF
             
             # Reload systemd để nhận cấu hình mới
             sudo systemctl daemon-reload
