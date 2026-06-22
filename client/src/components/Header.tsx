@@ -250,6 +250,7 @@ export const Header = () => {
             showUserMenu={showUserMenu}
             setShowUserMenu={setShowUserMenu}
             isScrolled={isScrolled}
+            isCompact={isCompact}
           />
         </div>
       </div>

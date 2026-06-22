@@ -28,6 +28,7 @@ export const BrandsDropdown = ({
   onMouseEnter,
   onMouseLeave,
   isScrolled,
+  isCompact,
 }: BrandsDropdownProps) => {
   const [selectedLetter, setSelectedLetter] = useState<string | null>(null);
   const navigate = useNavigate();
@@ -73,7 +74,9 @@ export const BrandsDropdown = ({
           }
           // Otherwise, let Link handle navigation normally
         }}
-        className={`transition-all font-normal duration-300 text-sm md:text-base ${textColor} ${hoverTextColor} flex items-center gap-1`}
+        className={`transition-all font-normal duration-300 ${
+          isCompact ? "text-sm" : "text-base"
+        } ${textColor} ${hoverTextColor} flex items-center gap-1`}
       >
         Thương hiệu
         <svg

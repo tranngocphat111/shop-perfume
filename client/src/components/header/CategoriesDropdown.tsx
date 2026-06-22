@@ -17,6 +17,7 @@ export const CategoriesDropdown = ({
   onMouseEnter,
   onMouseLeave,
   isScrolled,
+  isCompact,
 }: CategoriesDropdownProps) => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -57,7 +58,9 @@ export const CategoriesDropdown = ({
           }
           // Otherwise, let Link handle navigation normally
         }}
-        className={`transition-all font-normal duration-300 text-sm md:text-base ${textColor} ${hoverTextColor} flex items-center gap-1`}>
+        className={`transition-all font-normal duration-300 ${
+          isCompact ? "text-sm" : "text-base"
+        } ${textColor} ${hoverTextColor} flex items-center gap-1`}>
         Danh mục
         <svg
           className="w-4 h-4"

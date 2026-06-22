@@ -18,6 +18,7 @@ interface HeaderActionsProps {
   showUserMenu: boolean;
   setShowUserMenu: (value: boolean) => void;
   isScrolled: boolean;
+  isCompact?: boolean;
 }
 
 export const HeaderActions = ({
@@ -32,6 +33,7 @@ export const HeaderActions = ({
   showUserMenu,
   setShowUserMenu,
   isScrolled,
+  isCompact = false,
 }: HeaderActionsProps) => {
   const { getCartCount } = useCart();
   const cartCount = getCartCount();
@@ -160,7 +162,9 @@ export const HeaderActions = ({
       {/* Tra cứu đơn hàng Button */ }
   <Link
     to="/my-orders"
-    className={`overflow-hidden btn-slide-overlay-dark hover:text-white relative px-4 py-2 rounded-full font-normal text-sm transition-all duration-300 ${isScrolled
+    className={`overflow-hidden btn-slide-overlay-dark hover:text-white relative rounded-full font-normal transition-all duration-300 ${
+      isCompact ? "px-3.5 py-1.5 text-xs" : "px-4 py-2 text-sm"
+    } ${isScrolled
       ? "bg-black text-white hover:bg-gray-800"
       : " bg-white text-gray-900 hover:bg-gray-100"
       }`}
