@@ -1,5 +1,14 @@
-const API_BASE_URL = "http://13.251.125.90:8080/api";
-// const API_BASE_URL = "http://localhost:8080/api";
+const getApiBaseUrl = (): string => {
+  if (
+    typeof window !== "undefined" &&
+    window.location.hostname.includes("vercel.app")
+  ) {
+    return "/api";
+  }
+  return "https://piinnhs-shop-perfume-api.hf.space/api";
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 export interface TokenRefreshResponse {
   accessToken: string;

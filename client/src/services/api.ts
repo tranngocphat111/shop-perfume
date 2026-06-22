@@ -11,11 +11,10 @@ const getApiBaseUrl = (): string => {
   }
 
   // Development & Local: call deployed backend directly
-  return "http://18.141.211.98:8080/api";
+  return "https://piinnhs-shop-perfume-api.hf.space/api";
 };
 
 const API_BASE_URL = getApiBaseUrl();
-// const API_BASE_URL = "http://localhost:8080/api";
 
 console.log(
   "🌐 API Base URL:",

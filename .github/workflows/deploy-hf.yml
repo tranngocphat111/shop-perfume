@@ -1,0 +1,46 @@
+name: Deploy Backend to Hugging Face Spaces
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "server/**"
+  workflow_dispatch:
+
+jobs:
+  deploy-to-hf:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Push to Hugging Face Space
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          # Configure Git
+          git config --global user.email "actions@github.com"
+          git config --global user.name "GitHub Actions"
+          
+          # Clone the HF Space repository to a temporary directory
+          git clone https://piinnhs:$HF_TOKEN@huggingface.co/spaces/piinnhs/shop-perfume-api hf_space
+          
+          # Clean hf_space directory except for .git and README.md
+          find hf_space -maxdepth 1 ! -name 'hf_space' ! -name '.git' ! -name 'README.md' -exec rm -rf {} +
+          
+          # Copy server contents to hf_space root directory
+          cp -r server/* hf_space/
+          cp server/.gitignore hf_space/ || true
+          
+          # Navigate into hf_space and commit changes
+          cd hf_space
+          git add -A
+          if git diff-index --quiet HEAD --; then
+            echo "No changes to deploy."
+          else
+            git commit -m "Deploy from GitHub Actions: ${{ github.sha }}"
+            git push -f origin main
+          fi
