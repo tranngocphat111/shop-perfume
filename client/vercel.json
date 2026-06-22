@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://piinnhs-shop-perfume-api.hf.space/api/:path*"
+      "destination": "http://139.59.112.104:8085/api/:path*"
     },
     {
       "source": "/(.*)",

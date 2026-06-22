@@ -11,7 +11,7 @@ const getApiBaseUrl = (): string => {
   }
 
   // Development & Local: call deployed backend directly
-  return "https://piinnhs-shop-perfume-api.hf.space/api";
+  return "http://139.59.112.104:8085/api";
 };
 
 const API_BASE_URL = getApiBaseUrl();

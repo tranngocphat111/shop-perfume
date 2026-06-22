@@ -8,7 +8,7 @@ COPY src ./src
 RUN mvn package -DskipTests
 
 # Stage 2: Run the application
-FROM openjdk:17-jdk-slim
+FROM eclipse-temurin:17-jre-jammy
 # Create a non-root user (UID 1000) as required by Hugging Face
 RUN useradd -m -u 1000 user
 USER user
